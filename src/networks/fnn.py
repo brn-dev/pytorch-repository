@@ -3,6 +3,7 @@ from typing import Callable
 
 import torch.nn as nn
 
+from .nn_base import NNBase
 from ..hyper_parameters import HyperParameters
 
 @dataclass
@@ -12,15 +13,13 @@ class FNNHyperParameters(HyperParameters):
     output_size: int
     activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
     layer_initialization: Callable[[nn.Linear], None] = lambda l: None
-    activate_last_layer=False
+    activate_last_layer: bool = False
 
 
-# TODO: Is this the best way to handle hyper parameters?
-class FNN(nn.Module):
+class FNN(NNBase):
 
     def __init__(
             self,
-            *,
             input_size: int,
             hidden_sizes: list[int],
             output_size: int,
@@ -38,7 +37,7 @@ class FNN(nn.Module):
             layer_initialization(linear)
             layers.append(linear)
 
-            if i < len(layers_sizes) - 2 + int(activate_last_layer):
+            if i < len(layers_sizes) - 2 or activate_last_layer:
                 layers.append(activation_provider())
 
         self.fnn = nn.Sequential(*layers)
