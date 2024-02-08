@@ -11,6 +11,7 @@ class SelfNormalizingFNNHyperParameters(HyperParameters):
     input_size: int
     hidden_sizes: list[int]
     output_size: int
+
     activate_last_layer: bool = False
 
 
@@ -28,8 +29,10 @@ class SelfNormalizingFNN(FNN):
             hidden_sizes,
             output_size,
             activation_provider=lambda: nn.SELU(),
+            activate_last_layer=activate_last_layer,
+            normalization_location=None,
+            dropout=0.0,
             layer_initialization=self.lecun_initialization,
-            activate_last_layer=activate_last_layer
         )
 
     def forward(self, x):

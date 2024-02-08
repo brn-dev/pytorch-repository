@@ -9,7 +9,7 @@ from .nn_base import NNBase
 from ..hyper_parameters import HyperParameters
 
 IntOr2iTuple = Union[int, tuple[int, int]]
-NormalizationLocation = Literal['pre-dropout', 'post-dropout', 'pre-activation', 'post-activation', None]
+NormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
 
 
 @dataclass
@@ -28,10 +28,12 @@ class ConvHyperParameters(HyperParameters):
 class CNNHyperParameters(HyperParameters):
     in_channels: int
     layers_hyper_parameters: list[ConvHyperParameters]
+    activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
+    activate_last_layer: bool = False
     normalization_location: Literal[
         'pre-dropout', 'post-dropout', 'pre-activation', 'post-activation', None] = 'pre-activation'
-    activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
     dropout: float = 0.0
+    dropout_last_layer: bool = False
 
 
 # TODO: pooling
@@ -42,38 +44,40 @@ class CNN(NNBase, abc.ABC):
             self,
             in_channels: int,
             layers_hyper_parameters: list[ConvHyperParameters],
-            normalization_location: NormalizationLocation = 'pre-activation',
             activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU(),
+            activate_last_layer: bool = False,
+            normalization_location: NormalizationLocation = 'pre-activation',
             dropout: float = 0.0,
+            dropout_last_layer: bool = False,
     ):
         super().__init__()
         layers: list[nn.Module] = []
 
         in_channels = in_channels
 
-        print(layers_hyper_parameters)
-        for layer_hyper_parameters in layers_hyper_parameters:
-            print(layer_hyper_parameters)
+        for i, layer_hyper_parameters in enumerate(layers_hyper_parameters):
+            is_last_layer = i == len(layers_hyper_parameters) - 1
             out_channels = layer_hyper_parameters.out_channels
 
-            if normalization_location == 'pre-dropout':
-                layers.append(self._create_batch_norm(in_channels))
-
-            if dropout > 0.0:
-                layers.append(nn.Dropout(dropout))
-
-            if normalization_location == 'post-dropout':
+            if normalization_location == 'pre-layer':
                 layers.append(self._create_batch_norm(in_channels))
 
             layers.append(self._create_conv(in_channels, layer_hyper_parameters))
 
             if normalization_location == 'pre-activation':
-                layers.append(self._create_batch_norm(in_channels))
+                layers.append(self._create_batch_norm(out_channels))
 
-            layers.append(activation_provider())
+            if not is_last_layer or activate_last_layer:
+                layers.append(activation_provider())
 
             if normalization_location == 'post-activation':
-                layers.append(self._create_batch_norm(in_channels))
+                layers.append(self._create_batch_norm(out_channels))
+
+            if dropout > 0 and (not is_last_layer or dropout_last_layer):
+                layers.append(nn.Dropout(dropout))
+
+            if normalization_location == 'post-dropout':
+                layers.append(self._create_batch_norm(out_channels))
 
             in_channels = out_channels
 
@@ -99,7 +103,9 @@ class CNN(NNBase, abc.ABC):
         return cls(
             in_channels=hyper_parameters.in_channels,
             layers_hyper_parameters=hyper_parameters.layers_hyper_parameters,
-            normalization_location=hyper_parameters.normalization_location,
             activation_provider=hyper_parameters.activation_provider,
+            activate_last_layer=hyper_parameters.activate_last_layer,
+            normalization_location=hyper_parameters.normalization_location,
             dropout=hyper_parameters.dropout,
+            dropout_last_layer=hyper_parameters.dropout_last_layer,
         )
