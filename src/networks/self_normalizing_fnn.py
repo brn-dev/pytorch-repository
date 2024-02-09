@@ -31,7 +31,7 @@ class SelfNormalizingFNN(FNN):
             activation_provider=lambda: nn.SELU(),
             activate_last_layer=activate_last_layer,
             normalization_location=None,
-            dropout=0.0,
+            dropout_p=0.0,
             layer_initialization=self.lecun_initialization,
         )
 

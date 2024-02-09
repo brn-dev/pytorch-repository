@@ -20,7 +20,7 @@ class FNNHyperParameters(HyperParameters):
     normalization_location: NormalizationLocation = None
     normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features)
 
-    dropout: float = 0.0
+    dropout_p: float = 0.0
     dropout_last_layer: bool = False
 
     layer_initialization: Callable[[nn.Linear], None] = lambda l: None
@@ -37,7 +37,7 @@ class FNN(NNBase):
             activate_last_layer: bool = False,
             normalization_location: NormalizationLocation = None,
             normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features),
-            dropout: float = 0.0,
+            dropout_p: float = 0.0,
             dropout_last_layer: bool = False,
             layer_initialization: Callable[[nn.Linear], None] = lambda l: None,
     ):
@@ -67,8 +67,8 @@ class FNN(NNBase):
             if normalization_location == 'post-activation':
                 layers.append(normalization_provider(layer_out_size))
 
-            if dropout > 0 and (not is_last_layer or dropout_last_layer):
-                layers.append(nn.Dropout(dropout))
+            if dropout_p > 0 and (not is_last_layer or dropout_last_layer):
+                layers.append(nn.Dropout(dropout_p))
 
             if normalization_location == 'post-dropout':
                 layers.append(normalization_provider(layer_out_size))
