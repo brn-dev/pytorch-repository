@@ -5,8 +5,7 @@ from typing import Union, Callable, Literal
 import torch
 from torch import nn
 
-from .nn_base import NNBase
-from ..hyper_parameters import HyperParameters
+from .nn_base import NNBase, HyperParameters
 
 IntOr2iTuple = Union[int, tuple[int, int]]
 NormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]

@@ -3,8 +3,7 @@ from typing import Callable, Literal
 
 import torch.nn as nn
 
-from .nn_base import NNBase
-from ..hyper_parameters import HyperParameters
+from .nn_base import NNBase, HyperParameters
 
 NormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
 

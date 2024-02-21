@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 import torch.nn as nn
 
-from .fnn import FNN
-from ..hyper_parameters import HyperParameters
+from .fnn import FNN, HyperParameters
 
 
 @dataclass
