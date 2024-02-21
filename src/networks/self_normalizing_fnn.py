@@ -13,6 +13,7 @@ class SelfNormalizingFNNHyperParameters(HyperParameters):
     output_size: int
 
     activate_last_layer: bool = False
+    normalize_input: bool = True
 
 
 class SelfNormalizingFNN(FNN):
@@ -23,6 +24,7 @@ class SelfNormalizingFNN(FNN):
             hidden_sizes: list[int],
             output_size: int,
             activate_last_layer=False,
+            normalize_input=True
     ):
         super().__init__(
             input_size,
@@ -34,6 +36,9 @@ class SelfNormalizingFNN(FNN):
             dropout_p=0.0,
             layer_initialization=self.lecun_initialization,
         )
+
+        if normalize_input:
+            self.fnn.insert(0, nn.LayerNorm(input_size))
 
     def forward(self, x):
         x = self.fnn.forward(x)
