@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from .nn_base import NNBase, HyperParameters
 
-NormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
+FnnNormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
 
 @dataclass
 class FNNHyperParameters(HyperParameters):
@@ -16,7 +16,7 @@ class FNNHyperParameters(HyperParameters):
     activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
     activate_last_layer: bool = False
 
-    normalization_location: NormalizationLocation = None
+    normalization_location: FnnNormalizationLocation = None
     normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features)
 
     dropout_p: float = 0.0
@@ -34,7 +34,7 @@ class FNN(NNBase):
             output_size: int,
             activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU(),
             activate_last_layer: bool = False,
-            normalization_location: NormalizationLocation = None,
+            normalization_location: FnnNormalizationLocation = None,
             normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features),
             dropout_p: float = 0.0,
             dropout_last_layer: bool = False,

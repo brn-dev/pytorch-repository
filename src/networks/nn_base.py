@@ -3,7 +3,6 @@ from typing import TypeVar
 
 from torch import nn
 
-
 @dataclass(init=True)
 class HyperParameters:
 
