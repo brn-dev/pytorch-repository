@@ -47,7 +47,7 @@ class SelfNormalizingFNN(FNN):
             self.fnn.insert(0, nn.LayerNorm(input_size))
 
     def forward(self, x):
-        x = self.fnn.forward(x)
+        x = self.fnn(x)
         return x
 
     @staticmethod

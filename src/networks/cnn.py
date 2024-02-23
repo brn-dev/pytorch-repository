@@ -85,7 +85,7 @@ class CNN(NNBase, abc.ABC):
     def forward(self, x: torch.Tensor):
         # n_sequences, sequence_length, in_features = x.shape
 
-        return self.layers.forward(x)
+        return self.layers(x)
 
     @staticmethod
     @abc.abstractmethod

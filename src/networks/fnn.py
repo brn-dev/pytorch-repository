@@ -75,5 +75,5 @@ class FNN(NNBase):
         self.fnn = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.fnn.forward(x)
+        x = self.fnn(x)
         return x
