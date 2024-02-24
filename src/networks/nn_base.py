@@ -22,19 +22,17 @@ class HyperParameters:
         return asdict(self)
 
     def serialize(self):
-        serialized_hyper_parameters = json.dumps(self.to_dict(), default=HyperParameters._serialize_callable)
+        def serialize_callable(obj):
+            if callable(obj):
+                source = inspect.getsource(obj).strip()
+                if 'lambda' in source:
+                    source = 'lambda' + source.split('lambda')[-1]
+                if source.endswith(','):
+                    source = source[:-1]
+                return source
+            raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+        serialized_hyper_parameters = json.dumps(self.to_dict(), default=serialize_callable)
         return serialized_hyper_parameters
-
-    @staticmethod
-    def _serialize_callable(obj):
-        if callable(obj):
-            source = inspect.getsource(obj).strip()
-            if 'lambda' in source:
-                source = 'lambda' + source.split('lambda')[-1]
-            if source.endswith(','):
-                source = source[:-1]
-            return source
-        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
 HP = TypeVar('HP', bound=HyperParameters)
