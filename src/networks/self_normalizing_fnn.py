@@ -8,7 +8,7 @@ from .fnn import FNN, FNNHyperParameters, FnnNormalizationLocation
 
 @dataclass
 class SelfNormalizingFNNHyperParameters(FNNHyperParameters):
-    normalize_input: bool = True
+    normalize_input: bool = False
 
     activation_provider: Callable[[], nn.Module] = lambda: nn.SELU()
     activate_last_layer: bool = False
@@ -30,7 +30,7 @@ class SelfNormalizingFNN(FNN):
             hidden_sizes: list[int],
             output_size: int,
             activate_last_layer=False,
-            normalize_input=True
+            normalize_input=False,
     ):
         super().__init__(
             input_size,
