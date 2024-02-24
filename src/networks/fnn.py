@@ -1,31 +1,10 @@
-from dataclasses import dataclass
 from typing import Callable, Literal
 
 import torch.nn as nn
 
-from .nn_base import NNBase, HyperParameters
+from .nn_base import NNBase
 
 FnnNormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
-
-@dataclass
-class FNNHyperParameters(HyperParameters):
-    input_size: int
-    hidden_sizes: list[int]
-    output_size: int
-
-    activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
-    activate_last_layer: bool = False
-
-    input_normalization_provider: Callable[[int], nn.Module] = None
-    layer_normalization_location: FnnNormalizationLocation = None
-    layer_normalization_provider: Callable[[int], nn.Module] = None
-    output_normalization_provider: Callable[[int], nn.Module] = None
-
-    dropout_p: float = None
-    dropout_last_layer: bool = False
-
-    layer_initialization: Callable[[nn.Linear], None] = lambda l: None
-
 
 class FNN(NNBase):
 

@@ -5,14 +5,14 @@ from typing import Union, Callable, Literal
 import torch
 from torch import nn
 
-from .nn_base import NNBase, HyperParameters
+from .nn_base import NNBase
 
 IntOr2iTuple = Union[int, tuple[int, int]]
 NormalizationLocation = Literal['pre-layer', 'pre-activation', 'post-activation', 'post-dropout', None]
 
 
 @dataclass
-class ConvHyperParameters(HyperParameters):
+class ConvHyperParameters:
     out_channels: int
     kernel_size: IntOr2iTuple
     stride: IntOr2iTuple
@@ -21,18 +21,6 @@ class ConvHyperParameters(HyperParameters):
     bias: bool
     padding: Union[str, IntOr2iTuple]
     padding_mode: str = 'zeros'
-
-
-@dataclass
-class CNNHyperParameters(HyperParameters):
-    in_channels: int
-    layers_hyper_parameters: list[ConvHyperParameters]
-    activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
-    activate_last_layer: bool = False
-    normalization_location: Literal[
-        'pre-dropout', 'post-dropout', 'pre-activation', 'post-activation', None] = 'pre-activation'
-    dropout_p: float = None
-    dropout_last_layer: bool = False
 
 
 # TODO: pooling
