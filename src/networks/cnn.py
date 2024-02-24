@@ -31,7 +31,7 @@ class CNNHyperParameters(HyperParameters):
     activate_last_layer: bool = False
     normalization_location: Literal[
         'pre-dropout', 'post-dropout', 'pre-activation', 'post-activation', None] = 'pre-activation'
-    dropout_p: float = 0.0
+    dropout_p: float = None
     dropout_last_layer: bool = False
 
 
@@ -46,7 +46,7 @@ class CNN(NNBase, abc.ABC):
             activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU(),
             activate_last_layer: bool = False,
             normalization_location: NormalizationLocation = 'pre-activation',
-            dropout_p: float = 0.0,
+            dropout_p: float = None,
             dropout_last_layer: bool = False,
     ):
         super().__init__()
@@ -72,7 +72,7 @@ class CNN(NNBase, abc.ABC):
             if normalization_location == 'post-activation':
                 layers.append(self._create_batch_norm(out_channels))
 
-            if dropout_p > 0 and (not is_last_layer or dropout_last_layer):
+            if NNBase.is_dropout_active(dropout_p) and (not is_last_layer or dropout_last_layer):
                 layers.append(nn.Dropout(dropout_p))
 
             if normalization_location == 'post-dropout':
@@ -96,15 +96,3 @@ class CNN(NNBase, abc.ABC):
     @abc.abstractmethod
     def _create_batch_norm(num_features: int) -> nn.Module:
         raise NotImplementedError
-
-    @classmethod
-    def from_hyper_parameters(cls, hyper_parameters: CNNHyperParameters):
-        return cls(
-            in_channels=hyper_parameters.in_channels,
-            layers_hyper_parameters=hyper_parameters.layers_hyper_parameters,
-            activation_provider=hyper_parameters.activation_provider,
-            activate_last_layer=hyper_parameters.activate_last_layer,
-            normalization_location=hyper_parameters.normalization_location,
-            dropout_p=hyper_parameters.dropout_p,
-            dropout_last_layer=hyper_parameters.dropout_last_layer,
-        )

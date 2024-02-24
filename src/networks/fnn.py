@@ -16,10 +16,12 @@ class FNNHyperParameters(HyperParameters):
     activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU()
     activate_last_layer: bool = False
 
-    normalization_location: FnnNormalizationLocation = None
-    normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features)
+    input_normalization_provider: Callable[[int], nn.Module] = None
+    layer_normalization_location: FnnNormalizationLocation = None
+    layer_normalization_provider: Callable[[int], nn.Module] = None
+    output_normalization_provider: Callable[[int], nn.Module] = None
 
-    dropout_p: float = 0.0
+    dropout_p: float = None
     dropout_last_layer: bool = False
 
     layer_initialization: Callable[[nn.Linear], None] = lambda l: None
@@ -34,9 +36,11 @@ class FNN(NNBase):
             output_size: int,
             activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU(),
             activate_last_layer: bool = False,
-            normalization_location: FnnNormalizationLocation = None,
-            normalization_provider: Callable[[int], nn.Module] = lambda num_features: nn.BatchNorm1d(num_features),
-            dropout_p: float = 0.0,
+            input_normalization_provider: Callable[[int], nn.Module] = None,
+            layer_normalization_location: FnnNormalizationLocation = None,
+            layer_normalization_provider: Callable[[int], nn.Module] = None,
+            output_normalization_provider: Callable[[int], nn.Module] = None,
+            dropout_p: float = None,
             dropout_last_layer: bool = False,
             layer_initialization: Callable[[nn.Linear], None] = lambda l: None,
     ):
@@ -50,27 +54,33 @@ class FNN(NNBase):
             layer_out_size = layers_sizes[i + 1]
             is_last_layer = i == len(layers_sizes) - 2
 
-            if normalization_location == 'pre-layer':
-                layers.append(normalization_provider(layer_in_size))
+            if layer_normalization_location == 'pre-layer':
+                layers.append(layer_normalization_provider(layer_in_size))
 
             linear = nn.Linear(layer_in_size, layer_out_size)
             layer_initialization(linear)
             layers.append(linear)
 
-            if normalization_location == 'pre-activation':
-                layers.append(normalization_provider(layer_out_size))
+            if layer_normalization_location == 'pre-activation':
+                layers.append(layer_normalization_provider(layer_out_size))
 
             if not is_last_layer or activate_last_layer:
                 layers.append(activation_provider())
 
-            if normalization_location == 'post-activation':
-                layers.append(normalization_provider(layer_out_size))
+            if layer_normalization_location == 'post-activation':
+                layers.append(layer_normalization_provider(layer_out_size))
 
-            if dropout_p > 0 and (not is_last_layer or dropout_last_layer):
+            if NNBase.is_dropout_active(dropout_p) and (not is_last_layer or dropout_last_layer):
                 layers.append(nn.Dropout(dropout_p))
 
-            if normalization_location == 'post-dropout':
-                layers.append(normalization_provider(layer_out_size))
+            if layer_normalization_location == 'post-dropout':
+                layers.append(layer_normalization_provider(layer_out_size))
+
+        if input_normalization_provider is not None:
+            layers.insert(0, input_normalization_provider(input_size))
+
+        if output_normalization_provider is not None:
+            layers.append(output_normalization_provider(output_size))
 
         self.fnn = nn.Sequential(*layers)
 
