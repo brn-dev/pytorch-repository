@@ -1,9 +1,10 @@
 from typing import Callable
 
+import torch
 from torch import nn
 
 from src.networks.nn_base import NNBase
-from src.networks.weighing import WeighingBase, BasicWeighing
+from src.networks.weighing import WeighingBase
 
 
 class SkipConnection(NNBase):
@@ -12,8 +13,13 @@ class SkipConnection(NNBase):
             self,
             module: nn.Module,
             num_features: int,
-            skip_connection_weight: float | WeighingBase | Callable[[int], WeighingBase] = 1.0,
+
+            skip_connection_weight: float | torch.Tensor | WeighingBase | Callable[[int], WeighingBase] = 1.0,
             skip_connection_weight_affine: bool = False,
+
+            module_out_weight: float | torch.Tensor | WeighingBase | Callable[[int], WeighingBase] = 1.0,
+            module_out_weight_affine: bool = False,
+
             dropout_p: float = 0.0,
             normalization_provider: Callable[[int], nn.Module] = None,
     ):
@@ -21,22 +27,14 @@ class SkipConnection(NNBase):
 
         self.module = module
 
-        if skip_connection_weight is None:
-            self.weigh = BasicWeighing(
-                num_features, initial_value=1.0, affine=skip_connection_weight_affine
-            )
-        elif isinstance(skip_connection_weight, float):
-            self.weigh = BasicWeighing(
-                num_features, initial_value=skip_connection_weight, affine=skip_connection_weight_affine
-            )
-        elif isinstance(skip_connection_weight, WeighingBase):
-            self.weigh = skip_connection_weight
-        elif isinstance(skip_connection_weight, Callable):
-            self.weigh = skip_connection_weight(num_features)
+        self.weigh_skip_connection = \
+            WeighingBase.to_weight(num_features, skip_connection_weight, skip_connection_weight_affine)
+        self.weigh_module_out = \
+            WeighingBase.to_weight(num_features, module_out_weight, module_out_weight_affine)
 
-        self.dropout = nn.Dropout(dropout_p) if dropout_p > 0 else nn.Identity()
-        self.norm = normalization_provider(num_features) if normalization_provider is not None else nn.Identity()
+        self.dropout = NNBase.create_dropout(dropout_p) or nn.Identity()
+        self.norm = NNBase.provide(normalization_provider, num_features) or nn.Identity()
 
 
     def forward(self, x, *args, **kwargs):
-        return self.norm(self.dropout(self.module(x, *args, **kwargs) + self.weigh(x)))
+        return self.norm(self.dropout(self.weigh_module_out(self.module(x, *args, **kwargs)) + self.weigh_skip(x)))

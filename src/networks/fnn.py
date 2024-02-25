@@ -1,9 +1,9 @@
-from typing import Callable, Literal
+from typing import Callable
 
 import torch.nn as nn
 
-from .nn_base import NNBase
 from .init import lecun_initialization
+from .nn_base import NNBase
 
 
 class FNN(NNBase):
@@ -32,7 +32,6 @@ class FNN(NNBase):
         assert component_order.count('L') == 1, 'There has to exactly one Linear module per sublayer'
         assert not normalize_last_layer or normalization_provider_layer is not None, \
             'Provide a normalization when normalize_last_layer == True'
-
 
         components = []
 
@@ -118,6 +117,6 @@ class FNN(NNBase):
             activation_provider=lambda: nn.SELU(),
             activate_last_layer=activate_last_layer,
 
-            normalization_provider_input=None,
-            normalization_provider_output=None,
+            normalization_provider_input=normalization_provider_input,
+            normalization_provider_output=normalization_provider_output,
         )

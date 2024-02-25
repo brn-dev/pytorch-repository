@@ -24,6 +24,7 @@ class ConvHyperParameters:
 
 
 # TODO: pooling
+# TODO: fnn like structure
 class CNN(NNBase, abc.ABC):
     layers: nn.Sequential
 
