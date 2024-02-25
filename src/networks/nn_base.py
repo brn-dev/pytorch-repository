@@ -1,6 +1,8 @@
+import abc
+
 from torch import nn
 
-class NNBase(nn.Module):
+class NNBase(abc.ABC, nn.Module):
 
     @staticmethod
     def is_dropout_active(dropout_p: float | None):
