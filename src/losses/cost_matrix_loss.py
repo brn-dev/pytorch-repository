@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as nnf
 
-from ..torch_device import get_torch_device
+from src.torch_device import get_torch_device
 
 # Inspired by https://github.com/agaldran/cost_sensitive_loss_classification/blob/master/utils/losses.py#L122
 class CostMatrixLoss(nn.Module):

@@ -1,6 +1,6 @@
 from torch import nn
 
-from .cnn import CNN, ConvHyperParameters
+from src.networks.cnn import CNN, ConvHyperParameters
 
 
 class CNN1d(CNN):

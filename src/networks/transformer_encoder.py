@@ -3,10 +3,11 @@ from typing import Callable
 import torch
 from torch import nn
 
-from src.networks.multihead_self_attention import MultiheadSelfAttention
 from src.networks.fnn import FNN
+from src.networks.multihead_self_attention import MultiheadSelfAttention
 from src.networks.nn_base import NNBase
 from src.networks.skip_connection import SkipConnection
+from src.networks.weighing import WeighingTypes, WeighingTrainableChoices
 
 
 class TransformerEncoder(NNBase):
@@ -24,8 +25,8 @@ class TransformerEncoder(NNBase):
                     = lambda num_features: nn.LayerNorm(num_features),
             post_fnn_normalization_provider: Callable[[int], nn.Module]
                     = lambda num_features: nn.LayerNorm(num_features),
-            skip_connection_weight=1.0,
-            skip_connection_weight_affine=False,
+            skip_connection_weight: WeighingTypes = 1.0,
+            skip_connection_weight_trainable: WeighingTrainableChoices = False,
             batch_first=False,
     ):
         super().__init__()
@@ -43,14 +44,14 @@ class TransformerEncoder(NNBase):
                     ),
                     num_features=num_features,
                     skip_connection_weight=skip_connection_weight,
-                    skip_connection_weight_affine=skip_connection_weight_affine,
+                    skip_connection_weight_trainable=skip_connection_weight_trainable,
                     normalization_provider=post_attention_normalization_provider,
                 ),
                 SkipConnection(
                     feedforward_provider(num_features),
                     num_features=num_features,
                     skip_connection_weight=skip_connection_weight,
-                    skip_connection_weight_affine=skip_connection_weight_affine,
+                    skip_connection_weight_trainable=skip_connection_weight_trainable,
                     normalization_provider=post_fnn_normalization_provider,
                 )
             ))
