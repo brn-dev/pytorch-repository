@@ -6,7 +6,7 @@ from torch import nn
 from src.networks.fnn import FNN
 from src.networks.multihead_self_attention import MultiheadSelfAttention
 from src.networks.nn_base import NNBase
-from src.networks.skip_connection import ResConnection
+from src.networks.skip_connection import ResidualSkipConnection
 from src.networks.weighing import WeighingTypes, WeighingTrainableChoices
 
 
@@ -35,7 +35,7 @@ class TransformerEncoder(NNBase):
 
         for i in range(num_layers):
             self.layers.append((
-                ResConnection(
+                ResidualSkipConnection(
                     layer=MultiheadSelfAttention(
                         embed_dim=num_features,
                         num_heads=attention_num_heads,
@@ -47,7 +47,7 @@ class TransformerEncoder(NNBase):
                     skip_connection_weight_trainable=skip_connection_weight_trainable,
                     normalization_provider=post_attention_normalization_provider,
                 ),
-                ResConnection(
+                ResidualSkipConnection(
                     layer=feedforward_provider(num_features),
                     num_features=num_features,
                     skip_connection_weight=skip_connection_weight,
