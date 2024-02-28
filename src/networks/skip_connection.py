@@ -4,8 +4,7 @@ from torch import nn
 from src.networks.nn_base import NNBase
 from src.networks.weighing import WeighingBase, WeighingTypes, WeighingTrainableChoices
 
-
-class AdditiveSkipConnection(NNBase):
+class ResConnection(NNBase):
 
     def __init__(
             self,
@@ -40,7 +39,7 @@ class AdditiveSkipConnection(NNBase):
             self.weigh_layer_out(layer_out) + self.weigh_skip_connection(x)
         ))
 
-class ConcatSkipConnection(NNBase):
+class DenseConnection(NNBase):
 
     def __init__(
             self,

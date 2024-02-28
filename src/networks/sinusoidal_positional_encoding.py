@@ -8,7 +8,6 @@ class SinusoidalPositionalEncoding(nn.Module):
 
     pos_embedding: torch.Tensor
 
-
     def __init__(self, d_model: int, max_len: int):
         super().__init__()
 

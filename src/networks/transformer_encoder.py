@@ -6,7 +6,7 @@ from torch import nn
 from src.networks.fnn import FNN
 from src.networks.multihead_self_attention import MultiheadSelfAttention
 from src.networks.nn_base import NNBase
-from src.networks.skip_connection import SkipConnection
+from src.networks.skip_connection import ResConnection
 from src.networks.weighing import WeighingTypes, WeighingTrainableChoices
 
 
@@ -18,8 +18,8 @@ class TransformerEncoder(NNBase):
             num_features: int,
             attention_num_heads: int,
             attention_dropout=0.0,
-            feedforward_provider: Callable[[int], FNN] = lambda num_features: FNN(
-                input_size=num_features, hidden_sizes=[2048], output_size=num_features
+            feedforward_provider: Callable[[int], nn.Module] = lambda num_features: FNN(
+                in_size=num_features, out_sizes=[2048, num_features]
             ),
             post_attention_normalization_provider: Callable[[int], nn.Module]
                     = lambda num_features: nn.LayerNorm(num_features),
@@ -35,8 +35,8 @@ class TransformerEncoder(NNBase):
 
         for i in range(num_layers):
             self.layers.append((
-                SkipConnection(
-                    module=MultiheadSelfAttention(
+                ResConnection(
+                    layer=MultiheadSelfAttention(
                         embed_dim=num_features,
                         num_heads=attention_num_heads,
                         dropout=attention_dropout,
@@ -47,8 +47,8 @@ class TransformerEncoder(NNBase):
                     skip_connection_weight_trainable=skip_connection_weight_trainable,
                     normalization_provider=post_attention_normalization_provider,
                 ),
-                SkipConnection(
-                    feedforward_provider(num_features),
+                ResConnection(
+                    layer=feedforward_provider(num_features),
                     num_features=num_features,
                     skip_connection_weight=skip_connection_weight,
                     skip_connection_weight_trainable=skip_connection_weight_trainable,

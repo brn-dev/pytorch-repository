@@ -1,60 +1,80 @@
-from typing import Callable
-
 import numpy as np
-from torch import nn
+import torch
 
-from src.networks.fnn import FNN
-from src.networks.skip_connection import ConcatSkipConnection
+from src.networks.forward_net import ForwardNet
+from src.networks.net_connections import NetConnections
 
 
-class DenseNet(FNN):
+class DenseNet(ForwardNet):
+
+    @staticmethod
+    def compute_layers_cum_in_out_sizes(
+            layers_sizes: list[int] = None,
+            in_size: int = None,
+            out_sizes: list[int] = None,
+            num_layers: int = None,
+            num_features: int = None,
+            connections: NetConnections.ConnectionsLike = 'dense',
+    ):
+        layers_in_out_sizes = ForwardNet.to_layers_in_out_sizes(
+            layers_sizes=layers_sizes,
+            in_size=in_size,
+            out_sizes=out_sizes,
+            num_layers=num_layers,
+            num_features=num_features,
+        )
+
+        num_layers = len(layers_in_out_sizes)
+        in_sizes = np.array([in_size for in_size, out_size in layers_in_out_sizes])
+        connections = NetConnections.to_np(connections, num_layers)
+
+        layers_cum_in_out_sizes: list[tuple[int, int]] = []
+        for i in range(num_layers):
+            in_size_sum = in_sizes[connections[connections[:, 1] == i][:, 0]].sum()
+            layers_cum_in_out_sizes.append((in_size_sum, layers_in_out_sizes[i][-1]))
+
+        return layers_cum_in_out_sizes
 
     def __init__(
             self,
-            input_size: int,
-            hidden_sizes: list[int],
-            output_size: int,
-            component_order: str = 'LADN',  # L=Linear, A=Activation, D=Dropout(if>0), N=Normalization(if provided)
-            layer_initialization: Callable[[nn.Linear], None] = lambda l: None,
-            activation_provider: Callable[[], nn.Module] = lambda: nn.LeakyReLU(),
-            activate_last_layer: bool = False,
-            dropout_p: float = None,
-            dropout_last_layer: bool = False,
-            dropout_input: bool = False,
-            dropout_output: bool = False,
-            normalization_provider_layer: Callable[[int], nn.Module] = None,
-            normalize_last_layer=False,
-            normalization_provider_input: Callable[[int], nn.Module] = None,
-            normalization_provider_output: Callable[[int], nn.Module] = None,
+            layer_provider: ForwardNet.LayerProvider,
+            layers_sizes: list[int] = None,
+            in_size: int = None,
+            out_sizes: list[int] = None,
+            num_layers: int = None,
+            num_features: int = None,
+            connections: NetConnections.ConnectionsLike = 'dense',
     ):
         super().__init__(
-            **DenseNet.calculate_accumulated_sizes(input_size, hidden_sizes, output_size),
-            component_order=component_order,
-            layer_initialization=layer_initialization,
-            activation_provider=activation_provider,
-            activate_last_layer=activate_last_layer,
-            dropout_p=dropout_p,
-            dropout_last_layer=dropout_last_layer,
-            dropout_input=dropout_input,
-            dropout_output=dropout_output,
-            normalization_provider_layer=normalization_provider_layer,
-            normalize_last_layer=normalize_last_layer,
-            normalization_provider_input=normalization_provider_input,
-            normalization_provider_output=normalization_provider_output,
+            layer_provider,
+            layers_in_out_sizes=DenseNet.compute_layers_cum_in_out_sizes(
+                layers_sizes=layers_sizes,
+                in_size=in_size,
+                out_sizes=out_sizes,
+                num_layers=num_layers,
+                num_features=num_features,
+                connections=connections
+            )
         )
-        self.fnn = nn.Sequential(*[
-            ConcatSkipConnection(module) if isinstance(module, nn.Sequential) else module
-            for module
-            in self.fnn
-        ])
+        self.connections = NetConnections.to_np(connections, self.num_layers)
 
 
-    @staticmethod
-    def calculate_accumulated_sizes(input_size: int, hidden_sizes: list[int], output_size: int):
-        layers_sizes = [input_size] + hidden_sizes + [output_size]
-        accumulated_sizes = list(np.cumsum(layers_sizes))
-        return {
-            'input_size': input_size,
-            'hidden_sizes': accumulated_sizes[1:-1],
-            'output_size': accumulated_sizes[-1],
-        }
+    def forward(self, x, *args, return_dense=False, return_dense_list=False, **kwargs):
+        layer_out = None
+        dense_tensor_list: list[torch.Tensor] = [x]
+
+        for i, layer in enumerate(self.layers):
+            sources = self.connections[self.connections[:, 1] == i][:, 0]
+            layer_dense_input = torch.cat([
+                dense_source
+                for j, dense_source in enumerate(dense_tensor_list)
+                if j in sources
+            ])
+            layer_out = layer(layer_dense_input)
+            dense_tensor_list.append(layer_out)
+
+        if return_dense:
+            return layer_out, torch.cat(dense_tensor_list)
+        if return_dense_list:
+            return layer_out, dense_tensor_list
+        return layer_out

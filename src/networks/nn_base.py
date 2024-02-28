@@ -6,7 +6,7 @@ from torch import nn
 
 class NNBase(abc.ABC, nn.Module):
 
-    Provider = Callable[..., nn.Module] | nn.Module | None
+    Provider = Callable[..., nn.Module] | None
 
     @staticmethod
     def provide(provider: Provider, *args, _if: bool = True, **kwargs):
