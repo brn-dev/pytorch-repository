@@ -4,12 +4,12 @@ from typing import Callable, SupportsFloat, Literal, Union
 import torch
 from torch import nn
 
-from src.networks.nn_base import NNBase
+from src.networks.net import Net
 
 WeighingTypes = Union[float, list[SupportsFloat], torch.Tensor, "WeighingBase", Callable[[int], "WeighingBase"]]
 WeighingTrainableChoices = Literal['scalar', 'vector', False, None]
 
-class WeighingBase(NNBase, abc.ABC):
+class WeighingBase(Net, abc.ABC):
 
     @abc.abstractmethod
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:

@@ -2,10 +2,10 @@ import numpy as np
 import torch
 
 from src.networks.forward_net import ForwardNet
-from src.networks.net_connections import NetConnections
+from src.networks.net import Net
 
 
-class DenseNet(ForwardNet):
+class DenseSkipNet(ForwardNet):
 
     @staticmethod
     def compute_layers_cum_in_out_sizes(
@@ -14,10 +14,10 @@ class DenseNet(ForwardNet):
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            connections: NetConnections.ConnectionsLike = 'dense',
+            connections: Net.LayerConnections.LayerConnectionsLike = 'dense',
     ):
-        layers_in_out_sizes = ForwardNet.to_layers_in_out_sizes(
-            layers_sizes=layers_sizes,
+        layers_in_out_sizes = ForwardNet.compute_sequential_layer_in_out_sizes(
+            layer_sizes=layers_sizes,
             in_size=in_size,
             out_sizes=out_sizes,
             num_layers=num_layers,
@@ -26,7 +26,7 @@ class DenseNet(ForwardNet):
 
         num_layers = len(layers_in_out_sizes)
         in_sizes = np.array([in_size for in_size, out_size in layers_in_out_sizes])
-        connections = NetConnections.to_np(connections, num_layers)
+        connections = Net.LayerConnections.to_np(connections, num_layers)
 
         layers_cum_in_out_sizes: list[tuple[int, int]] = []
         for i in range(num_layers):
@@ -43,11 +43,11 @@ class DenseNet(ForwardNet):
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            connections: NetConnections.ConnectionsLike = 'dense',
+            connections: Net.LayerConnections.LayerConnectionsLike = 'dense',
     ):
         super().__init__(
             layer_provider,
-            layers_in_out_sizes=DenseNet.compute_layers_cum_in_out_sizes(
+            layers_in_out_sizes=DenseSkipNet.compute_layers_cum_in_out_sizes(
                 layers_sizes=layers_sizes,
                 in_size=in_size,
                 out_sizes=out_sizes,
@@ -56,7 +56,7 @@ class DenseNet(ForwardNet):
                 connections=connections
             )
         )
-        self.connections = NetConnections.to_np(connections, self.num_layers)
+        self.connections = self.LayerConnections.to_np(connections, self.num_layers)
 
 
     def forward(self, x, *args, return_dense=False, return_dense_list=False, **kwargs):

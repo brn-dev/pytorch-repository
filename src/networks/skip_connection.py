@@ -1,10 +1,29 @@
+from typing import Mapping
+
+import numpy as np
 import torch
 from torch import nn
 
-from src.networks.nn_base import NNBase
+from src.networks.net import Net, LayeredNet
 from src.networks.weighing import WeighingBase, WeighingTypes, WeighingTrainableChoices
 
-class ResidualSkipConnection(NNBase):
+class ResidualSkipConnection(LayeredNet):
+
+    @property
+    def layers(self) -> Mapping[int, Net]:
+        pass
+
+    @property
+    def layer_connections(self) -> np.ndarray:
+        return self._connections
+
+    @property
+    def in_features(self) -> int:
+        return self.num_features
+
+    @property
+    def out_features(self) -> int:
+        return self.num_features
 
     def __init__(
             self,
@@ -18,19 +37,20 @@ class ResidualSkipConnection(NNBase):
             skip_connection_weight_trainable: WeighingTrainableChoices = False,
 
             dropout_p: float = 0.0,
-            normalization_provider: NNBase.Provider = None,
+            normalization_provider: Net.Provider = None,
     ):
         super().__init__()
 
         self.layer = layer
+        self.num_features = num_features
 
         self.weigh_skip_connection = \
             WeighingBase.to_weighing(skip_connection_weight, num_features, skip_connection_weight_trainable)
         self.weigh_layer_out = \
             WeighingBase.to_weighing(layer_out_weight, num_features, layer_out_weight_trainable)
 
-        self.dropout = NNBase.provide_dropout(dropout_p) or nn.Identity()
-        self.norm = NNBase.provide(normalization_provider, num_features) or nn.Identity()
+        self.dropout = self.provide_dropout(dropout_p) or nn.Identity()
+        self.norm = self.provide(normalization_provider, num_features) or nn.Identity()
 
 
     def forward(self, x, *args, **kwargs):
@@ -39,7 +59,7 @@ class ResidualSkipConnection(NNBase):
             self.weigh_layer_out(layer_out) + self.weigh_skip_connection(x)
         ))
 
-class DenseSkipConnection(NNBase):
+class DenseSkipConnection(LayeredNet):
 
     def __init__(
             self,
@@ -49,7 +69,7 @@ class DenseSkipConnection(NNBase):
         super().__init__()
 
         self.layer = layer
-        self.dropout = NNBase.provide_dropout(dropout_p) or nn.Identity()
+        self.dropout = self.provide_dropout(dropout_p) or nn.Identity()
 
     def forward(self, x, *args, **kwargs):
         layer_out = self.layer(x, *args, **kwargs)

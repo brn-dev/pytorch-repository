@@ -3,14 +3,14 @@ from typing import Callable
 import torch
 from torch import nn
 
+from src.networks.net import Net
 from src.networks.fnn import FNN
 from src.networks.multihead_self_attention import MultiheadSelfAttention
-from src.networks.nn_base import NNBase
 from src.networks.skip_connection import ResidualSkipConnection
 from src.networks.weighing import WeighingTypes, WeighingTrainableChoices
 
 
-class TransformerEncoder(NNBase):
+class TransformerEncoder(Net):
 
     def __init__(
             self,

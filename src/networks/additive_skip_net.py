@@ -2,12 +2,12 @@ import numpy as np
 import torch
 from torch import nn
 
+from src.networks.net import Net
 from src.networks.forward_net import ForwardNet
-from src.networks.net_connections import NetConnections
 from src.networks.weighing import WeighingTrainableChoices
 
 
-class ResNet(ForwardNet):
+class AdditiveSkipNet(ForwardNet):
 
     def __init__(
             self,
@@ -15,7 +15,7 @@ class ResNet(ForwardNet):
             num_layers: int,
             num_features: int = None,
 
-            connections: NetConnections.ConnectionsLike = 'dense',
+            connections: Net.ConnectionsLike = 'dense',
 
             weights_trainable: WeighingTrainableChoices = False,
             initial_direct_connection_weight: float = 1.0,
@@ -26,7 +26,8 @@ class ResNet(ForwardNet):
     ):
         super().__init__(layer_provider, num_layers=num_layers, num_features=num_features)
 
-        connections = NetConnections.to_np(connections, num_layers)
+        connections = self.LayerConnections.to_np(connections, num_layers)
+        self.connections = connections
 
         mask = torch.zeros((num_layers + 1, num_features, num_layers + 1))
         weight = torch.zeros((num_layers + 1, num_features, num_layers + 1))
@@ -37,7 +38,6 @@ class ResNet(ForwardNet):
                                            if from_idx == to_idx
                                            else initial_skip_connection_weight)
 
-        self.connections = nn.Parameter(torch.FloatTensor(connections), requires_grad=False)
         self.mask = nn.Parameter(mask, requires_grad=False)
         self.weight = nn.Parameter(weight, requires_grad=weights_trainable)
 

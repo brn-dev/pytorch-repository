@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from src.networks.forward_net import ForwardNet
 from src.networks.init import lecun_initialization
-from src.networks.nn_base import NNBase
+from src.networks.net import Net
 
 
 class FNN(ForwardNet):
@@ -23,7 +23,7 @@ class FNN(ForwardNet):
             activate_last_layer: bool = False,
             dropout_p: float = None,
             dropout_last_layer: bool = False,
-            normalization_provider_layer: NNBase.Provider = None,
+            normalization_provider_layer: Net.Provider = None,
             normalize_last_layer=False,
     ):
 
@@ -35,9 +35,9 @@ class FNN(ForwardNet):
         def create_layer(layer_nr, is_last_layer, in_features, out_features):
             component_create = {
                 'L': lambda: layer_initialization(nn.Linear(in_features, out_features)),
-                'A': lambda: NNBase.provide(activation_provider, _if=activate_last_layer or not is_last_layer),
-                'D': lambda: NNBase.provide_dropout(dropout_p, _if=dropout_last_layer or not is_last_layer),
-                'N': lambda: NNBase.provide(
+                'A': lambda: Net.provide(activation_provider, _if=activate_last_layer or not is_last_layer),
+                'D': lambda: Net.provide_dropout(dropout_p, _if=dropout_last_layer or not is_last_layer),
+                'N': lambda: Net.provide(
                     lambda: normalization_provider_layer(current_size),
                     _if=normalize_last_layer or normalization_provider_layer is not None and not is_last_layer,
                 )

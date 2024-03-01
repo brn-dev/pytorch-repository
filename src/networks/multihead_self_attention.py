@@ -3,10 +3,10 @@ from typing import Optional
 import torch
 from torch import nn
 
-from src.networks.nn_base import NNBase
+from src.networks.net import Net
 
 
-class MultiheadSelfAttention(NNBase):
+class MultiheadSelfAttention(Net):
 
     def __init__(
             self,

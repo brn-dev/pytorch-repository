@@ -1,10 +1,19 @@
 import math
 
 import torch
-from torch import nn
+
+from src.networks.net import Net
 
 
-class SinusoidalPositionalEncoding(nn.Module):
+class SinusoidalPositionalEncoding(Net):
+
+    @property
+    def in_features(self) -> int:
+        return 1
+
+    @property
+    def out_features(self) -> int:
+        return self._out_features
 
     pos_embedding: torch.Tensor
 
@@ -19,6 +28,7 @@ class SinusoidalPositionalEncoding(nn.Module):
         pos_embedding[:, 1::2] = torch.cos(positions_list * division_term)
 
         self.register_buffer('pos_embedding', pos_embedding)
+        self._out_features = d_model
 
     def forward(self, positions: torch.Tensor) -> torch.Tensor:
         embedding = self.pos_embedding[positions]
