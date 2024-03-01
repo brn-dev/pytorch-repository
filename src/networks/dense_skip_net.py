@@ -1,11 +1,11 @@
 import numpy as np
 import torch
 
-from src.networks.forward_net import ForwardNet
+from src.networks.seq_net import SeqNet
 from src.networks.net import Net
 
 
-class DenseSkipNet(ForwardNet):
+class DenseSkipNet(SeqNet):
 
     @staticmethod
     def compute_layers_cum_in_out_sizes(
@@ -16,7 +16,7 @@ class DenseSkipNet(ForwardNet):
             num_features: int = None,
             connections: Net.LayerConnections.LayerConnectionsLike = 'dense',
     ):
-        layers_in_out_sizes = ForwardNet.compute_sequential_layer_in_out_sizes(
+        layers_in_out_sizes = SeqNet.compute_sequential_layer_in_out_sizes(
             layer_sizes=layers_sizes,
             in_size=in_size,
             out_sizes=out_sizes,
@@ -37,7 +37,7 @@ class DenseSkipNet(ForwardNet):
 
     def __init__(
             self,
-            layer_provider: ForwardNet.LayerProvider,
+            layer_provider: SeqNet.LayerProvider,
             layers_sizes: list[int] = None,
             in_size: int = None,
             out_sizes: list[int] = None,

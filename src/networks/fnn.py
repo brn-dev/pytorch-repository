@@ -2,12 +2,12 @@ from typing import Callable
 
 import torch.nn as nn
 
-from src.networks.forward_net import ForwardNet
+from src.networks.forward_net import SeqNet
 from src.networks.init import lecun_initialization
 from src.networks.net import Net
 
 
-class FNN(ForwardNet):
+class FNN(SeqNet):
 
     def __init__(
             self,
