@@ -15,7 +15,7 @@ class AdditiveSkipNet(SeqNet):
             num_layers: int,
             num_features: int = None,
 
-            connections: Net.ConnectionsLike = 'dense',
+            connections: Net.ConnectionsLike = 'full',
 
             weights_trainable: WeighingTrainableChoices = False,
             initial_direct_connection_weight: float = 1.0,
@@ -48,7 +48,7 @@ class AdditiveSkipNet(SeqNet):
         dense_tensor[..., 0] = x
 
         for i, layer in enumerate(self.layers):
-            # TODO: replace with self.combine_dense() or smth
+            # TODO: can I take the first i rows instead of all rows?
             layer_input = (dense_tensor * self.mask[i] * self.weight[i]).sum(dim=-1)
             layer_output = layer(layer_input, **kwargs)
             dense_tensor[..., i + 1] = layer_output

@@ -2,7 +2,8 @@ from torch import nn
 
 from src.networks.net import Net
 from src.networks.layered_net import LayeredNet
-from src.networks.net_list import NetList
+from src.networks.net_list import NetList, NetListLike
+from src.utils import all_none_or_all_not_none, one_not_none
 
 
 class SeqNet(LayeredNet):
@@ -19,8 +20,8 @@ class SeqNet(LayeredNet):
     ) -> list[tuple[int, int]]:
         parameter_choices = [layer_sizes, in_size, num_layers]
 
-        assert in_size is not None and out_sizes is not None or in_size is None and out_sizes is None
-        assert parameter_choices.count(None) == len(parameter_choices) - 1, 'only one parameter choice can be used'
+        assert all_none_or_all_not_none(in_size, out_sizes)
+        assert one_not_none(parameter_choices), 'only one parameter choice must be used'
 
         if layer_sizes is not None:
             layers_in_out_sizes = [(layer_sizes[i], layer_sizes[i + 1]) for i in range(len(layer_sizes) - 1)]
@@ -64,19 +65,28 @@ class SeqNet(LayeredNet):
 
 
     @staticmethod
-    def find_sequential_in_out_features(layers: NetList | nn.Sequential):
+    def find_sequential_in_out_features(layers: NetList):
         in_features, out_features = Net.IN_FEATURES_ANY, Net.OUT_FEATURES_SAME
 
         for layer in layers:
-            layer = Net.as_net(layer)
-            if in_features == Net.IN_FEATURES_ANY and layer.in_features != Net.IN_FEATURES_ANY:
+
+            if layer.in_features_defined and out_features != Net.OUT_FEATURES_SAME \
+                    and layer.in_features != out_features:
+                raise ValueError(f'Layer {layer} expects {layer.in_features} features but'
+                                 f' it is receiving {out_features}')
+            if layer.in_features_defined and in_features == Net.IN_FEATURES_ANY:
                 in_features = layer.in_features
-            if layer.out_features != Net.OUT_FEATURES_SAME:
+            if layer.out_features_defined:
                 out_features = layer.out_features
 
         return in_features, out_features
 
-    def __init__(self, layers: NetList | nn.Sequential):
+
+    def __init__(
+            self,
+            layers: NetListLike | nn.Sequential,
+            allow_undefined_in_out_features: bool = False,
+    ):
         if isinstance(layers, nn.Sequential):
             net_layers = []
             for nn_layer in layers:
@@ -89,7 +99,8 @@ class SeqNet(LayeredNet):
             in_features=in_features,
             out_features=out_features,
             layers=layers,
-            layer_connections=LayeredNet.LayerConnections.by_name('sequential', len(layers))
+            layer_connections=LayeredNet.LayerConnections.by_name('sequential', len(layers)),
+            allow_undefined_in_out_features=allow_undefined_in_out_features,
         )
 
 

@@ -22,7 +22,7 @@ class MultiheadSelfAttention(Net):
             device=None,
             dtype=None,
     ):
-        super().__init__()
+        super().__init__(embed_dim, embed_dim)
         self.mha = nn.MultiheadAttention(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim,
                                          batch_first, device, dtype)
 

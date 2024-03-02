@@ -4,53 +4,42 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.networks.net import Net, LayeredNet
-from src.networks.weighing import WeighingBase, WeighingTypes, WeighingTrainableChoices
+from src.networks.layered_net import LayeredNet
+from src.networks.net import Net
+from src.networks.weighing import Weighing, WeighingTypes, WeighingTrainableChoices
 
-class ResidualSkipConnection(LayeredNet):
-
-    @property
-    def layers(self) -> Mapping[int, Net]:
-        pass
-
-    @property
-    def layer_connections(self) -> np.ndarray:
-        return self._connections
-
-    @property
-    def in_features(self) -> int:
-        return self.num_features
-
-    @property
-    def out_features(self) -> int:
-        return self.num_features
+class AdditiveSkipConnection(LayeredNet):
 
     def __init__(
             self,
-            layer: nn.Module,
-            num_features: int,
+            layer: Net,
 
             layer_out_weight: WeighingTypes = 1.0,
             layer_out_weight_trainable: WeighingTrainableChoices = False,
 
             skip_connection_weight: WeighingTypes = 1.0,
             skip_connection_weight_trainable: WeighingTrainableChoices = False,
-
-            dropout_p: float = 0.0,
-            normalization_provider: Net.Provider = None,
     ):
-        super().__init__()
+        assert layer.in_features_defined()
+        assert layer.in_out_features_same()
+
+        super().__init__(
+            in_features=layer.in_features,
+            out_features='same',
+            layers=[layer],
+            layer_connections=[
+                (0, 0),
+                (0, 1),
+                (1, 1)
+            ]
+        )
 
         self.layer = layer
-        self.num_features = num_features
 
         self.weigh_skip_connection = \
-            WeighingBase.to_weighing(skip_connection_weight, num_features, skip_connection_weight_trainable)
+            Weighing.to_weighing(skip_connection_weight, layer.in_features, skip_connection_weight_trainable)
         self.weigh_layer_out = \
-            WeighingBase.to_weighing(layer_out_weight, num_features, layer_out_weight_trainable)
-
-        self.dropout = self.provide_dropout(dropout_p) or nn.Identity()
-        self.norm = self.provide(normalization_provider, num_features) or nn.Identity()
+            Weighing.to_weighing(layer_out_weight, layer.in_features, layer_out_weight_trainable)
 
 
     def forward(self, x, *args, **kwargs):

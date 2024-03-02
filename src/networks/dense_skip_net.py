@@ -14,7 +14,7 @@ class DenseSkipNet(SeqNet):
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            connections: Net.LayerConnections.LayerConnectionsLike = 'dense',
+            connections: Net.LayerConnections.LayerConnectionsLike = 'full',
     ):
         layers_in_out_sizes = SeqNet.compute_sequential_layer_in_out_sizes(
             layer_sizes=layers_sizes,
@@ -43,7 +43,7 @@ class DenseSkipNet(SeqNet):
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            connections: Net.LayerConnections.LayerConnectionsLike = 'dense',
+            connections: Net.LayerConnections.LayerConnectionsLike = 'full',
     ):
         super().__init__(
             layer_provider,

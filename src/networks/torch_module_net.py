@@ -5,10 +5,21 @@ from src.networks.net import Net
 from src.torch_nn_modules import is_nn_activation_module, is_nn_dropout_module, is_nn_pooling_module, \
     is_nn_padding_module, is_instance_of_group, is_nn_convolutional_module, \
     is_nn_linear_module, is_nn_identity_module
+from src.utils import all_none_or_all_not_none
+
 
 class TorchModuleNet(Net):
 
-    def __init__(self, module: nn.Module):
+    def __init__(
+            self,
+            module: nn.Module,
+            in_features: int | None = None,  # setting these two values bypasses the automatic in/out features detection
+            out_features: int | None = None,
+    ):
+        assert all_none_or_all_not_none(in_features, out_features)
+
+        if in_features is not None:
+            pass
         if (is_nn_activation_module(module) or is_nn_dropout_module(module)
                 or is_nn_pooling_module(module) or is_nn_padding_module(module)
                 or is_nn_identity_module(module)):
@@ -34,16 +45,20 @@ class TorchModuleNet(Net):
             in_features, out_features = Net.IN_FEATURES_ANY, Net.OUT_FEATURES_SAME
 
             for layer in module:
-                layer = Net.as_net(layer)
-                if in_features == Net.IN_FEATURES_ANY and layer.in_features != Net.IN_FEATURES_ANY:
+                layer: Net = Net.as_net(layer)
+                if layer.in_features_defined and in_features == Net.IN_FEATURES_ANY:
                     in_features = layer.in_features
-                if layer.out_features != Net.OUT_FEATURES_SAME:
+                if layer.out_features_defined:
                     out_features = layer.out_features
 
         else:
             raise ValueError(f'Unknown module type {type(module)}')
 
-        super().__init__(in_features, out_features)
+        super().__init__(
+            in_features=in_features,
+            out_features=out_features,
+            allow_undefined_in_out_features=True,
+        )
         self.torch_module = module
 
     def forward(self, *args, **kwargs):

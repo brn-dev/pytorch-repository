@@ -6,10 +6,10 @@ from torch import nn
 
 from src.networks.net import Net
 
-WeighingTypes = Union[float, list[SupportsFloat], torch.Tensor, "WeighingBase", Callable[[int], "WeighingBase"]]
+WeighingTypes = Union[float, list[SupportsFloat], torch.Tensor, "Weighing", Callable[[int], "Weighing"]]
 WeighingTrainableChoices = Literal['scalar', 'vector', False, None]
 
-class WeighingBase(Net, abc.ABC):
+class Weighing(Net, abc.ABC):
 
     @abc.abstractmethod
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:
@@ -26,7 +26,7 @@ class WeighingBase(Net, abc.ABC):
     ):
         is_weight_float = isinstance(weight, float)
         is_weight_tensor_like = isinstance(weight, list) or isinstance(weight, torch.Tensor)
-        is_weighing_module = isinstance(weight, WeighingBase)
+        is_weighing_module = isinstance(weight, Weighing)
         is_provider = isinstance(weight, Callable)
 
         assert is_weight_float or is_weight_tensor_like or is_weighing_module or is_provider
@@ -69,14 +69,17 @@ class WeighingBase(Net, abc.ABC):
         raise ValueError
 
 
-class ScalarWeighing(WeighingBase):
+class ScalarWeighing(Weighing):
 
     def __init__(
             self,
             initial_value: float = 1.0,
             trainable: bool = False,
     ):
-        super().__init__()
+        super().__init__(
+            in_features=Net.IN_FEATURES_ANY,
+            out_features=Net.OUT_FEATURES_SAME,
+        )
 
         self.w = nn.Parameter(torch.FloatTensor([initial_value]), requires_grad=trainable)
 
@@ -84,7 +87,7 @@ class ScalarWeighing(WeighingBase):
         return self.w
 
 
-class VectorWeighing(WeighingBase):
+class VectorWeighing(Weighing):
 
     def __init__(
             self,
@@ -92,8 +95,6 @@ class VectorWeighing(WeighingBase):
             num_features: int = None,
             trainable: bool = False,
     ):
-        super().__init__()
-
         is_val_float = isinstance(initial_value, float)
         is_val_tensor_like = isinstance(initial_value, list) or isinstance(initial_value, torch.Tensor)
 
@@ -106,20 +107,26 @@ class VectorWeighing(WeighingBase):
         if isinstance(initial_value, list):
             initial_value = torch.FloatTensor(initial_value)
 
+        num_features = len(initial_value)
+        super().__init__(
+            in_features=num_features,
+            out_features=num_features,
+        )
+
         self.w = nn.Parameter(initial_value, requires_grad=trainable)
 
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:
         return self.w
 
 
-class ModuleWeighing(WeighingBase):
+class NetWeighing(Weighing):
 
     def __init__(
             self,
-            module: nn.Module,
+            net: Net,
     ):
-        super().__init__()
-        self.module = module
+        super().__init__(net.in_features, net.out_features)
+        self.net = net
 
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:
-        return self.module(x)
+        return self.net(x)

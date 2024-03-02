@@ -42,10 +42,13 @@ class ParallelNet(LayeredNet):
         return ParallelNet(layers)
 
     def __init__(self, layers: NetList):
-        assert Net.are_all_in_out_features_defined(layers)
+        assert Net.all_in_out_features_defined(layers)
+
+        in_features = layers[0].in_features
+        assert all(layer.in_features == in_features for layer in layers[1:])
 
         super().__init__(
-            in_features=layers[0].in_features,
+            in_features=in_features,
             out_features=sum(layer.out_features for layer in layers),
             layers=layers,
             layer_connections=LayeredNet.LayerConnections.by_name('parallel', len(layers))

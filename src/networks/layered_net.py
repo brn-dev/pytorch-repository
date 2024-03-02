@@ -5,14 +5,14 @@ import numpy as np
 from torch import nn
 
 from src.networks.net import Net
-from src.networks.net_list import NetList
+from src.networks.net_list import NetList, NetListLike
 
 
 class LayeredNet(Net, abc.ABC):
 
     class LayerConnections:
 
-        Presets = Literal['dense', 'sequential', 'parallel']
+        Presets = Literal['full', 'sequential', 'parallel']
         LayerConnectionsLike = list[list[int, int]] | np.ndarray | Presets
 
         @staticmethod
@@ -20,7 +20,7 @@ class LayeredNet(Net, abc.ABC):
                 name: Presets | str,
                 num_layers: int,
         ) -> np.ndarray:
-            if name == 'dense':
+            if name == 'full':
                 connections = np.array([
                     [i, j]
                     for i in range(0, num_layers + 1)
@@ -76,9 +76,8 @@ class LayeredNet(Net, abc.ABC):
         layer = provider(layer_nr, is_last_layer, in_features, out_features)
         layer = Net.as_net(layer)
 
-        if layer.in_features == Net.IN_FEATURES_ANY or layer.out_features == Net.OUT_FEATURES_SAME:
-            raise ValueError(f'Provider returned layer with undefined in/out features! '
-                             f'({layer.in_features = }, {layer.out_features = })', layer)
+        if not layer.in_out_features_defined():
+            raise ValueError(f'Provider returned layer with undefined in/out features! ', layer)
 
         return layer
 
@@ -105,13 +104,19 @@ class LayeredNet(Net, abc.ABC):
 
     def __init__(
             self,
-            in_features: int | Literal['any'],
-            out_features: int | Literal['same'],
-            layers: NetList,
-            layer_connections: LayerConnections.LayerConnectionsLike
+            in_features: Net.InFeaturesType,
+            out_features: Net.OutFeaturesType,
+            layers: NetListLike,
+            layer_connections: LayerConnections.LayerConnectionsLike,
+            allow_undefined_in_out_features: bool = False,
     ):
-        super().__init__(in_features, out_features)
-        self.layers = layers
+        super().__init__(
+            in_features=in_features,
+            out_features=out_features,
+            allow_undefined_in_out_features=allow_undefined_in_out_features,
+        )
+
+        self.layers = NetList.as_net_list(layers)
         self.layer_connections = layer_connections
 
 
