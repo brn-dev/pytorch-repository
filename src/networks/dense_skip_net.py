@@ -16,7 +16,7 @@ class DenseSkipNet(SeqNet):
             num_features: int = None,
             connections: Net.LayerConnections.LayerConnectionsLike = 'full',
     ):
-        layers_in_out_sizes = SeqNet.compute_sequential_layer_in_out_sizes(
+        layers_in_out_sizes = SeqNet.resolve_sequential_layer_in_out_sizes(
             layer_sizes=layers_sizes,
             in_size=in_size,
             out_sizes=out_sizes,

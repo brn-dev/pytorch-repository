@@ -1,4 +1,4 @@
-from typing import Iterator, Union, Iterable
+from typing import Iterator, Union, Iterable, Dict, Callable
 
 from torch import nn
 
@@ -8,19 +8,23 @@ NetListLike = Union['NetList', Iterable[Net]]
 
 class NetList(nn.ModuleList):
 
+    _modules: Dict[str, Net]
 
     def __init__(self, layers: Iterable[Net]):
         super().__init__(modules=layers)
-        self.layers = list(layers)
 
     def __getitem__(self, idx: int | slice) -> Union[Net, 'NetList']:
         if isinstance(idx, slice):
-            return self.__class__(self.layers[idx])
+            return self.__class__(list(self._modules.values())[idx])
         else:
-            return self.layers[idx]
+            return self._modules[self._get_abs_string_index(idx)]
 
     def __iter__(self) -> Iterator[Net]:
-        return iter(self.layers)
+        return iter(self._modules.values())
+
+    def all_match(self, condition: Callable[[Net], bool]):
+        return all(condition(net) for net in self)
+
 
     @classmethod
     def as_net_list(cls, net_list_like: NetListLike) -> 'NetList':

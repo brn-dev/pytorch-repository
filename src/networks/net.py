@@ -51,26 +51,28 @@ class Net(nn.Module, abc.ABC):
 
         assert allow_undefined_in_out_features or self.in_out_features_defined
 
-    # def actualize_out_features(self, in_features: int) -> int:
-    #     if self.in_features != self.IN_FEATURES_ANY and self.in_features != in_features:
-    #         raise ValueError('Argument in_features must be same as attribute self.in_features '
-    #                          'if self.in_features is not equal to "any"')
-    #
-    #     if self.out_features == self.OUT_FEATURES_SAME:
-    #         return in_features
-    #     return self.out_features
+    def accepts_any_in_features(self) -> bool:
+        return self.in_features == self.IN_FEATURES_ANY
 
-    @classmethod
-    def all_in_out_features_defined(cls, nets: Iterable['Net']):
-        return all(net.in_out_features_defined for net in nets)
+    def accepts_in_features(self, in_features: int) -> bool:
+        return self.accepts_any_in_features() or self.in_features == in_features
+
+    def actualize_out_features(self, in_features: int) -> int:
+        if not self.accepts_in_features(in_features):
+            raise ValueError('Argument in_features must be same as attribute self.in_features '
+                             'if self.in_features is not equal to "any"')
+
+        if self.out_features == self.OUT_FEATURES_SAME:
+            return in_features
+        return self.out_features
 
     @staticmethod
     def as_net(module: Union['Net', nn.Module]) -> 'Net':
         if isinstance(module, Net):
             return module
         if isinstance(module, nn.Module):
-            return TorchModuleNet(module)
+            return TorchNet(module)
         raise ValueError(f'Invalid type for {module = }')
 
 
-from src.networks.torch_module_net import TorchModuleNet
+from src.networks.torch_net import TorchNet

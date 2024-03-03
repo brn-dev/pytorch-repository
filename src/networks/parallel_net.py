@@ -7,8 +7,31 @@ from src.networks.net_list import NetList
 
 class ParallelNet(LayeredNet):
 
+    def __init__(self, layers: NetList):
+        assert layers.all_match(lambda layer: layer.in_out_features_defined)
+
+        in_features = layers[0].in_features
+
+        assert layers.all_match(lambda layer: layer.in_features == in_features)
+
+        super().__init__(
+            in_features=in_features,
+            out_features=sum(layer.out_features for layer in layers),
+            layers=layers,
+            layer_connections=LayeredNet.LayerConnections.by_name('parallel', len(layers))
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        outs: list[torch.Tensor] = []
+
+        for layer in self._layers:
+            outs.append(layer(x))
+
+        return torch.cat(outs, dim=-1)
+
+
     @staticmethod
-    def compute_parallel_layer_in_out_features(
+    def resolve_parallel_in_out_features(
             in_size: int = None,
             out_sizes: list[int] = None,
 
@@ -25,6 +48,7 @@ class ParallelNet(LayeredNet):
         in_out_features = [(in_size, out_size) for out_size in out_sizes]
         return in_out_features
 
+
     @staticmethod
     def from_layer_provider(
             layer_provider: Net.LayerProvider,
@@ -34,30 +58,9 @@ class ParallelNet(LayeredNet):
             num_features: int = None
     ) -> 'ParallelNet':
 
-        in_out_features = ParallelNet.compute_parallel_layer_in_out_features(
+        in_out_features = ParallelNet.resolve_parallel_in_out_features(
             in_size, out_sizes, num_layers, num_features
         )
 
-        layers = ParallelNet.create_layer_list(layer_provider, in_out_features)
+        layers = ParallelNet.provide_layers(layer_provider, in_out_features)
         return ParallelNet(layers)
-
-    def __init__(self, layers: NetList):
-        assert Net.all_in_out_features_defined(layers)
-
-        in_features = layers[0].in_features
-        assert all(layer.in_features == in_features for layer in layers[1:])
-
-        super().__init__(
-            in_features=in_features,
-            out_features=sum(layer.out_features for layer in layers),
-            layers=layers,
-            layer_connections=LayeredNet.LayerConnections.by_name('parallel', len(layers))
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        outs: list[torch.Tensor] = []
-
-        for layer in self._layers:
-            outs.append(layer(x))
-
-        return torch.cat(outs, dim=-1)

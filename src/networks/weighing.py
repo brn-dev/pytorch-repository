@@ -20,16 +20,16 @@ class Weighing(Net, abc.ABC):
 
     @staticmethod
     def to_weighing(
+            num_features: int,
             weight: WeighingTypes = 1.0,
-            num_features: int = None,
             trainable: WeighingTrainableChoices = None,
     ):
         is_weight_float = isinstance(weight, float)
         is_weight_tensor_like = isinstance(weight, list) or isinstance(weight, torch.Tensor)
-        is_weighing_module = isinstance(weight, Weighing)
-        is_provider = isinstance(weight, Callable)
+        is_weighing = isinstance(weight, Weighing)
+        is_weighing_provider = isinstance(weight, Callable)
 
-        assert is_weight_float or is_weight_tensor_like or is_weighing_module or is_provider
+        assert is_weight_float or is_weight_tensor_like or is_weighing or is_weighing_provider
         assert trainable in ['scalar', 'vector', False, None]
 
         assert trainable != 'scalar' or (
@@ -40,11 +40,11 @@ class Weighing(Net, abc.ABC):
                 (is_weight_float and num_features is not None and num_features > 0) or
                 (is_weight_tensor_like and num_features in (None, weight.shape[-1]))
         )
-        assert not is_weighing_module or (
+        assert not is_weighing or (
                 trainable is None and
                 num_features is None
         )
-        assert not is_provider or (
+        assert not is_weighing_provider or (
                 trainable is None
         )
 
@@ -60,10 +60,10 @@ class Weighing(Net, abc.ABC):
         if is_weight_tensor_like:
             return VectorWeighing(initial_value=weight, trainable=False)
 
-        if is_weighing_module:
+        if is_weighing:
             return weight
 
-        if is_provider:
+        if is_weighing_provider:
             return weight(num_features)
 
         raise ValueError
@@ -91,20 +91,19 @@ class VectorWeighing(Weighing):
 
     def __init__(
             self,
-            initial_value: float | list[float] | torch.Tensor = 1.0,
             num_features: int = None,
+            initial_value: float | list[float] | torch.Tensor = 1.0,
             trainable: bool = False,
     ):
         is_val_float = isinstance(initial_value, float)
         is_val_tensor_like = isinstance(initial_value, list) or isinstance(initial_value, torch.Tensor)
 
-        assert not isinstance(initial_value, float) or num_features is not None
         assert not is_val_float or (num_features is not None and num_features > 0)
         assert not is_val_tensor_like or num_features in (None, initial_value.shape[-1])
 
-        if isinstance(initial_value, float):
+        if is_val_float:
             initial_value = torch.ones(num_features) * initial_value
-        if isinstance(initial_value, list):
+        if is_val_tensor_like:
             initial_value = torch.FloatTensor(initial_value)
 
         num_features = len(initial_value)
