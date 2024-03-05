@@ -36,7 +36,7 @@ class TorchNet(Net):
 
 
     def forward(self, *args, **kwargs):
-        self.torch_module(*args, **kwargs)
+        return self.torch_module(*args, **kwargs)
 
 
     @staticmethod
