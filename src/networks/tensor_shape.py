@@ -44,9 +44,20 @@ class TensorShape:
             value = sp.sympify(value)
         self.dimensions[dim_key] = TensorShape.DimensionInfo(symbol, value)
 
+    def __contains__(self, item: DimKeyType):
+        return item in self.dimensions
+
     @property
     def completely_definite(self) -> bool:
         return all(self.is_definite(dim_key) for dim_key in self.dimensions.keys())
+
+    @property
+    def symbols(self) -> set[sp.Symbol]:
+        return set(
+            dim_info.symbol
+            for dim_key, dim_info
+            in self.dimensions.items()
+        )
 
     @property
     def definite_symbols(self) -> set[sp.Symbol]:
@@ -90,7 +101,7 @@ class TensorShape:
 
 
     def evaluate_forward(self, in_shape: 'TensorShape') -> 'TensorShape':
-        result_shape = self.copy()
+        result_shape = in_shape.copy()
 
         for dim_key in self.dimensions.keys():
             assert not self.is_definite(dim_key)
@@ -98,12 +109,21 @@ class TensorShape:
             dim_size = self.dimensions[dim_key].size
             free_symbols = dim_size.free_symbols
 
-            end_size = dim_size.evalf(subs={
-                free_symbol: in_shape_dim
+            if dim_key not in in_shape:
+                result_shape[dim_key] = dim_size
+                break
+
+            in_shape_symbols = in_shape.symbols
+            for free_symbol in free_symbols:
+                if free_symbol not in in_shape_symbols:
+                    raise ValueError(f'Dimension size of "{dim_key}" has the following free symbols: {free_symbols} - '
+                                     f'in_shape is missing "{free_symbol}"')
+
+            end_size = dim_size.subs({
+                free_symbol: in_shape[str(free_symbol)]
                 for free_symbol
                 in free_symbols
-                if (in_shape_dim := in_shape[str(free_symbol)]) != free_symbol
-            })
+            }).evalf()
 
             if not end_size.free_symbols and end_size % 1.0 != 0.0:
                 raise ValueError(f'Forward evaluation resulted in {end_size = }, should be integer')
@@ -113,7 +133,7 @@ class TensorShape:
         return result_shape
 
     def evaluate_backward(self, out_shape: 'TensorShape') -> 'TensorShape':
-        result_shape = self.copy()
+        result_shape = out_shape.copy()
 
         for dim_key in self.dimensions.keys():
             assert not self.is_definite(dim_key)
@@ -122,9 +142,14 @@ class TensorShape:
             dim_symbol = dim_info.symbol
             dim_size = dim_info.size
 
+            if dim_key not in out_shape:
+                result_shape[dim_key] = dim_size
+                break
+
             if len(dim_size.free_symbols) > 1:
                 raise NotImplementedError('Backward shape evaluation with more than one free symbol is currently '
                                           'not implemented')
+            assert dim_symbol in dim_size.free_symbols
 
             out_shape_dim_size = out_shape[str(dim_symbol)]
             if out_shape_dim_size != dim_symbol:

@@ -58,9 +58,8 @@ class TorchNet(Net):
 
             for nn_layer in module:
                 layer: Net = TorchNet(nn_layer)
-                layer_in_features_definite = layer.in_shape.is_definite('features')
 
-                if not layer_in_features_definite:
+                if not layer.in_shape.is_definite('features'):
                     in_shape = layer.out_shape.evaluate_forward(in_shape)
                 elif not in_shape.is_definite('features'):
                     in_shape = in_shape.evaluate_backward(layer.in_shape)
