@@ -69,7 +69,7 @@ class SeqNet(LayeredNet):
             num_features: int = None
     ) -> 'SeqNet':
         if in_out_features is None:
-            in_out_features = SeqNet.resolve_sequential_layer_in_out_sizes(
+            in_out_features = SeqNet.resolve_sequential_in_out_features(
                 layer_sizes=layers_sizes,
                 in_size=in_size,
                 out_sizes=out_sizes,

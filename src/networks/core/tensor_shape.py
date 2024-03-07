@@ -178,9 +178,9 @@ class TensorShape:
                                       'not implemented')
         assert dim_symbol in dim_size.free_symbols
 
-        out_shape_dim_size = out_shape[str(dim_symbol)]
+        out_shape_dim_size = out_shape[dim_symbol]
         if out_shape_dim_size != dim_symbol:
-            in_size = sp.solve(dim_size - out_shape_dim_size, dim_symbol)[-1].evalf()
+            in_size = sp.solve(dim_size - int(out_shape_dim_size), dim_symbol)[-1].evalf()
         else:
             in_size = dim_size
 

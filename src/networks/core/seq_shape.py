@@ -11,7 +11,6 @@ def find_seq_in_out_shapes(layers: Iterable[nn.Module]):
 
     for i, nn_layer in enumerate(layers):
         layer: Net = Net.as_net(nn_layer)
-
         if not layer.accepts_shape(current_shape):
             raise ValueError(f'Sublayer {i} ({layer}) does not accept shape {current_shape}')
 

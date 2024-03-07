@@ -3,13 +3,13 @@ import torch
 from src.networks.core.layer_connections import LayerConnections
 from src.networks.core.layered_net import LayeredNet, LayerProvider
 from src.networks.core.net_list import NetList
-from src.networks.core.tensor_shape import TensorShape
 
 
 class ParallelNet(LayeredNet):
 
     def __init__(self, layers: NetList):
-        first_layer_in_size = layers[0].in_shape.definite_size('features')[1]
+        first_layer_in_shape = layers[0].in_shape
+        first_layer_out_shape = layers[0].out_shape
         out_features_sum = 0
 
         for i, layer in enumerate(layers):
@@ -20,14 +20,24 @@ class ParallelNet(LayeredNet):
                 raise ValueError(f'In features of layer {i} ({layer}) are not definite')
             if not layer_out_features_definite:
                 raise ValueError(f'In features of layer {i} ({layer}) are not definite')
-            if layer_in_features_size != first_layer_in_size:
-                raise ValueError(f'In features of layer {i} ({layer}) does not have the same input size as the others!')
+            if not layer.accepts_shape(first_layer_in_shape):
+                raise ValueError(f'Layer {i} ({layer}) does not accept the same '
+                                 f'shape as layer 1 ({first_layer_in_shape})')
+
+            for dim_symbol in layer.out_shape.symbols:
+                if str(dim_symbol) != 'features' and layer.out_shape[dim_symbol] != first_layer_out_shape[dim_symbol]:
+                    raise ValueError(f'Layer {i} ({layer}) outputs a different size in dimension {dim_symbol} than'
+                                     f'the first layer {first_layer_out_shape}')
+
 
             out_features_sum += layer_out_features_size
 
+        out_shape = first_layer_out_shape.copy()
+        out_shape['features'] = out_features_sum
+
         super().__init__(
-            in_shape=TensorShape(features=first_layer_in_size),
-            out_shape=TensorShape(features=out_features_sum),
+            in_shape=first_layer_in_shape,
+            out_shape=out_shape,
             layers=layers,
             layer_connections=LayerConnections.by_name('parallel', len(layers))
         )
