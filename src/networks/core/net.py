@@ -12,15 +12,21 @@ class Net(nn.Module, abc.ABC):
             self,
             in_shape: TensorShape,
             out_shape: TensorShape,
+            fill_missing_in_dims=True
     ):
         super().__init__()
 
         self.in_shape = in_shape
         self.out_shape = out_shape
 
+        if fill_missing_in_dims:
+            for out_dim in out_shape.dimension_names:
+                if out_dim not in in_shape:
+                    in_shape[out_dim] = None
+
     def accepts_shape(self, in_shape: TensorShape) -> bool:
-        for definite_symbol in self.in_shape.definite_symbols:
-            if in_shape.is_definite(definite_symbol) and in_shape[definite_symbol] != self.in_shape[definite_symbol]:
+        for definite_dim in self.in_shape.definite_dimension_names:
+            if in_shape.is_definite(definite_dim) and in_shape[definite_dim] != self.in_shape[definite_dim]:
                 return False
         return True
 
@@ -29,6 +35,14 @@ class Net(nn.Module, abc.ABC):
             raise ValueError(f'Net ({self}) does not accept shape {in_shape}')
 
         return self.out_shape.evaluate_forward(in_shape)
+
+    def modifies_shape_in_dimension(self, dim_key: str, in_shape: TensorShape = None):
+        if in_shape is None:
+            in_shape = self.in_shape
+
+        out_shape = self.forward_shape(in_shape)
+
+        return in_shape[dim_key] != out_shape[dim_key]
 
     @staticmethod
     def as_net(module: Union['Net', nn.Module]) -> 'Net':

@@ -26,12 +26,12 @@ class TensorShape:
             self,
             features: sp.Expr | int | None = None,
             batch: sp.Expr | int | None = None,
-            **additional_dimensions: sp.Expr | int | None,
+            **auxiliary_dimensions: sp.Expr | int | None,
     ):
         self.dimensions = {}
         self[self.FEATURES_KEY] = features
         self[self.BATCH_KEY] = batch
-        for dim_key, dim_value in additional_dimensions.items():
+        for dim_key, dim_value in auxiliary_dimensions.items():
             self[dim_key] = dim_value
 
     def __getitem__(self, dim_key: DimKeyType) -> sp.core.Expr:
@@ -39,7 +39,7 @@ class TensorShape:
 
     def __setitem__(self, dim_key: DimKeyType, value: sp.Expr | int | None):
         dim_key = str(dim_key)
-        symbol = TensorShape.to_symbol(dim_key)
+        symbol = TensorShape._to_symbol(dim_key)
         if value is None:
             value = symbol
         elif isinstance(value, int):
@@ -52,18 +52,33 @@ class TensorShape:
         return str(item) in self.dimensions
 
     def __str__(self):
-        return f'TensorShape(' \
-               f'{", ".join([f"{str(symbol)} = {self[symbol]}" for symbol in self.symbols])}' \
-               f')'
+        dim_names = [
+            'features',
+            'batch',
+            *self.structural_dimension_names
+        ]
+
+        auxiliary_dims = set(self.dimension_names) - set(dim_names)
+        dim_names.extend(auxiliary_dims)
+
+        dim_infos = [
+            f"{dim} = {int(dim_size) if not (dim_size := self[dim]).free_symbols else str(dim_size)}"
+            for dim
+            in dim_names
+        ]
+        return f'TensorShape({", ".join(dim_infos)})'
 
     def __repr__(self):
         return self.__str__()
 
     @staticmethod
-    def to_symbol(dim_key: DimKeyType) -> sp.Symbol:
+    def _to_symbol(dim_key: DimKeyType) -> sp.Symbol:
+        if isinstance(dim_key, sp.Symbol):
+            return dim_key
         return sp.symbols(dim_key, integer=True)
 
     def create_dimension(self, dim_key: DimKeyType) -> sp.Expr:
+        dim_key = str(dim_key)
         if dim_key in self:
             raise ValueError(f'Dimension {dim_key = } already exists')
         self[dim_key] = None
@@ -77,29 +92,29 @@ class TensorShape:
         return all(self.is_definite(dim_key) for dim_key in self.dimensions.keys())
 
     @property
-    def symbols(self) -> set[sp.Symbol]:
-        return self.symbols_matching(lambda _: True)
+    def dimension_names(self) -> set[str]:
+        return self.dimension_names_matching(lambda _: True)
 
     @property
-    def definite_symbols(self) -> set[sp.Symbol]:
-        return self.symbols_matching(self.is_definite)
+    def definite_dimension_names(self) -> set[str]:
+        return self.dimension_names_matching(self.is_definite)
 
     @property
-    def structural_symbols_ordered(self) -> list[sp.Symbol]:
+    def structural_dimension_names(self) -> list[str]:
         return list(sorted(
-            self.symbols_matching(self.is_structural),
+            self.dimension_names_matching(self.is_structural),
             key=lambda sym: str(sym)
         ))
 
-    def symbols_matching(self, condition: Callable[[sp.Symbol], bool]) -> set[sp.Symbol]:
+    def dimension_names_matching(self, condition: Callable[[DimKeyType], bool]) -> set[str]:
         return set(
-            dim_info.symbol
-            for dim_key, dim_info
-            in self.dimensions.items()
-            if condition(dim_info.symbol)
+            dim_key
+            for dim_key
+            in self.dimensions.keys()
+            if condition(dim_key)
         )
 
-    def definite_size(self, dim_key: DimKeyType) -> tuple[bool, Optional[int]]:
+    def try_get_definite_size(self, dim_key: DimKeyType) -> tuple[bool, Optional[int]]:
         dim_key = str(dim_key)
         dim_shape = self[dim_key]
 
@@ -113,13 +128,13 @@ class TensorShape:
     def is_structural(self, dim_key: DimKeyType):
         return str(dim_key).startswith(self.STRUCTURAL_PREFIX)
 
-    def create_structural_dimension(self, nr: int) -> tuple[str, sp.Expr]:
-        dim_key = self.STRUCTURAL_PREFIX + str(nr)
+    def create_structural_dimension(self) -> tuple[str, sp.Expr]:
+        dim_key = self.STRUCTURAL_PREFIX + str(len(self.structural_dimension_names))
         return dim_key, self.create_dimension(dim_key)
 
     def rename_dims(self, dim_keys: dict[DimKeyType, DimKeyType]) -> 'TensorShape':
         subs = {
-            TensorShape.to_symbol(from_key): TensorShape.to_symbol(to_key)
+            TensorShape._to_symbol(from_key): TensorShape._to_symbol(to_key)
             for from_key, to_key
             in dim_keys.items()
         }
@@ -148,7 +163,7 @@ class TensorShape:
                 result_shape[dim_key] = dim_size
                 continue
 
-            in_shape_symbols = in_shape.symbols
+            in_shape_symbols = [self._to_symbol(dim) for dim in in_shape.dimension_names]
             for free_symbol in free_symbols:
                 if free_symbol not in in_shape_symbols:
                     raise ValueError(f'Dimension size of "{dim_key}" has the following free symbols: {free_symbols} - '

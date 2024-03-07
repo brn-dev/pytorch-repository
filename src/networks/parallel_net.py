@@ -13,8 +13,8 @@ class ParallelNet(LayeredNet):
         out_features_sum = 0
 
         for i, layer in enumerate(layers):
-            layer_in_features_definite, layer_in_features_size = layer.in_shape.definite_size('features')
-            layer_out_features_definite, layer_out_features_size = layer.out_shape.definite_size('features')
+            layer_in_features_definite, layer_in_features_size = layer.in_shape.try_get_definite_size('features')
+            layer_out_features_definite, layer_out_features_size = layer.out_shape.try_get_definite_size('features')
 
             if not layer_in_features_definite:
                 raise ValueError(f'In features of layer {i} ({layer}) are not definite')
@@ -24,10 +24,10 @@ class ParallelNet(LayeredNet):
                 raise ValueError(f'Layer {i} ({layer}) does not accept the same '
                                  f'shape as layer 1 ({first_layer_in_shape})')
 
-            for dim_symbol in layer.out_shape.symbols:
-                if str(dim_symbol) != 'features' and layer.out_shape[dim_symbol] != first_layer_out_shape[dim_symbol]:
-                    raise ValueError(f'Layer {i} ({layer}) outputs a different size in dimension {dim_symbol} than'
-                                     f'the first layer {first_layer_out_shape}')
+            for dim in layer.out_shape.dimension_names:
+                if dim != 'features' and layer.out_shape[dim] != first_layer_out_shape[dim]:
+                    raise ValueError(f'Layer {i} ({layer}) outputs a different size ({layer.out_shape}) in '
+                                     f'dimension {dim} than the first layer {first_layer_out_shape}')
 
 
             out_features_sum += layer_out_features_size

@@ -61,10 +61,6 @@ class TorchNet(Net):
         else:
             raise ValueError(f'Unknown module type {type(module)}')
 
-        for symbol in out_shape.symbols:
-            if symbol not in in_shape:
-                in_shape[symbol] = None
-
         return in_shape, out_shape
 
     @staticmethod
@@ -78,9 +74,9 @@ class TorchNet(Net):
             padding = conv.padding[conv_dim_nr]
             dilation = conv.dilation[conv_dim_nr]
 
-            dim_key, dim_symbol = out_shape.create_structural_dimension(conv_dim_nr)
+            dim_key, dim_symbol = out_shape.create_structural_dimension()
             out_shape[dim_key] = sp.floor(
-                (out_shape[dim_key] + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
+                (dim_symbol + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
             )
 
         return in_shape, out_shape
