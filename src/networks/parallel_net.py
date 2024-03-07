@@ -1,30 +1,41 @@
 import torch
 
-from src.networks.core.layered_net import LayeredNet
-from src.networks.core.net import Net
+from src.networks.core.layer_connections import LayerConnections
+from src.networks.core.layered_net import LayeredNet, LayerProvider
 from src.networks.core.net_list import NetList
+from src.networks.core.tensor_shape import TensorShape
 
 
 class ParallelNet(LayeredNet):
 
     def __init__(self, layers: NetList):
-        assert layers.all_match(lambda layer: layer.in_out_features_defined)
+        first_layer_in_size = layers[0].in_shape.definite_size('features')[1]
+        out_features_sum = 0
 
-        in_features = layers[0].in_features
+        for i, layer in enumerate(layers):
+            layer_in_features_definite, layer_in_features_size = layer.in_shape.definite_size('features')
+            layer_out_features_definite, layer_out_features_size = layer.out_shape.definite_size('features')
 
-        assert layers.all_match(lambda layer: layer.in_features == in_features)
+            if not layer_in_features_definite:
+                raise ValueError(f'In features of layer {i} ({layer}) are not definite')
+            if not layer_out_features_definite:
+                raise ValueError(f'In features of layer {i} ({layer}) are not definite')
+            if layer_in_features_size != first_layer_in_size:
+                raise ValueError(f'In features of layer {i} ({layer}) does not have the same input size as the others!')
+
+            out_features_sum += layer_out_features_size
 
         super().__init__(
-            in_features=in_features,
-            out_features=sum(layer.out_features for layer in layers),
+            in_shape=TensorShape(features=first_layer_in_size),
+            out_shape=TensorShape(features=out_features_sum),
             layers=layers,
-            layer_connections=LayeredNet.LayerConnections.by_name('parallel', len(layers))
+            layer_connections=LayerConnections.by_name('parallel', len(layers))
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         outs: list[torch.Tensor] = []
 
-        for layer in self._layers:
+        for layer in self.layers:
             outs.append(layer(x))
 
         return torch.cat(outs, dim=-1)
@@ -51,7 +62,7 @@ class ParallelNet(LayeredNet):
 
     @staticmethod
     def from_layer_provider(
-            layer_provider: Net.LayerProvider,
+            layer_provider: LayerProvider,
             in_size: int = None,
             out_sizes: list[int] = None,
             num_layers: int = None,
