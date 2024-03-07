@@ -19,7 +19,7 @@ nn_dropout_classes = [
 ]
 nn_convolution_classes = [
     nn.Conv1d, nn.Conv2d, nn.Conv3d,
-    nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d
+    # nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d
 ]
 nn_pooling_classes = [
     nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d,
@@ -34,32 +34,42 @@ nn_padding_classes = [
     nn.ConstantPad1d, nn.ConstantPad2d, nn.ConstantPad3d
 ]
 
+
 def is_instance_of_group(obj: object, types: list[Type]):
     return any(isinstance(obj, cls) for cls in types)
+
 
 def is_nn_activation_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_activation_classes)
 
+
 def is_nn_dropout_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_dropout_classes)
+
 
 def is_nn_pooling_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_pooling_classes)
 
+
 def is_nn_padding_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_padding_classes)
+
 
 def is_nn_normalization_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_normalization_classes)
 
+
 def is_nn_convolutional_module(module: nn.Module) -> bool:
     return is_instance_of_group(module, nn_convolution_classes)
+
 
 def is_nn_linear_module(module: nn.Module) -> bool:
     return isinstance(module, nn.Linear)
 
+
 def is_nn_identity_module(module: nn.Module) -> bool:
     return isinstance(module, nn.Identity)
+
 
 def is_nn_sequential_module(module: nn.Module) -> bool:
     return isinstance(module, nn.Sequential)

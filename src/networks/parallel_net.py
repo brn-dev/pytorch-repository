@@ -1,8 +1,8 @@
 import torch
 
-from src.networks.layered_net import LayeredNet
-from src.networks.net import Net
-from src.networks.net_list import NetList
+from src.networks.core.layered_net import LayeredNet
+from src.networks.core.net import Net
+from src.networks.core.net_list import NetList
 
 
 class ParallelNet(LayeredNet):

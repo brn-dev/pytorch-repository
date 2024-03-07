@@ -1,44 +1,28 @@
-from src.networks.layer_connections import LayerConnections
-from src.networks.layered_net import LayeredNet, LayerProvider
-from src.networks.net import Net
-from src.networks.net_list import NetList
+from src.networks.core.layer_connections import LayerConnections
+from src.networks.core.layered_net import LayeredNet, LayerProvider
+from src.networks.core.net_list import NetList, NetListLike
+from src.networks.core.seq_shape import find_seq_in_out_shapes
 from src.utils import all_none_or_all_not_none, one_not_none
 
 
 class SeqNet(LayeredNet):
 
-    def __init__(self, layers: NetList, allow_undefined_in_out_features: bool = True):
-        in_features, out_features = self.find_sequential_in_out_features(layers)
+    def __init__(self, layers: NetListLike):
+        layers = NetList.as_net_list(layers)
+        in_shape, out_shape = find_seq_in_out_shapes(layers)
 
         super().__init__(
-            in_features=in_features,
-            out_features=out_features,
+            in_shape=in_shape,
+            out_shape=out_shape,
             layers=layers,
             layer_connections=LayerConnections.by_name('sequential', len(layers)),
-            allow_undefined_in_out_features=allow_undefined_in_out_features,
         )
+
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
         return x
-
-
-    @staticmethod
-    def find_sequential_in_out_features(layers: NetList):
-        in_features, out_features = Net.IN_FEATURES_ANY, Net.OUT_FEATURES_SAME
-
-        for layer in layers:
-            if layer.in_features_defined and out_features != Net.OUT_FEATURES_SAME \
-                    and layer.in_features != out_features:
-                raise ValueError(f'Layer {layer} expects {layer.in_features} features but'
-                                 f' it is receiving {out_features}')
-            if layer.in_features_defined and in_features == Net.IN_FEATURES_ANY:
-                in_features = layer.in_features
-            if layer.out_features_defined:
-                out_features = layer.out_features
-
-        return in_features, out_features
 
 
     @staticmethod

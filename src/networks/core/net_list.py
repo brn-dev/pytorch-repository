@@ -2,9 +2,10 @@ from typing import Iterator, Union, Iterable, Dict, Callable
 
 from torch import nn
 
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 NetListLike = Union['NetList', Iterable[Net]]
+
 
 class NetList(nn.ModuleList):
 
@@ -24,7 +25,6 @@ class NetList(nn.ModuleList):
 
     def all_match(self, condition: Callable[[Net], bool]):
         return all(condition(net) for net in self)
-
 
     @classmethod
     def as_net_list(cls, net_list_like: NetListLike) -> 'NetList':

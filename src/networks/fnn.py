@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from src.networks.forward_net import SeqNet
 from src.networks.init import lecun_initialization
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 
 class FNN(SeqNet):

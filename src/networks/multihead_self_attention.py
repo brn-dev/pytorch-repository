@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 from torch import nn
 
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 
 class MultiheadSelfAttention(Net):

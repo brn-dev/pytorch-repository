@@ -4,27 +4,27 @@ from typing import Callable, TypeVar
 import numpy as np
 from torch import nn
 
-from src.networks.layer_connections import LayerConnections
-from src.networks.net import Net
-from src.networks.net_list import NetList, NetListLike
+from src.networks.core.layer_connections import LayerConnections
+from src.networks.core.net import Net
+from src.networks.core.net_list import NetList, NetListLike
+from src.networks.core.tensor_shape import TensorShape
 
 LayerProvider = Callable[[int, bool, int, int], Net | nn.Module]
+
 
 class LayeredNet(Net, abc.ABC):
 
     def __init__(
             self,
-            in_features: int,
-            out_features: int,
+            in_shape: TensorShape,
+            out_shape: TensorShape,
             layers: NetListLike,
             layer_connections: LayerConnections.LayerConnectionsLike,
-            allow_undefined_in_out_features: bool = False,
     ):
         Net.__init__(
             self,
-            in_features=in_features,
-            out_features=out_features,
-            allow_undefined_in_out_features=allow_undefined_in_out_features,
+            in_shape=in_shape,
+            out_shape=out_shape,
         )
         self.layers = NetList.as_net_list(layers)
         self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))

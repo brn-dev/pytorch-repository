@@ -2,6 +2,7 @@ from typing import Literal
 
 import numpy as np
 
+
 class LayerConnections:
     Presets = Literal['full', 'sequential', 'parallel']
     LayerConnectionsLike = list[list[int, int]] | np.ndarray | Presets

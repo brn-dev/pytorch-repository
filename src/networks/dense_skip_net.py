@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from src.networks.seq_net import SeqNet
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 
 class DenseSkipNet(SeqNet):

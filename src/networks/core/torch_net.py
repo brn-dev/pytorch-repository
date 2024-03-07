@@ -1,8 +1,11 @@
 import torch
 from torch import nn
 
-from src.networks.net import Net
-from src.networks.tensor_shape import TensorShape
+import sympy as sp
+
+from src.networks.core.net import Net
+from src.networks.core.seq_shape import find_seq_in_out_shapes
+from src.networks.core.tensor_shape import TensorShape
 from src.torch_nn_modules import is_nn_activation_module, is_nn_dropout_module, is_nn_pooling_module, \
     is_nn_padding_module, is_instance_of_group, is_nn_convolutional_module, \
     is_nn_linear_module, is_nn_identity_module
@@ -46,30 +49,39 @@ class TorchNet(Net):
             in_shape, out_shape = TensorShape(features=num_features), TensorShape(features=num_features)
 
         elif is_nn_convolutional_module(module):
-            # TODO: spacial dimensions
-            in_shape, out_shape = TensorShape(features=module.in_channels), TensorShape(features=module.out_channels)
+            # noinspection PyTypeChecker
+            in_shape, out_shape = TorchNet.compute_conv_in_out_shapes(module)
 
         elif is_nn_linear_module(module):
             in_shape, out_shape = TensorShape(features=module.in_features), TensorShape(features=module.out_features)
 
         elif isinstance(module, nn.Sequential):
-            # TODO: spacial dimensions
-            in_shape, out_shape = TensorShape(), TensorShape()
-
-            for nn_layer in module:
-                layer: Net = TorchNet(nn_layer)
-
-                if not layer.in_shape.is_definite('features'):
-                    in_shape = layer.out_shape.evaluate_forward(in_shape)
-                elif not in_shape.is_definite('features'):
-                    in_shape = in_shape.evaluate_backward(layer.in_shape)
-
-                if layer.out_shape.is_definite('features'):
-                    out_shape = layer.out_shape
-                else:
-                    out_shape = layer.out_shape.evaluate_forward(out_shape)
+            in_shape, out_shape = find_seq_in_out_shapes(module)
 
         else:
             raise ValueError(f'Unknown module type {type(module)}')
 
+        for symbol in out_shape.symbols:
+            if symbol not in in_shape:
+                in_shape[symbol] = None
+
         return in_shape, out_shape
+
+    @staticmethod
+    def compute_conv_in_out_shapes(conv: nn.Conv1d | nn.Conv2d | nn.Conv3d):
+        in_shape, out_shape = TensorShape(features=conv.in_channels), TensorShape(features=conv.out_channels)
+
+
+        for conv_dim_nr in range(len(conv.kernel_size)):
+            kernel_size = conv.kernel_size[conv_dim_nr]
+            stride = conv.stride[conv_dim_nr]
+            padding = conv.padding[conv_dim_nr]
+            dilation = conv.dilation[conv_dim_nr]
+
+            dim_key, dim_symbol = out_shape.create_structural_dimension(conv_dim_nr)
+            out_shape[dim_key] = sp.floor(
+                (out_shape[dim_key] + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
+            )
+
+        return in_shape, out_shape
+

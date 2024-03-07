@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from torch import nn
 
-from src.networks.net import Net
+from src.networks.core.net import Net
 from src.networks.fnn import FNN
 from src.networks.multihead_self_attention import MultiheadSelfAttention
 from src.networks.skip_connection import ResidualSkipConnection

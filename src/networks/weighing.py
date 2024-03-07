@@ -4,7 +4,7 @@ from typing import Callable, SupportsFloat, Literal, Union
 import torch
 from torch import nn
 
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 WeighingTypes = Union[float, list[SupportsFloat], torch.Tensor, "Weighing", Callable[[int], "Weighing"]]
 WeighingTrainableChoices = Literal['scalar', 'vector', False, None]

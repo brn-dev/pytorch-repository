@@ -2,7 +2,7 @@ import math
 
 import torch
 
-from src.networks.net import Net
+from src.networks.core.net import Net
 
 
 class SinusoidalPositionalEncoding(Net):
