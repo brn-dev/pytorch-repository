@@ -35,10 +35,11 @@ class TensorShape:
             self[dim_key] = dim_value
 
     def __getitem__(self, dim_key: DimKeyType) -> sp.core.Expr:
-        return self.dimensions[str(dim_key)].size
+        dim_key = TensorShape._to_key(dim_key)
+        return self.dimensions[dim_key].size
 
     def __setitem__(self, dim_key: DimKeyType, value: sp.Expr | int | None):
-        dim_key = str(dim_key)
+        dim_key = TensorShape._to_key(dim_key)
         symbol = TensorShape._to_symbol(dim_key)
         if value is None:
             value = symbol
@@ -47,6 +48,10 @@ class TensorShape:
         elif not isinstance(value, sp.Basic):
             value = sp.sympify(value)
         self.dimensions[dim_key] = TensorShape.DimensionInfo(symbol, value)
+
+    def __delitem__(self, dim_key: DimKeyType):
+        dim_key = TensorShape._to_key(dim_key)
+        del self.dimensions[dim_key]
 
     def __contains__(self, item: DimKeyType):
         return str(item) in self.dimensions
@@ -77,15 +82,19 @@ class TensorShape:
             return dim_key
         return sp.symbols(dim_key, integer=True)
 
+    @staticmethod
+    def _to_key(dim_key: DimKeyType) -> str:
+        return str(dim_key)
+
     def create_dimension(self, dim_key: DimKeyType) -> sp.Expr:
-        dim_key = str(dim_key)
+        dim_key = TensorShape._to_key(dim_key)
         if dim_key in self:
             raise ValueError(f'Dimension {dim_key = } already exists')
         self[dim_key] = None
         return self[dim_key]
 
     def is_definite(self, dim_key: DimKeyType) -> bool:
-        return not self[str(dim_key)].free_symbols
+        return not self[dim_key].free_symbols
 
     @property
     def completely_definite(self) -> bool:
@@ -115,7 +124,7 @@ class TensorShape:
         )
 
     def try_get_definite_size(self, dim_key: DimKeyType) -> tuple[bool, Optional[int]]:
-        dim_key = str(dim_key)
+        dim_key = TensorShape._to_key(dim_key)
         dim_shape = self[dim_key]
 
         is_definite = self.is_definite(dim_key)
@@ -126,7 +135,8 @@ class TensorShape:
         return is_definite, value
 
     def is_structural(self, dim_key: DimKeyType):
-        return str(dim_key).startswith(self.STRUCTURAL_PREFIX)
+        dim_key = TensorShape._to_key(dim_key)
+        return dim_key.startswith(self.STRUCTURAL_PREFIX)
 
     def create_structural_dimension(self) -> tuple[str, sp.Expr]:
         dim_key = self.STRUCTURAL_PREFIX + str(len(self.structural_dimension_names))
@@ -146,7 +156,7 @@ class TensorShape:
         for from_key, to_key in dim_keys.items():
             result_shape[to_key] = result_shape[from_key]
             if from_key != to_key:
-                del result_shape.dimensions[from_key]
+                del result_shape[from_key]
 
         return result_shape
 
@@ -183,7 +193,7 @@ class TensorShape:
         return result_shape
 
     def evaluate_backward(self, dim_key: DimKeyType, out_shape: 'TensorShape') -> sp.Expr:
-        dim_key = str(dim_key)
+        dim_key = TensorShape._to_key(dim_key)
         dim_info = self.dimensions[dim_key]
         dim_symbol = dim_info.symbol
         dim_size = dim_info.size
