@@ -14,9 +14,11 @@ def find_seq_in_out_shapes(layers: Iterable[nn.Module]):
         if not layer.accepts_shape(current_shape):
             raise ValueError(f'Sublayer {i} ({layer}) does not accept shape {current_shape}')
 
-        for definite_dim in layer.in_shape.definite_dimension_names:
-            if not in_shape.is_definite(definite_dim):
-                in_shape[definite_dim] = current_shape.evaluate_backward(definite_dim, layer.in_shape)
+        for dim in layer.in_shape.dimension_names:
+            if layer.in_shape.is_definite(dim) and not in_shape.is_definite(dim):
+                in_shape[dim] = current_shape.evaluate_backward(dim, layer.in_shape)
+            elif dim not in in_shape:
+                in_shape[dim] = layer.in_shape[dim]
 
         current_shape = layer.forward_shape(current_shape)
 

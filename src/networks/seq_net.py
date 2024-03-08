@@ -2,6 +2,7 @@ from src.networks.core.layer_connections import LayerConnections
 from src.networks.core.layered_net import LayeredNet, LayerProvider
 from src.networks.core.net_list import NetList, NetListLike
 from src.networks.core.seq_shape import find_seq_in_out_shapes
+from src.networks.core.tensor_shape import TensorShape
 from src.utils import all_none_or_all_not_none, one_not_none
 
 
@@ -17,6 +18,12 @@ class SeqNet(LayeredNet):
             layers=layers,
             layer_connections=LayerConnections.by_name('sequential', len(layers)),
         )
+
+    def forward_shape(self, in_shape: TensorShape) -> TensorShape:
+        current_shape = in_shape
+        for layer in self.layers:
+            current_shape = layer.forward_shape(current_shape)
+        return current_shape
 
 
     def forward(self, x):

@@ -58,9 +58,9 @@ class TensorShape:
 
     def __str__(self):
         dim_names = [
-            'features',
+            *self.structural_dimension_names,
             'batch',
-            *self.structural_dimension_names
+            'features',
         ]
 
         auxiliary_dims = set(self.dimension_names) - set(dim_names)

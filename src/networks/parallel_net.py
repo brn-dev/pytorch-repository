@@ -32,11 +32,13 @@ class ParallelNet(LayeredNet):
 
             out_features_sum += layer_out_features_size
 
+        in_shape = first_layer_in_shape
+
         out_shape = first_layer_out_shape.copy()
         out_shape['features'] = out_features_sum
 
         super().__init__(
-            in_shape=first_layer_in_shape,
+            in_shape=in_shape,
             out_shape=out_shape,
             layers=layers,
             layer_connections=LayerConnections.by_name('parallel', len(layers))

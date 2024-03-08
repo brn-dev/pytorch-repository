@@ -12,17 +12,12 @@ class Net(nn.Module, abc.ABC):
             self,
             in_shape: TensorShape,
             out_shape: TensorShape,
-            fill_missing_in_dims=True
     ):
         super().__init__()
 
         self.in_shape = in_shape
         self.out_shape = out_shape
 
-        if fill_missing_in_dims:
-            for out_dim in out_shape.dimension_names:
-                if out_dim not in in_shape:
-                    in_shape[out_dim] = None
 
     def accepts_shape(self, in_shape: TensorShape) -> bool:
         for definite_dim in self.in_shape.definite_dimension_names:
