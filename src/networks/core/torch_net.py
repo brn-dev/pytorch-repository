@@ -3,6 +3,7 @@ from torch import nn
 
 import sympy as sp
 
+from src.networks.conv_net import compute_conv_in_out_shapes
 from src.networks.core.net import Net
 from src.networks.core.seq_shape import find_seq_in_out_shapes
 from src.networks.core.tensor_shape import TensorShape
@@ -13,12 +14,10 @@ from src.torch_nn_modules import is_nn_activation_module, is_nn_dropout_module, 
 
 class TorchNet(Net):
 
-    def __init__(self, module: nn.Module):
-        in_shape, out_shape = self.detect_in_out_shapes(module)
-
+    def __init__(self, module: nn.Module, in_shape: TensorShape, out_shape=TensorShape):
         super().__init__(
             in_shape=in_shape,
-            out_shape=out_shape,
+            out_shape=out_shape
         )
         self.torch_module = module
 
@@ -26,6 +25,15 @@ class TorchNet(Net):
     def forward(self, *args, **kwargs):
         return self.torch_module(*args, **kwargs)
 
+
+    @staticmethod
+    def wrap(module: nn.Module) -> 'Net':
+        in_shape, out_shape = TorchNet.detect_in_out_shapes(module)
+        return TorchNet(
+            module=module,
+            in_shape=in_shape,
+            out_shape=out_shape
+        )
 
     @staticmethod
     def detect_in_out_shapes(module: nn.Module):
@@ -50,7 +58,7 @@ class TorchNet(Net):
 
         elif is_nn_convolutional_module(module):
             # noinspection PyTypeChecker
-            in_shape, out_shape = TorchNet.compute_conv_in_out_shapes(module)
+            in_shape, out_shape = compute_conv_in_out_shapes(module)
 
         elif is_nn_linear_module(module):
             in_shape, out_shape = TensorShape(features=module.in_features), TensorShape(features=module.out_features)
@@ -60,24 +68,6 @@ class TorchNet(Net):
 
         else:
             raise ValueError(f'Unknown module type {type(module)}')
-
-        return in_shape, out_shape
-
-    @staticmethod
-    def compute_conv_in_out_shapes(conv: nn.Conv1d | nn.Conv2d | nn.Conv3d):
-        in_shape, out_shape = TensorShape(features=conv.in_channels), TensorShape(features=conv.out_channels)
-
-
-        for conv_dim_nr in range(len(conv.kernel_size)):
-            kernel_size = conv.kernel_size[conv_dim_nr]
-            stride = conv.stride[conv_dim_nr]
-            padding = conv.padding[conv_dim_nr]
-            dilation = conv.dilation[conv_dim_nr]
-
-            dim_key, dim_symbol = out_shape.create_structural_dimension()
-            out_shape[dim_key] = sp.floor(
-                (dim_symbol + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
-            )
 
         return in_shape, out_shape
 
