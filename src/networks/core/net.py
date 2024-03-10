@@ -3,7 +3,7 @@ from typing import Union
 
 from torch import nn
 
-from src.networks.core.tensor_shape import TensorShape
+from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 
 class Net(nn.Module, abc.ABC):
@@ -18,16 +18,23 @@ class Net(nn.Module, abc.ABC):
         self.in_shape = in_shape
         self.out_shape = out_shape
 
-
-    def accepts_shape(self, in_shape: TensorShape) -> bool:
+    def check_in_shape(self, in_shape: TensorShape):
         for definite_dim in self.in_shape.definite_dimension_names:
             if in_shape.is_definite(definite_dim) and in_shape[definite_dim] != self.in_shape[definite_dim]:
-                return False
-        return True
+                raise TensorShapeError(f'This net only accepts tensors with size {self.in_shape[definite_dim]} '
+                                       f'in dimension {definite_dim}. in_shape has size {in_shape[definite_dim]}',
+                                       self_in_shape=self.in_shape, in_shape=in_shape)
+
+    def accepts_in_shape(self, in_shape: TensorShape) -> tuple[bool, TensorShapeError | None]:
+        accepts_in_shape, error = True, None
+        try:
+            self.check_in_shape(in_shape)
+        except TensorShapeError as tse:
+            accepts_in_shape, error = False, tse
+        return accepts_in_shape, error
 
     def forward_shape(self, in_shape: TensorShape) -> TensorShape:
-        if not self.accepts_shape(in_shape):
-            raise ValueError(f'Net ({self}) does not accept shape {in_shape}')
+        self.check_in_shape(in_shape)
 
         return self.out_shape.evaluate_forward(in_shape)
 

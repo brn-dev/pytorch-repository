@@ -6,7 +6,7 @@ from torch import nn, Tensor
 
 from src.networks.core.net import Net
 from src.networks.core.tensor_shape import TensorShape
-from src.networks.tensor_operations.functional import find_permutation
+from src.networks.tensor_operations.permute_dimensions import find_permutation
 
 T = TypeVar('T')
 _scalar_or_tuple_1_t = Union[T, Tuple[T]]

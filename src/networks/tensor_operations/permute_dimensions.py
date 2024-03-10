@@ -1,13 +1,14 @@
-from typing import Iterable
-
-import numpy as np
 import torch
-from overrides import override
 
 from src.networks.core.net import Net
 from src.networks.core.tensor_shape import TensorShape
-from src.networks.tensor_operations.functional import find_permutation
 
+
+def find_permutation(from_order: list[str], to_order: list[str]) -> list[int]:
+    if not set(from_order) == set(to_order):
+        raise ValueError(f"from_order ({from_order}) does not contain the same elements as to_order ({to_order}")
+
+    return [from_order.index(p) for p in to_order]
 
 class PermuteDimensions(Net):
 

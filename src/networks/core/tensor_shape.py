@@ -3,6 +3,14 @@ from typing import Optional, Literal, Callable
 
 import sympy as sp
 
+class TensorShapeError(Exception):
+
+    def __init__(self, message: str, parent_error: Exception = None, **shapes: 'TensorShape') -> None:
+        self.message = message
+        self.shapes = shapes
+        self.parent_error = parent_error
+        super().__init__(message, shapes, parent_error)
+
 
 class TensorShape:
 
@@ -20,7 +28,7 @@ class TensorShape:
     BATCH_KEY = 'batch'
     DimKeyType = Literal['features', 'batch'] | str | sp.Symbol
 
-    dimensions: dict[DimKeyType, DimensionInfo]
+    dimensions: dict[str, DimensionInfo]
 
     def __init__(
             self,
@@ -176,8 +184,9 @@ class TensorShape:
             in_shape_symbols = [self._to_symbol(dim) for dim in in_shape.dimension_names]
             for free_symbol in free_symbols:
                 if free_symbol not in in_shape_symbols:
-                    raise ValueError(f'Dimension size of "{dim_key}" has the following free symbols: {free_symbols} - '
-                                     f'in_shape is missing "{free_symbol}"')
+                    raise TensorShapeError(f'Dimension size of "{dim_key}" has the following free symbols: '
+                                           f'{free_symbols} - in_shape is missing "{free_symbol}"',
+                                           shape=self, in_shape=in_shape)
 
             end_size = dim_size.subs({
                 free_symbol: in_shape[str(free_symbol)]
@@ -210,7 +219,9 @@ class TensorShape:
             in_size = dim_size
 
         if not in_size.free_symbols and in_size % 1.0 != 0.0:
-            raise ValueError(f'Backward evaluation resulted in {in_size = }, should be integer')
+            raise TensorShapeError(f'Backward evaluation of dimension {dim_key} resulted '
+                                   f'in {in_size = }, should be integer',
+                                   shape=self, out_shape=out_shape)
 
         return in_size
 

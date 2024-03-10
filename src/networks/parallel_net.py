@@ -3,13 +3,14 @@ import torch
 from src.networks.core.layer_connections import LayerConnections
 from src.networks.core.layered_net import LayeredNet, LayerProvider
 from src.networks.core.net_list import NetList
+from src.networks.core.tensor_shape import TensorShapeError
 
 
 class ParallelNet(LayeredNet):
 
     def __init__(self, layers: NetList):
         first_layer_in_shape = layers[0].in_shape
-        first_layer_out_shape = layers[0].out_shape
+        first_layer_out_shape = layers[0].forward_shape(first_layer_in_shape)
         out_features_sum = 0
 
         for i, layer in enumerate(layers):
@@ -17,17 +18,21 @@ class ParallelNet(LayeredNet):
             layer_out_features_definite, layer_out_features_size = layer.out_shape.try_get_definite_size('features')
 
             if not layer_in_features_definite:
-                raise ValueError(f'In features of layer {i} ({layer}) are not definite')
+                raise TensorShapeError(f'In features of layer {i} ({layer}) are not definite',
+                                       layer_in_shape=layer.in_shape)
             if not layer_out_features_definite:
-                raise ValueError(f'In features of layer {i} ({layer}) are not definite')
-            if not layer.accepts_shape(first_layer_in_shape):
-                raise ValueError(f'Layer {i} ({layer}) does not accept the same '
-                                 f'shape as layer 1 ({first_layer_in_shape})')
+                raise TensorShapeError(f'Out features of layer {i} ({layer}) are not definite',
+                                       layer_out_shape=layer.out_shape)
+            if not layer.check_in_shape(first_layer_in_shape):
+                raise TensorShapeError(f'Layer {i} ({layer}) does not accept the same shape as layer 1 '
+                                       f'({first_layer_in_shape})',
+                                       first_layer_in_shape=first_layer_in_shape, layer_in_shape=layer.in_shape)
 
             for dim in layer.out_shape.dimension_names:
                 if dim != 'features' and layer.out_shape[dim] != first_layer_out_shape[dim]:
-                    raise ValueError(f'Layer {i} ({layer}) outputs a different size ({layer.out_shape}) in '
-                                     f'dimension {dim} than the first layer {first_layer_out_shape}')
+                    raise TensorShapeError(f'Layer {i} ({layer}) outputs a different size ({layer.out_shape}) in '
+                                           f'dimension {dim} than the first layer {first_layer_out_shape}',
+                                           first_layer_out_shape=first_layer_out_shape, layer_out_shape=layer.out_shape)
 
 
             out_features_sum += layer_out_features_size

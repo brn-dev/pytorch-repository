@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Literal, Iterable
 
 import numpy as np
 from torch import nn
@@ -7,27 +7,82 @@ from torch import nn
 from src.networks.core.layer_connections import LayerConnections
 from src.networks.core.net import Net
 from src.networks.core.net_list import NetList, NetListLike
-from src.networks.core.tensor_shape import TensorShape
+from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 LayerProvider = Callable[[int, bool, int, int], Net | nn.Module]
+
+ShapeCombinationMethod = Literal['additive', 'dense']
 
 
 class LayeredNet(Net, abc.ABC):
 
     def __init__(
             self,
-            in_shape: TensorShape,
-            out_shape: TensorShape,
             layers: NetListLike,
             layer_connections: LayerConnections.LayerConnectionsLike,
+            combination_method: ShapeCombinationMethod
     ):
+        self.layers = NetList.as_net_list(layers)
+        self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
+        
+        self.num_layers = len(self.layers)
+
+        in_shape, out_shape = LayeredNet.find_in_out_shapes(self.layers, self.layer_connections, combination_method)
         Net.__init__(
             self,
             in_shape=in_shape,
             out_shape=out_shape,
         )
-        self.layers = NetList.as_net_list(layers)
-        self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
+
+    @staticmethod
+    def find_in_out_shapes(
+            layers: NetList,
+            layer_connections: np.ndarray,
+            combination_method: ShapeCombinationMethod
+    ) -> tuple[TensorShape, TensorShape]:
+        in_shapes = [layers[0].in_shape]
+
+        for tensor_layer in range(0, len(layers) + 1):
+            try:
+                incoming_tensor_layers: Iterable[int] = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0]
+                incoming_tensor_shapes: list[TensorShape] = [
+                    in_shapes[incoming_tensor_layer]
+                    for incoming_tensor_layer
+                    in incoming_tensor_layers
+                ]
+                combined_tensor_shape = LayeredNet.combine_shapes(incoming_tensor_shapes, combination_method)
+
+                if tensor_layer < len(layers):
+                    layer_out_shape = layers[tensor_layer].forward_shape(combined_tensor_shape)
+                    in_shapes.append(layer_out_shape)
+                else:
+                    return in_shapes[0], combined_tensor_shape
+            except TensorShapeError as tse:
+                raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_layer}: \n' + tse.message,
+                                       **tse.shapes, parent_error=tse)
+
+    @staticmethod
+    def combine_shapes(
+            shapes: list[TensorShape],
+            combination_method: ShapeCombinationMethod
+    ) -> TensorShape:
+        combined_shape = shapes[0]
+
+        for shape in shapes[1:]:
+            for dim in shape.dimensions:
+                if dim == 'features':
+                    if combination_method == 'additive' and shape['features'] != combined_shape['features']:
+                        raise TensorShapeError('Shapes can not be combined via additive method because they '
+                                               'have a different size in the features dimension',
+                                               **dict(enumerate(shapes)))
+                    if combination_method == 'dense':
+                        combined_shape['features'] += shape['features']
+                else:
+                    if combined_shape[dim] != shape[dim]:
+                        raise TensorShapeError(f'Shapes do not all have the same size in dimension {dim}',
+                                               **dict(enumerate(shapes)))
+
+        return combined_shape
 
     @classmethod
     def provide_layer(

@@ -1,12 +1,11 @@
 from typing import Iterable
 
-import numpy as np
 import torch
 from overrides import override
 
 from src.networks.core.net import Net
-from src.networks.core.tensor_shape import TensorShape
-from src.networks.tensor_operations.functional import find_permutation
+from src.networks.core.tensor_shape import TensorShape, TensorShapeError
+from src.networks.tensor_operations.permute_dimensions import find_permutation
 
 
 class FlattenDimensions(Net):
@@ -48,8 +47,8 @@ class FlattenDimensions(Net):
     @override
     def forward_shape(self, in_shape: TensorShape) -> TensorShape:
         if not set(in_shape.dimension_names).issuperset(self.flattened_dim_keys):
-            raise ValueError(f'in_shape ({in_shape}) does not contain all the '
-                             f'dimensions to be flattened ({self.flattened_dim_keys})')
+            raise TensorShapeError(f'in_shape ({in_shape}) does not contain all the dimensions to be flattened '
+                                   f'({self.flattened_dim_keys})', self_in_shape=self.in_shape, in_shape=in_shape)
 
         out_shape = self.out_shape.evaluate_forward(in_shape)
 

@@ -1,8 +1,6 @@
 import torch
 from torch import nn
 
-import sympy as sp
-
 from src.networks.conv_net import compute_conv_in_out_shapes
 from src.networks.core.net import Net
 from src.networks.core.seq_shape import find_seq_in_out_shapes
@@ -51,7 +49,7 @@ class TorchNet(Net):
 
             if is_instance_of_group(num_features, [list, tuple, torch.Size]):
                 if len(num_features) > 1:
-                    raise NotImplementedError('layernorm with complex shape not implemented')
+                    raise NotImplementedError('layernorm with multi-dimensional shape not implemented')
                 num_features = num_features[-1]
 
             in_shape, out_shape = TensorShape(features=num_features), TensorShape(features=num_features)
