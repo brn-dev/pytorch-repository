@@ -49,7 +49,7 @@ class Conv1dNet(Net, nn.Conv1d):
             dilation: _size_1_t = 1,
             groups: int = 1,
             bias: bool = True,
-            padding_mode: str = 'zeros',  # TODO: refine this type
+            padding_mode: str = 'zeros',
             device=None,
             dtype=None,
             external_dim_order: list[str] = None,

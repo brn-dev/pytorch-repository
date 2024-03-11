@@ -24,7 +24,7 @@ class LayeredNet(Net, abc.ABC):
     ):
         self.layers = NetList.as_net_list(layers)
         self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
-        
+
         self.num_layers = len(self.layers)
 
         in_shape, out_shape = LayeredNet.find_in_out_shapes(self.layers, self.layer_connections, combination_method)
@@ -43,13 +43,13 @@ class LayeredNet(Net, abc.ABC):
         in_shapes = [layers[0].in_shape]
 
         for tensor_layer in range(0, len(layers) + 1):
+            incoming_tensor_layers: Iterable[int] = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0]
+            incoming_tensor_shapes: list[TensorShape] = [
+                in_shapes[incoming_tensor_layer]
+                for incoming_tensor_layer
+                in incoming_tensor_layers
+            ]
             try:
-                incoming_tensor_layers: Iterable[int] = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0]
-                incoming_tensor_shapes: list[TensorShape] = [
-                    in_shapes[incoming_tensor_layer]
-                    for incoming_tensor_layer
-                    in incoming_tensor_layers
-                ]
                 combined_tensor_shape = LayeredNet.combine_shapes(incoming_tensor_shapes, combination_method)
 
                 if tensor_layer < len(layers):
@@ -58,7 +58,8 @@ class LayeredNet(Net, abc.ABC):
                 else:
                     return in_shapes[0], combined_tensor_shape
             except TensorShapeError as tse:
-                raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_layer}: \n' + tse.message,
+                raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_layer}, '
+                                       f'incoming tensor layers = {list(incoming_tensor_layers)}: \n' + tse.message,
                                        **tse.shapes, parent_error=tse)
 
     @staticmethod
