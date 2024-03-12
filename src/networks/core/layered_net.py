@@ -20,14 +20,28 @@ class LayeredNet(Net, abc.ABC):
             self,
             layers: NetListLike,
             layer_connections: LayerConnections.LayerConnectionsLike,
-            combination_method: ShapeCombinationMethod
+            combination_method: ShapeCombinationMethod,
+            definite_dimensions: Iterable[str] = (),
     ):
         self.layers = NetList.as_net_list(layers)
         self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
 
         self.num_layers = len(self.layers)
 
-        in_shape, out_shape = LayeredNet.find_in_out_shapes(self.layers, self.layer_connections, combination_method)
+        for i, layer in enumerate(self.layers):
+            for dim in definite_dimensions:
+                if not layer.in_shape.is_definite(dim):
+                    raise TensorShapeError(f'Dimension {dim} of in shape of layer {i} ({layer}) is indefinite but '
+                                           f'required to be definite')
+                if not layer.out_shape.is_definite(dim):
+                    raise TensorShapeError(f'Dimension {dim} of out shape of layer {i} ({layer}) is indefinite but '
+                                           f'required to be definite')
+
+        in_shape, out_shape = LayeredNet.find_in_out_shapes(
+            self.layers,
+            self.layer_connections,
+            combination_method,
+        )
         Net.__init__(
             self,
             in_shape=in_shape,
@@ -38,7 +52,7 @@ class LayeredNet(Net, abc.ABC):
     def find_in_out_shapes(
             layers: NetList,
             layer_connections: np.ndarray,
-            combination_method: ShapeCombinationMethod
+            combination_method: ShapeCombinationMethod,
     ) -> tuple[TensorShape, TensorShape]:
         in_shapes = [layers[0].in_shape]
 
@@ -49,6 +63,7 @@ class LayeredNet(Net, abc.ABC):
                 for incoming_tensor_layer
                 in incoming_tensor_layers
             ]
+
             try:
                 combined_tensor_shape = LayeredNet.combine_shapes(incoming_tensor_shapes, combination_method)
 
