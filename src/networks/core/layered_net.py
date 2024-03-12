@@ -11,7 +11,7 @@ from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 LayerProvider = Callable[[int, bool, int, int], Net | nn.Module]
 
-ShapeCombinationMethod = Literal['additive', 'dense']
+ShapeCombinationMethod = Literal['additive', 'dense', None]
 
 
 class LayeredNet(Net, abc.ABC):
@@ -43,7 +43,7 @@ class LayeredNet(Net, abc.ABC):
         in_shapes = [layers[0].in_shape]
 
         for tensor_layer in range(0, len(layers) + 1):
-            incoming_tensor_layers: Iterable[int] = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0]
+            incoming_tensor_layers = LayeredNet.find_incoming_tensor_layers(tensor_layer, layer_connections)
             incoming_tensor_shapes: list[TensorShape] = [
                 in_shapes[incoming_tensor_layer]
                 for incoming_tensor_layer
@@ -63,11 +63,20 @@ class LayeredNet(Net, abc.ABC):
                                        **tse.shapes, parent_error=tse)
 
     @staticmethod
+    def find_incoming_tensor_layers(tensor_layer: int, layer_connections: np.ndarray) -> Iterable[int]:
+        incoming_tensor_layers = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0].tolist()
+        return sorted(incoming_tensor_layers, reverse=True)
+
+    @staticmethod
     def combine_shapes(
             shapes: list[TensorShape],
             combination_method: ShapeCombinationMethod
     ) -> TensorShape:
         combined_shape = shapes[0]
+
+        if combination_method is None and len(shapes) > 1:
+            raise TensorShapeError(f'Combination method is set to None, but got multiple tensor shapes to combine',
+                                   **dict(enumerate(shapes)))
 
         for shape in shapes[1:]:
             for dim in shape.dimensions:

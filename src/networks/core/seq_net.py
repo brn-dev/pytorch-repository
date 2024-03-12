@@ -1,5 +1,9 @@
+from typing import override
+
+import numpy as np
+
 from src.networks.core.layer_connections import LayerConnections
-from src.networks.core.layered_net import LayeredNet, LayerProvider
+from src.networks.core.layered_net import LayeredNet, LayerProvider, ShapeCombinationMethod
 from src.networks.core.net_list import NetList, NetListLike
 from src.networks.core.seq_shape import find_seq_in_out_shapes
 from src.networks.core.tensor_shape import TensorShape
@@ -9,22 +13,21 @@ from src.utils import all_none_or_all_not_none, one_not_none
 class SeqNet(LayeredNet):
 
     def __init__(self, layers: NetListLike):
-        layers = NetList.as_net_list(layers)
-        in_shape, out_shape = find_seq_in_out_shapes(layers)
-
         super().__init__(
-            in_shape=in_shape,
-            out_shape=out_shape,
             layers=layers,
             layer_connections=LayerConnections.by_name('sequential', len(layers)),
+            combination_method=None,
         )
 
-    def forward_shape(self, in_shape: TensorShape) -> TensorShape:
-        current_shape = in_shape
-        for layer in self.layers:
-            current_shape = layer.forward_shape(current_shape)
-        return current_shape
-
+    @staticmethod
+    @override
+    def find_in_out_shapes(
+            layers: NetList,
+            layer_connections: np.ndarray,
+            combination_method: ShapeCombinationMethod
+    ) -> tuple[TensorShape, TensorShape]:
+        in_shape, out_shape = find_seq_in_out_shapes(layers)
+        return in_shape, out_shape
 
     def forward(self, x):
         for layer in self.layers:

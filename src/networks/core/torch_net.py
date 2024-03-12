@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from src.networks.conv_net import compute_conv_in_out_shapes
+from src.networks.core.conv_net import compute_conv_in_out_shapes
 from src.networks.core.net import Net
 from src.networks.core.seq_shape import find_seq_in_out_shapes
 from src.networks.core.tensor_shape import TensorShape

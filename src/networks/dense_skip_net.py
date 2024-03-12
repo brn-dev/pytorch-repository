@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from src.networks.seq_net import SeqNet
+from src.networks.core.seq_net import SeqNet
 from src.networks.core.net import Net
 
 
