@@ -28,8 +28,8 @@ class LayeredNet(Net, abc.ABC):
 
         self.num_layers = len(self.layers)
 
-        for i, layer in enumerate(self.layers):
-            for dim in definite_dimensions:
+        for dim in definite_dimensions:
+            for i, layer in enumerate(self.layers):
                 if not layer.in_shape.is_definite(dim):
                     raise TensorShapeError(f'Dimension {dim} of in shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
