@@ -22,7 +22,7 @@ class AdditiveSkipConnection(LayeredNet):
             layers=[layer],
             layer_connections=LayerConnections.by_name('full', 1),
             combination_method='additive',
-            require_definite_dimensions='features',
+            require_definite_dimensions=['features'],
         )
 
         self.layer = layer

@@ -26,7 +26,7 @@ class AdditiveSkipNet(LayeredNet):
             layers=layers,
             layer_connections=layer_connections,
             combination_method='additive',
-            require_definite_dimensions='features',
+            require_definite_dimensions=['features'],
         )
         self.num_features = self.in_shape.get_definite_size('features')
         self.return_dense = return_dense
@@ -79,6 +79,8 @@ class AdditiveSkipNet(LayeredNet):
             weights_trainable: bool = False,
             initial_direct_connection_weight: float = 1.0,
             initial_skip_connection_weight: float = 1.0,
+
+            return_dense: bool = False,
     ) -> 'AdditiveSkipNet':
         return AdditiveSkipNet(
             layers=cls.provide_layers(
@@ -89,4 +91,5 @@ class AdditiveSkipNet(LayeredNet):
             weights_trainable=weights_trainable,
             initial_direct_connection_weight=initial_direct_connection_weight,
             initial_skip_connection_weight=initial_skip_connection_weight,
+            return_dense=return_dense,
         )

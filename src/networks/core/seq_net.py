@@ -1,6 +1,5 @@
-from overrides import override
-
 import numpy as np
+from overrides import override
 
 from src.networks.core.layer_connections import LayerConnections
 from src.networks.core.layered_net import LayeredNet, LayerProvider, ShapeCombinationMethod
@@ -48,7 +47,7 @@ class SeqNet(LayeredNet):
         parameter_choices = [layer_sizes, in_size, num_layers]
 
         assert all_none_or_all_not_none(in_size, out_sizes)
-        assert one_not_none(parameter_choices), 'only one parameter choice must be used'
+        assert one_not_none(*parameter_choices), 'exactly one parameter choice must be used'
 
         if layer_sizes is not None:
             in_out_features = [(layer_sizes[i], layer_sizes[i + 1]) for i in range(len(layer_sizes) - 1)]

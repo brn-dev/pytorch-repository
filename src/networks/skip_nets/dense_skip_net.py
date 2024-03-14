@@ -15,13 +15,13 @@ class DenseSkipNet(LayeredNet):
     def __init__(
             self,
             layers: NetListLike,
-            layer_connections: Net.LayerConnections.LayerConnectionsLike = 'full',
+            layer_connections: LayerConnections.LayerConnectionsLike = 'full',
     ):
         super().__init__(
             layers=layers,
             layer_connections=layer_connections,
             combination_method='dense',
-            require_definite_dimensions='features'
+            require_definite_dimensions=['features'],
         )
         self.incoming_tensor_layers = [
             self.find_incoming_tensor_layers(i, self.layer_connections)
@@ -36,7 +36,7 @@ class DenseSkipNet(LayeredNet):
     def forward(self, x, *args, **kwargs) -> torch.Tensor:
         dense_tensor_list: list[torch.Tensor] = [x]
 
-        for i, layer in enumerate(self.layers + 1):
+        for i, layer in enumerate(self.layers):
             layer_dense_input = self.get_dense_input(i, dense_tensor_list)
             layer_out = layer(layer_dense_input, *args, **kwargs)
             dense_tensor_list.append(layer_out)
@@ -53,7 +53,7 @@ class DenseSkipNet(LayeredNet):
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            layer_connections: Net.LayerConnections.LayerConnectionsLike = 'full',
+            layer_connections: LayerConnections.LayerConnectionsLike = 'full',
     ) -> 'DenseSkipNet':
         return DenseSkipNet(
             layers=cls.provide_layers(layer_provider, cls.compute_layers_cum_in_out_sizes(
@@ -76,7 +76,7 @@ class DenseSkipNet(LayeredNet):
             num_features: int = None,
             layer_connections: LayerConnections.LayerConnectionsLike = 'full',
     ):
-        layers_in_out_sizes = SeqNet.resolve_sequential_layer_in_out_sizes(
+        layers_in_out_sizes = SeqNet.resolve_sequential_in_out_features(
             layer_sizes=layers_sizes,
             in_size=in_size,
             out_sizes=out_sizes,
@@ -86,7 +86,7 @@ class DenseSkipNet(LayeredNet):
 
         num_layers = len(layers_in_out_sizes)
         sizes = np.array([layers_in_out_sizes[0][0]] + [out_size for in_size, out_size in layers_in_out_sizes])
-        layer_connections = Net.LayerConnections.to_np(layer_connections, num_layers)
+        layer_connections = LayerConnections.to_np(layer_connections, num_layers)
 
         layers_cum_in_out_sizes: list[tuple[int, int]] = []
         for i in range(num_layers):

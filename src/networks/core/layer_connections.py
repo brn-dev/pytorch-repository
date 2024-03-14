@@ -41,7 +41,8 @@ class LayerConnections:
             connections = np.array(layer_connections_like).astype(int)
             connections = (connections % (num_layers + 1))
 
-        assert LayerConnections.is_valid(connections, num_layers)
+        if not LayerConnections.is_valid(connections, num_layers):
+            raise ValueError(f"Layer connections are not valid for {num_layers} layers - {connections}")
 
         return connections
 

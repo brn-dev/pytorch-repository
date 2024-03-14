@@ -3,6 +3,7 @@ from typing import Optional, Literal, Callable
 
 import sympy as sp
 
+
 class TensorShapeError(Exception):
 
     def __init__(self, message: str, parent_error: Exception = None, **shapes: 'TensorShape') -> None:
@@ -10,6 +11,12 @@ class TensorShapeError(Exception):
         self.shapes = shapes
         self.parent_error = parent_error
         super().__init__(message, shapes, parent_error)
+
+    def __str__(self):
+        return f'{self.message} \n\n' + (''.join([f'\t {key}: {shape}\n' for key, shape in self.shapes.items()]))
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class TensorShape:

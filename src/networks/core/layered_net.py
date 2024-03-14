@@ -16,6 +16,8 @@ ShapeCombinationMethod = Literal['additive', 'dense', None]
 
 class LayeredNet(Net, abc.ABC):
 
+    net: 'Net'
+
     def __init__(
             self,
             layers: NetListLike,
@@ -23,13 +25,11 @@ class LayeredNet(Net, abc.ABC):
             combination_method: ShapeCombinationMethod,
             require_definite_dimensions: Iterable[str] = (),
     ):
-        self.layers = NetList.as_net_list(layers)
-        self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
-
-        self.num_layers = len(self.layers)
+        layers = NetList.as_net_list(layers)
+        layer_connections = LayerConnections.to_np(layer_connections, len(layers))
 
         for dim in require_definite_dimensions:
-            for i, layer in enumerate(self.layers):
+            for i, layer in enumerate(layers):
                 if not layer.in_shape.is_definite(dim):
                     raise TensorShapeError(f'Dimension {dim} of in shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
@@ -38,15 +38,19 @@ class LayeredNet(Net, abc.ABC):
                                            f'required to be definite')
 
         in_shape, out_shape = LayeredNet.find_in_out_shapes(
-            self.layers,
-            self.layer_connections,
+            layers,
+            layer_connections,
             combination_method,
         )
-        Net.__init__(
-            self,
+
+        super().__init__(
             in_shape=in_shape,
             out_shape=out_shape,
         )
+        self.layers = layers
+        self.layer_connections = layer_connections
+        self.num_layers = len(self.layers)
+
 
     @staticmethod
     def find_in_out_shapes(
@@ -78,20 +82,23 @@ class LayeredNet(Net, abc.ABC):
                                        **tse.shapes, parent_error=tse)
 
     @staticmethod
-    def find_incoming_tensor_layers(tensor_layer: int, layer_connections: np.ndarray) -> Iterable[int]:
+    def find_incoming_tensor_layers(
+            tensor_layer: int,
+            layer_connections: np.ndarray,
+    ) -> Iterable[int]:
         incoming_tensor_layers = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0].tolist()
-        return sorted(incoming_tensor_layers, reverse=True)
+        return sorted(incoming_tensor_layers)
 
     @staticmethod
     def combine_shapes(
             shapes: list[TensorShape],
             combination_method: ShapeCombinationMethod
     ) -> TensorShape:
-        combined_shape = shapes[0]
+        combined_shape = shapes[0].copy()
 
         if combination_method is None and len(shapes) > 1:
             raise TensorShapeError(f'Combination method is set to None, but got multiple tensor shapes to combine',
-                                   **dict(enumerate(shapes)))
+                                   **{str(i): shape for i, shape in enumerate(shapes)})
 
         for shape in shapes[1:]:
             for dim in shape.dimensions:
@@ -99,13 +106,13 @@ class LayeredNet(Net, abc.ABC):
                     if combination_method == 'additive' and shape['features'] != combined_shape['features']:
                         raise TensorShapeError('Shapes can not be combined via additive method because they '
                                                'have a different size in the features dimension',
-                                               **dict(enumerate(shapes)))
+                                               **{str(i): shape for i, shape in enumerate(shapes)})
                     if combination_method == 'dense':
                         combined_shape['features'] += shape['features']
                 else:
                     if combined_shape[dim] != shape[dim]:
                         raise TensorShapeError(f'Shapes do not all have the same size in dimension {dim}',
-                                               **dict(enumerate(shapes)))
+                                               **{str(i): shape for i, shape in enumerate(shapes)})
 
         return combined_shape
 
