@@ -1,4 +1,4 @@
-from typing import override
+from overrides import override
 
 import numpy as np
 
@@ -68,8 +68,10 @@ class SeqNet(LayeredNet):
         return in_out_features
 
 
-    @staticmethod
+    @classmethod
+    @override
     def from_layer_provider(
+            cls,
             layer_provider: LayerProvider,
             in_out_features: list[tuple[int, int]] = None,
             layers_sizes: list[int] = None,
@@ -79,7 +81,7 @@ class SeqNet(LayeredNet):
             num_features: int = None
     ) -> 'SeqNet':
         if in_out_features is None:
-            in_out_features = SeqNet.resolve_sequential_in_out_features(
+            in_out_features = cls.resolve_sequential_in_out_features(
                 layer_sizes=layers_sizes,
                 in_size=in_size,
                 out_sizes=out_sizes,
@@ -87,5 +89,5 @@ class SeqNet(LayeredNet):
                 num_features=num_features
             )
 
-        layers = SeqNet.provide_layers(layer_provider, in_out_features)
+        layers = cls.provide_layers(layer_provider, in_out_features)
         return SeqNet(layers)

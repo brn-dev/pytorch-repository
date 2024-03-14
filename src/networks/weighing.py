@@ -5,9 +5,11 @@ import torch
 from torch import nn
 
 from src.networks.core.net import Net
+from src.networks.core.tensor_shape import TensorShape
 
 WeighingTypes = Union[float, list[SupportsFloat], torch.Tensor, "Weighing", Callable[[int], "Weighing"]]
 WeighingTrainableChoices = Literal['scalar', 'vector', False, None]
+
 
 class Weighing(Net, abc.ABC):
 
@@ -48,6 +50,12 @@ class Weighing(Net, abc.ABC):
                 trainable is None
         )
 
+        if is_weighing:
+            return weight
+
+        if is_weighing_provider:
+            return weight(num_features)
+
         if trainable == 'scalar':
             return ScalarWeighing(initial_value=weight, trainable=True)
 
@@ -60,12 +68,6 @@ class Weighing(Net, abc.ABC):
         if is_weight_tensor_like:
             return VectorWeighing(initial_value=weight, trainable=False)
 
-        if is_weighing:
-            return weight
-
-        if is_weighing_provider:
-            return weight(num_features)
-
         raise ValueError
 
 
@@ -77,8 +79,8 @@ class ScalarWeighing(Weighing):
             trainable: bool = False,
     ):
         super().__init__(
-            in_features=Net.IN_FEATURES_ANY,
-            out_features=Net.OUT_FEATURES_SAME,
+            in_shape=TensorShape(),
+            out_shape=TensorShape(),
         )
 
         self.w = nn.Parameter(torch.FloatTensor([initial_value]), requires_grad=trainable)
@@ -106,10 +108,12 @@ class VectorWeighing(Weighing):
         if is_val_tensor_like:
             initial_value = torch.FloatTensor(initial_value)
 
-        num_features = len(initial_value)
+        self.num_features = len(initial_value)
+
+        tensor_shape = TensorShape(features=self.num_features)
         super().__init__(
-            in_features=num_features,
-            out_features=num_features,
+            in_shape=tensor_shape,
+            out_shape=tensor_shape.copy(),
         )
 
         self.w = nn.Parameter(initial_value, requires_grad=trainable)
@@ -124,7 +128,10 @@ class NetWeighing(Weighing):
             self,
             net: Net,
     ):
-        super().__init__(net.in_features, net.out_features)
+        super().__init__(
+            in_shape=net.in_shape,
+            out_shape=net.out_shape,
+        )
         self.net = net
 
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:

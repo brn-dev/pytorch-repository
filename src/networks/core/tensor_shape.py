@@ -137,10 +137,16 @@ class TensorShape:
 
         is_definite = self.is_definite(dim_key)
         if is_definite:
-            value = int(dim_shape.evalf())
+            size = int(dim_shape.evalf())
         else:
-            value = None
-        return is_definite, value
+            size = None
+        return is_definite, size
+
+    def get_definite_size(self, dim_key: DimKeyType) -> int:
+        is_definite, size = self.try_get_definite_size(dim_key)
+        if not is_definite:
+            raise TensorShapeError(f'Dimension {dim_key} is not definite', _self=self)
+        return size
 
     def is_structural(self, dim_key: DimKeyType):
         dim_key = TensorShape._to_key(dim_key)

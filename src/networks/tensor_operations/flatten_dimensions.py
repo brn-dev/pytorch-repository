@@ -11,12 +11,12 @@ from src.networks.tensor_operations.permute_dimensions import find_permutation
 class FlattenDimensions(Net):
 
     def __init__(self, dim_keys_to_flatten: Iterable[str], dim_order: list[str]):
-        self.flattened_dim_keys = set(dim_keys_to_flatten)
+        self.dim_keys_to_flatten = set(dim_keys_to_flatten)
 
-        in_shape = TensorShape(**{dim_key: None for dim_key in self.flattened_dim_keys})
+        in_shape = TensorShape(**{dim_key: None for dim_key in dim_order})
 
         out_shape = TensorShape()
-        for dim_key in self.flattened_dim_keys:
+        for dim_key in self.dim_keys_to_flatten:
             out_shape['features'] *= in_shape[dim_key]
 
         super().__init__(
@@ -40,29 +40,24 @@ class FlattenDimensions(Net):
 
             previous_index = index
 
-        self.nr_dimensions = len(dim_order)
+        self.nr_in_dimensions = len(dim_order)
         self.permutation = find_permutation(dim_order, permutation)
-        self.nr_out_dimensions = self.nr_dimensions - len(self.flattened_dim_keys)
+        self.nr_out_dimensions = self.nr_in_dimensions - len(self.dim_keys_to_flatten)
 
     @override
     def forward_shape(self, in_shape: TensorShape) -> TensorShape:
-        if not set(in_shape.dimension_names).issuperset(self.flattened_dim_keys):
+        if not set(in_shape.dimension_names).issuperset(self.dim_keys_to_flatten):
             raise TensorShapeError(f'in_shape ({in_shape}) does not contain all the dimensions to be flattened '
-                                   f'({self.flattened_dim_keys})', self_in_shape=self.in_shape, in_shape=in_shape)
+                                   f'({self.dim_keys_to_flatten})', self_in_shape=self.in_shape, in_shape=in_shape)
 
         out_shape = self.out_shape.evaluate_forward(in_shape)
 
-        for flattened_dim_key in self.flattened_dim_keys:
+        for flattened_dim_key in self.dim_keys_to_flatten:
             del out_shape[flattened_dim_key]
 
         return out_shape
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.permute(x, self.permutation)
-        x = torch.reshape(x, list(x.shape[:self.nr_out_dimensions - 1]) + [-1])
+        x = torch.flatten(x, start_dim=self.nr_out_dimensions - 1, end_dim=-1)
         return x
-
-
-
-
-

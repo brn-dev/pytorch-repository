@@ -21,14 +21,14 @@ class LayeredNet(Net, abc.ABC):
             layers: NetListLike,
             layer_connections: LayerConnections.LayerConnectionsLike,
             combination_method: ShapeCombinationMethod,
-            definite_dimensions: Iterable[str] = (),
+            require_definite_dimensions: Iterable[str] = (),
     ):
         self.layers = NetList.as_net_list(layers)
         self.layer_connections: np.ndarray = LayerConnections.to_np(layer_connections, len(self.layers))
 
         self.num_layers = len(self.layers)
 
-        for dim in definite_dimensions:
+        for dim in require_definite_dimensions:
             for i, layer in enumerate(self.layers):
                 if not layer.in_shape.is_definite(dim):
                     raise TensorShapeError(f'Dimension {dim} of in shape of layer {i} ({layer}) is indefinite but '
@@ -138,9 +138,9 @@ class LayeredNet(Net, abc.ABC):
 
         return NetList(layers)
 
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def from_layer_provider(layer_provider: LayerProvider, *args, **kwargs) -> 'LayeredNetDerived':
+    def from_layer_provider(cls, layer_provider: LayerProvider, *args, **kwargs) -> 'LayeredNetDerived':
         raise NotImplemented
 
 
