@@ -24,6 +24,7 @@ class LayeredNet(Net, abc.ABC):
             layer_connections: LayerConnections.LayerConnectionsLike,
             combination_method: ShapeCombinationMethod,
             require_definite_dimensions: Iterable[str] = (),
+            connection_modulators: list[list[Net | None]] = None,
     ):
         layers = NetList.as_net_list(layers)
         layer_connections = LayerConnections.to_np(layer_connections, len(layers))
@@ -37,10 +38,18 @@ class LayeredNet(Net, abc.ABC):
                     raise TensorShapeError(f'Dimension {dim} of out shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
 
+        if connection_modulators is not None:
+            LayeredNet.check_connection_modulators_structure(
+                connection_modulators,
+                len(layers),
+                layer_connections,
+            )
+
         in_shape, out_shape = LayeredNet.find_in_out_shapes(
             layers,
             layer_connections,
             combination_method,
+            connection_modulators,
         )
 
         super().__init__(
@@ -53,39 +62,78 @@ class LayeredNet(Net, abc.ABC):
 
 
     @staticmethod
+    def check_connection_modulators_structure(
+            connection_modulators: list[list[Net | None]],
+            num_layers: int,
+            layer_connections: np.ndarray,
+    ):
+        if not len(connection_modulators) == num_layers:
+            raise ValueError(f'connection_modulators does not contain layers '
+                             f'(need {num_layers}, have {len(connection_modulators)}) - {connection_modulators = }')
+
+        for i, layer_modulators in enumerate(connection_modulators):
+            incoming_layer_nrs = set(LayeredNet.find_incoming_tensor_layer_nrs(i, layer_connections))
+
+            if not len(layer_modulators) == i + 1:
+                raise ValueError(f'connections_modulators must be a 2-dimensional "triangular" list of Nets. '
+                                 f'{len(connection_modulators[i]) = } should be {i + 1 = }')
+
+            for j, modulator in enumerate(layer_modulators):
+                if j in incoming_layer_nrs:
+                    if not isinstance(modulator, Net):
+                        raise ValueError(f'connection_modulators[{i}][{j}] is not a Net '
+                                         f'but {j} is an incoming connection of {i}')
+                else:
+                    if modulator is not None:
+                        raise ValueError(f'connection_modulators[{i}][{j}] should be None since this connection '
+                                         f'is not used')
+
+
+
+    @staticmethod
     def find_in_out_shapes(
             layers: NetList,
             layer_connections: np.ndarray,
             combination_method: ShapeCombinationMethod,
+            connection_modulators: list[list[Net | None]] | None,
     ) -> tuple[TensorShape, TensorShape]:
-        in_shapes = [layers[0].in_shape]
+        layer_shapes = [layers[0].in_shape]
 
         for tensor_layer in range(0, len(layers) + 1):
-            incoming_tensor_layers = LayeredNet.find_incoming_tensor_layers(tensor_layer, layer_connections)
+            incoming_tensor_layer_nrs = LayeredNet.find_incoming_tensor_layer_nrs(tensor_layer, layer_connections)
             incoming_tensor_shapes: list[TensorShape] = [
-                in_shapes[incoming_tensor_layer]
+                layer_shapes[incoming_tensor_layer]
                 for incoming_tensor_layer
-                in incoming_tensor_layers
+                in incoming_tensor_layer_nrs
             ]
 
+            layer_in_shapes = incoming_tensor_shapes
+            if connection_modulators is not None:
+                layer_in_shapes = []
+                for incoming_layer_nr, incoming_layer_shape in zip(incoming_tensor_layer_nrs, incoming_tensor_shapes):
+                    layer_in_shapes.append(
+                        connection_modulators[tensor_layer][incoming_layer_nr]
+                            .forward_shape(incoming_layer_shape)
+                    )
+
             try:
-                combined_tensor_shape = LayeredNet.combine_shapes(incoming_tensor_shapes, combination_method)
+                combined_shape = LayeredNet.combine_shapes(layer_in_shapes, combination_method)
 
                 if tensor_layer < len(layers):
-                    layer_out_shape = layers[tensor_layer].forward_shape(combined_tensor_shape)
-                    in_shapes.append(layer_out_shape)
+                    layer_out_shape = layers[tensor_layer].forward_shape(combined_shape)
+                    layer_shapes.append(layer_out_shape)
                 else:
-                    return in_shapes[0], combined_tensor_shape
+                    return layer_shapes[0], combined_shape
             except TensorShapeError as tse:
                 raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_layer}, '
-                                       f'incoming tensor layers = {list(incoming_tensor_layers)}: \n' + tse.message,
+                                       f'incoming tensor layers = {list(incoming_tensor_layer_nrs)}: \n' + tse.message,
                                        **tse.shapes, parent_error=tse)
 
     @staticmethod
-    def find_incoming_tensor_layers(
+    def find_incoming_tensor_layer_nrs(
             tensor_layer: int,
             layer_connections: np.ndarray,
-    ) -> Iterable[int]:
+    ) -> list[int]:
         incoming_tensor_layers = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0].tolist()
         return sorted(incoming_tensor_layers)
 

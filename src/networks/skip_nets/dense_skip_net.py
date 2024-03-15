@@ -24,14 +24,14 @@ class DenseSkipNet(LayeredNet):
             require_definite_dimensions=['features'],
         )
         self.incoming_tensor_layers = [
-            self.find_incoming_tensor_layers(i, self.layer_connections)
+            self.find_incoming_tensor_layer_nrs(i, self.layer_connections)
             for i in range(self.num_layers + 1)
         ]
 
     def get_dense_input(self, tensor_layer: int, dense_tensor_list: list[torch.Tensor]):
         return torch.cat([
             dense_tensor_list[j] for j in self.incoming_tensor_layers[tensor_layer]
-        ])
+        ], dim=-1)
 
     def forward(self, x, *args, **kwargs) -> torch.Tensor:
         dense_tensor_list: list[torch.Tensor] = [x]
@@ -57,6 +57,7 @@ class DenseSkipNet(LayeredNet):
     ) -> 'DenseSkipNet':
         return DenseSkipNet(
             layers=cls.provide_layers(layer_provider, cls.compute_layers_cum_in_out_sizes(
+                layer_connections=layer_connections,
                 layers_sizes=layers_sizes,
                 in_size=in_size,
                 out_sizes=out_sizes,
@@ -69,12 +70,12 @@ class DenseSkipNet(LayeredNet):
     @classmethod
     def compute_layers_cum_in_out_sizes(
             cls,
+            layer_connections: LayerConnections.LayerConnectionsLike,
             layers_sizes: list[int] = None,
             in_size: int = None,
             out_sizes: list[int] = None,
             num_layers: int = None,
             num_features: int = None,
-            layer_connections: LayerConnections.LayerConnectionsLike = 'full',
     ):
         layers_in_out_sizes = SeqNet.resolve_sequential_in_out_features(
             layer_sizes=layers_sizes,
@@ -90,7 +91,7 @@ class DenseSkipNet(LayeredNet):
 
         layers_cum_in_out_sizes: list[tuple[int, int]] = []
         for i in range(num_layers):
-            in_size_sum = sizes[cls.find_incoming_tensor_layers(i, layer_connections)].sum()
+            in_size_sum = sizes[cls.find_incoming_tensor_layer_nrs(i, layer_connections)].sum()
             layers_cum_in_out_sizes.append((in_size_sum, layers_in_out_sizes[i][-1]))
 
         return layers_cum_in_out_sizes
