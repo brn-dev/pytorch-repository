@@ -1,3 +1,5 @@
+from typing import Callable
+
 from overrides import override
 
 import torch
@@ -17,8 +19,10 @@ class AdditiveSkipNet(LayeredNet):
             layer_connections: LayerConnections.LayerConnectionsLike = 'full',
 
             weights_trainable: bool = False,
+
             initial_direct_connection_weight: float = 1.0,
             initial_skip_connection_weight: float = 1.0,
+            initial_weight_calculator: Callable[[int, int], float] = None,
 
             return_dense: bool = False,
     ):
@@ -33,29 +37,36 @@ class AdditiveSkipNet(LayeredNet):
         if return_dense:
             self.out_shape['features'] *= self.num_layers + 1
 
-        mask = torch.zeros((self.num_layers + 1, self.num_layers + 1, self.num_features))
-        weight = torch.zeros((self.num_layers + 1, self.num_layers + 1, self.num_features))
+        weights = [torch.zeros((l + 1, self.num_features)) for l in range(self.num_layers + 1)]
+        masks = [torch.zeros((l + 1, self.num_features)) for l in range(self.num_layers + 1)]
 
-        for from_idx, to_idx in layer_connections:
-            mask[to_idx, from_idx, :] = 1.0
-            weight[to_idx, from_idx, :] = (initial_direct_connection_weight
-                                           if from_idx == to_idx
-                                           else initial_skip_connection_weight)
+        for from_idx, to_idx in self.layer_connections:
+            if initial_weight_calculator is not None:
+                weights[to_idx][from_idx, :] = initial_weight_calculator(from_idx, to_idx)
+            else:
+                weights[to_idx][from_idx, :] = (initial_direct_connection_weight
+                                                if from_idx == to_idx
+                                                else initial_skip_connection_weight)
+            masks[to_idx][from_idx, :] = 1.0
 
-        self.mask = nn.Parameter(mask, requires_grad=False)
-        self.weight = nn.Parameter(weight, requires_grad=weights_trainable)
+        for i, (weight, mask) in enumerate(zip(weights, masks)):
+            self.register_parameter(f'weights-{i}', nn.Parameter(weight, requires_grad=weights_trainable))
+            mask.requires_grad = False
+            self.register_buffer(f'mask-{i}', mask)
+
+        self.weights = weights
+        self.masks = masks
 
     def forward(self, x: torch.Tensor, *args, **kwargs):
-
         dense_tensor = torch.zeros_like(x.float()) \
-                .unsqueeze(-1).repeat_interleave(self.num_layers + 1, dim=-2)
+                .unsqueeze(-2).repeat_interleave(self.num_layers + 1, dim=-2)
         dense_tensor[..., 0, :] = x
 
         for i, layer in enumerate(self.layers):
             layer_input = (
                     dense_tensor[..., :(i+1), :]
-                    * self.mask[i, :(i+1), :]
-                    * self.weight[i, :(i+1), :]
+                    * self.masks[i]
+                    * self.weights[i]
             ).sum(dim=-2)
             layer_output = layer(layer_input, *args, **kwargs)
             dense_tensor[..., i+1, :] = layer_output
@@ -63,7 +74,7 @@ class AdditiveSkipNet(LayeredNet):
         if self.return_dense:
             return torch.flatten(dense_tensor, start_dim=-2, end_dim=-1)
 
-        out = (dense_tensor * self.mask[-1] * self.weight[-1]).sum(dim=-2)
+        out = (dense_tensor * self.masks[-1] * self.weights[-1]).sum(dim=-2)
         return out
 
     @classmethod
