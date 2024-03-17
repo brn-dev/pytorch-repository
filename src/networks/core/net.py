@@ -58,6 +58,6 @@ class Net(nn.Module, abc.ABC):
         if isinstance(module, Net):
             return module
         if isinstance(module, nn.Module):
-            from src.networks.core.torch_net import TorchNet
+            from src.networks.core.torch_wrappers.torch_net import TorchNet
             return TorchNet.wrap(module)
         raise ValueError(f'Invalid type for {module = }')
