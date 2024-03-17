@@ -13,9 +13,7 @@ class ModulatedAdditiveSkipNet(LayeredNet):
     def __init__(
             self,
             layers: NetListLike,
-
             connection_modulators: list[list[Net | None]],
-
             return_dense: bool = False,
     ):
         super().__init__(
