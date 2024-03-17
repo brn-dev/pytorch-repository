@@ -1,30 +1,42 @@
 from typing import Optional
 
 import torch
+from overrides import override
 from torch import nn
 
 from src.networks.core.net import Net
+from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 
 class MultiheadSelfAttention(Net):
 
     def __init__(
             self,
-            embed_dim,
-            num_heads,
-            dropout=0.,
-            bias=True,
-            add_bias_kv=False,
-            add_zero_attn=False,
-            kdim=None,
-            vdim=None,
-            batch_first=False,
+            embed_dim: int,
+            num_heads: int,
+            dropout: float = 0.,
+            bias: bool = True,
+            add_bias_kv: bool = False,
+            add_zero_attn: bool = False,
+            kdim: int = None,
+            vdim: int = None,
+            batch_first: bool = False,
             device=None,
             dtype=None,
     ):
-        super().__init__(embed_dim, embed_dim)
+        shape = TensorShape(features=embed_dim)
+        shape.create_structural_dimension()
+
+        super().__init__(shape, shape.copy())
         self.mha = nn.MultiheadAttention(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim,
                                          batch_first, device, dtype)
+
+    @override
+    def check_in_shape(self, in_shape: TensorShape):
+        super().check_in_shape(in_shape)
+        if len(in_shape.dimension_names) > 3:
+            raise TensorShapeError(f'MultiheadSelfAttention requires exactly 3 input '
+                                   f'dimensions (S, B, F), got {in_shape}')
 
     def forward(
             self,

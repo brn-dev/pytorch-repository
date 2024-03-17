@@ -32,11 +32,23 @@ class LayeredNet(Net, abc.ABC):
         for dim in require_definite_dimensions:
             for i, layer in enumerate(layers):
                 if not layer.in_shape.is_definite(dim):
-                    raise TensorShapeError(f'Dimension {dim} of in shape of layer {i} ({layer}) is indefinite but '
+                    raise TensorShapeError(f'Dimension {dim} of in_shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
                 if not layer.out_shape.is_definite(dim):
-                    raise TensorShapeError(f'Dimension {dim} of out shape of layer {i} ({layer}) is indefinite but '
+                    raise TensorShapeError(f'Dimension {dim} of out_shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
+            for to_idx, layer_modulators in enumerate(connection_modulators):
+                for from_idx, modulator in enumerate(layer_modulators):
+                    if modulator is not None:
+                        if not modulator.in_shape.is_definite(dim):
+                            raise TensorShapeError(f'Dimension {dim} of in_shape of connection modulator'
+                                                   f'[{to_idx}][{from_idx}] ({modulator}) is indefinite but '
+                                                   f'required to be definite')
+                        if not modulator.out_shape.is_definite(dim):
+                            raise TensorShapeError(f'Dimension {dim} of out_shape of connection modulator'
+                                                   f'[{to_idx}][{from_idx}] ({modulator}) is indefinite but '
+                                                   f'required to be definite')
+
 
         if connection_modulators is not None:
             LayeredNet.check_connection_modulators_structure(
@@ -59,6 +71,15 @@ class LayeredNet(Net, abc.ABC):
         self.layers = layers
         self.layer_connections = layer_connections
         self.num_layers = len(self.layers)
+        self.connection_modulators = connection_modulators
+
+        if connection_modulators is not None:
+            for to_idx in range(self.num_layers + 1):
+                for from_idx in range(to_idx + 1):
+                    self.register_module(
+                        f'connection_modulators[{to_idx}][{from_idx}]',
+                        connection_modulators[to_idx][from_idx]
+                    )
 
 
     @staticmethod

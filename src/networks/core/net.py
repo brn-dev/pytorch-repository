@@ -1,8 +1,9 @@
 import abc
-from typing import Union
+from typing import Union, Literal
 
 from torch import nn
 
+from src.module_analysis import count_parameters, get_gradients_per_layer
 from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 
@@ -45,6 +46,12 @@ class Net(nn.Module, abc.ABC):
         out_shape = self.forward_shape(in_shape)
 
         return in_shape[dim_key] != out_shape[dim_key]
+
+    def count_parameters(self, requires_grad_only: bool = True):
+        return count_parameters(self, requires_grad_only)
+
+    def get_gradients_per_layer(self, param_type: Literal['all', 'weight', 'bias'] = 'all'):
+        return get_gradients_per_layer(self, param_type)
 
     @staticmethod
     def as_net(module: Union['Net', nn.Module]) -> 'Net':
