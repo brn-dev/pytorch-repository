@@ -38,7 +38,7 @@ class ModulatedAdditiveSkipNet(LayeredNet):
             self.connection_modulators[tensor_layer][j](dense_tensor_list[j])
             for j
             in self.incoming_tensor_layers[tensor_layer]
-        ], dim=-2).sum(-2)
+        ], dim=-2).sum(dim=-2)
 
     def forward(self, x, *args, **kwargs) -> torch.Tensor:
         dense_tensor_list: list[torch.Tensor] = [x]
