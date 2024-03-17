@@ -44,11 +44,16 @@ class FlattenDimensions(Net):
         self.permutation = find_permutation(dim_order, permutation)
         self.nr_out_dimensions = self.nr_in_dimensions - len(self.dim_keys_to_flatten)
 
+
     @override
-    def forward_shape(self, in_shape: TensorShape) -> TensorShape:
+    def check_in_shape(self, in_shape: TensorShape):
         if not set(in_shape.dimension_names).issuperset(self.dim_keys_to_flatten):
             raise TensorShapeError(f'in_shape ({in_shape}) does not contain all the dimensions to be flattened '
                                    f'({self.dim_keys_to_flatten})', self_in_shape=self.in_shape, in_shape=in_shape)
+
+    @override
+    def forward_shape(self, in_shape: TensorShape) -> TensorShape:
+        self.check_in_shape(in_shape)
 
         out_shape = self.out_shape.evaluate_forward(in_shape)
 
