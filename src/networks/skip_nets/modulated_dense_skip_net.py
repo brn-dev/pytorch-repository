@@ -9,6 +9,7 @@ from src.networks.core.layered_net import LayeredNet, LayerProvider
 from src.networks.core.net import Net
 from src.networks.core.net_list import NetListLike
 from src.networks.core.seq_net import SeqNet
+from src.networks.core.tensor_shape import TensorShape
 
 
 class ModulatedDenseSkipNet(LayeredNet):
@@ -34,7 +35,7 @@ class ModulatedDenseSkipNet(LayeredNet):
     def get_dense_input(self, tensor_layer: int, dense_tensor_list: list[torch.Tensor]):
         return torch.cat([
             self.connection_modulators[tensor_layer][j](dense_tensor_list[j])
-            for j in self.incoming_tensor_layers[tensor_layer]
+            for j in self.incoming_layer_connections[tensor_layer]
         ], dim=-1)
 
     def forward(self, x, *args, **kwargs) -> torch.Tensor:
@@ -111,8 +112,10 @@ class ModulatedDenseSkipNet(LayeredNet):
         for i in range(num_layers):
             in_size_sum = 0
             for incoming_tensor_layer_nr in cls.find_incoming_tensor_layer_nrs(i, layer_connections):
+                incoming_tensor_layer_size = sizes[incoming_tensor_layer_nr]
                 in_size_sum += (connection_modulators[i][incoming_tensor_layer_nr]
-                                    .out_shape.get_definite_size('features'))
+                                .forward_shape(TensorShape(features=incoming_tensor_layer_size))
+                                .get_definite_size('features'))
             layers_cum_in_out_sizes.append((in_size_sum, layers_in_out_sizes[i][1]))
 
         return layers_cum_in_out_sizes, connection_modulators

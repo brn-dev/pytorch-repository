@@ -37,17 +37,6 @@ class LayeredNet(Net, abc.ABC):
                 if not layer.out_shape.is_definite(dim):
                     raise TensorShapeError(f'Dimension {dim} of out_shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
-            for to_idx, layer_modulators in enumerate(connection_modulators):
-                for from_idx, modulator in enumerate(layer_modulators):
-                    if modulator is not None:
-                        if not modulator.in_shape.is_definite(dim):
-                            raise TensorShapeError(f'Dimension {dim} of in_shape of connection modulator'
-                                                   f'[{to_idx}][{from_idx}] ({modulator}) is indefinite but '
-                                                   f'required to be definite')
-                        if not modulator.out_shape.is_definite(dim):
-                            raise TensorShapeError(f'Dimension {dim} of out_shape of connection modulator'
-                                                   f'[{to_idx}][{from_idx}] ({modulator}) is indefinite but '
-                                                   f'required to be definite')
 
 
         if connection_modulators is not None:
@@ -69,8 +58,14 @@ class LayeredNet(Net, abc.ABC):
             out_shape=out_shape,
         )
         self.layers = layers
-        self.layer_connections = layer_connections
         self.num_layers = len(self.layers)
+
+        self.layer_connections = layer_connections
+        self.incoming_layer_connections = [
+            self.find_incoming_tensor_layer_nrs(i, self.layer_connections)
+            for i in range(self.num_layers + 1)
+        ]
+
         self.connection_modulators = connection_modulators
 
         if connection_modulators is not None:
@@ -88,9 +83,9 @@ class LayeredNet(Net, abc.ABC):
             num_layers: int,
             layer_connections: np.ndarray,
     ):
-        if not len(connection_modulators) == num_layers:
-            raise ValueError(f'connection_modulators does not contain layers '
-                             f'(need {num_layers}, have {len(connection_modulators)}) - {connection_modulators = }')
+        if not len(connection_modulators) == num_layers + 1:
+            raise ValueError(f'incorrect number of layers in connection_modulators '
+                             f'(need {num_layers + 1}, have {len(connection_modulators)}) - {connection_modulators = }')
 
         for i, layer_modulators in enumerate(connection_modulators):
             incoming_layer_nrs = set(LayeredNet.find_incoming_tensor_layer_nrs(i, layer_connections))
@@ -134,7 +129,7 @@ class LayeredNet(Net, abc.ABC):
                 for incoming_layer_nr, incoming_layer_shape in zip(incoming_tensor_layer_nrs, incoming_tensor_shapes):
                     layer_in_shapes.append(
                         connection_modulators[tensor_layer][incoming_layer_nr]
-                            .forward_shape(incoming_layer_shape)
+                        .forward_shape(incoming_layer_shape)
                     )
 
             try:
