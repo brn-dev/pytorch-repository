@@ -58,7 +58,7 @@ class ModulatedAdditiveSkipNet(LayeredNet):
     def from_layer_provider(
             cls,
             layer_provider: LayerProvider,
-            modulator_provider: Callable[[int, int, int], Net | None],
+            modulator_provider: Callable[[int, int, int], Net | None],  # = lambda from_idx, to_idx, num_features: ...
             num_layers: int = None,
             num_features: int = None,
             return_dense: bool = False,

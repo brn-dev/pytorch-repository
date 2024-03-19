@@ -53,7 +53,7 @@ class ModulatedDenseSkipNet(LayeredNet):
     def from_layer_provider(
             cls,
             layer_provider: LayerProvider,
-            modulator_provider: Callable[[int, int, int], Net | None],
+            modulator_provider: Callable[[int, int, int], Net | None],  # = lambda from_idx, to_idx, in_features: ...
             layers_sizes: list[int] = None,
             in_size: int = None,
             layer_out_sizes: list[int] = None,
@@ -78,7 +78,7 @@ class ModulatedDenseSkipNet(LayeredNet):
     @classmethod
     def compute_layers_cum_modulated_in_out_sizes(
             cls,
-            modulator_provider: Callable[[int, int, int], Net | None],
+            modulator_provider: Callable[[int, int, int], Net | None],  # = lambda from_idx, to_idx, in_features: ...
             layers_sizes: list[int] = None,
             in_size: int = None,
             out_sizes: list[int] = None,
