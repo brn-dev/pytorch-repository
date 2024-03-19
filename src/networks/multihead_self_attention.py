@@ -34,7 +34,7 @@ class MultiheadSelfAttention(Net):
     @override
     def check_in_shape(self, in_shape: TensorShape):
         super().check_in_shape(in_shape)
-        if len(in_shape.dimension_names) > 3:
+        if len(in_shape.dimension_names) != 3:
             raise TensorShapeError(f'MultiheadSelfAttention requires exactly 3 input '
                                    f'dimensions (S, B, F), got {in_shape}')
 
@@ -42,7 +42,7 @@ class MultiheadSelfAttention(Net):
             self,
             x: torch.Tensor,
             key_padding_mask: Optional[torch.Tensor] = None,
-            need_weights: bool = True,
+            need_weights: bool = False,
             attn_mask: Optional[torch.Tensor] = None,
             average_attn_weights: bool = True,
             is_causal: bool = False,
