@@ -33,7 +33,7 @@ class ModulatedAdditiveSkipNet(LayeredNet):
         if return_dense:
             self.out_shape['features'] *= self.num_layers + 1
 
-    def get_dense_input(self, tensor_layer: int, dense_tensor_list: list[torch.Tensor]):
+    def get_additive_input(self, tensor_layer: int, dense_tensor_list: list[torch.Tensor]):
         return torch.stack([
             self.connection_modulators[tensor_layer][j](dense_tensor_list[j])
             for j
@@ -44,11 +44,14 @@ class ModulatedAdditiveSkipNet(LayeredNet):
         dense_tensor_list: list[torch.Tensor] = [x]
 
         for i, layer in enumerate(self.layers):
-            layer_dense_input = self.get_dense_input(i, dense_tensor_list)
+            layer_dense_input = self.get_additive_input(i, dense_tensor_list)
             layer_out = layer(layer_dense_input, *args, **kwargs)
             dense_tensor_list.append(layer_out)
 
-        return self.get_dense_input(self.num_layers, dense_tensor_list)
+        if self.return_dense:
+            return torch.cat(dense_tensor_list, dim=-1)
+        else:
+            return self.get_additive_input(self.num_layers, dense_tensor_list)
 
     @classmethod
     @override
