@@ -10,6 +10,7 @@ def find_permutation(from_order: list[str], to_order: list[str]) -> list[int]:
 
     return [from_order.index(p) for p in to_order]
 
+
 class PermuteDimensions(Net):
 
     def __init__(self, from_order: list[str], to_order: list[str]):
@@ -18,6 +19,7 @@ class PermuteDimensions(Net):
         super().__init__(
             in_shape=in_shape,
             out_shape=out_shape,
+            allow_extra_dimensions=False,
         )
 
         self.nr_dimensions = len(from_order)

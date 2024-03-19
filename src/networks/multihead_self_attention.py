@@ -27,7 +27,7 @@ class MultiheadSelfAttention(Net):
         shape = TensorShape(features=embed_dim)
         shape.create_structural_dimension()
 
-        super().__init__(shape, shape.copy())
+        super().__init__(shape, shape.copy(), allow_extra_dimensions=False)
         self.mha = nn.MultiheadAttention(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim,
                                          batch_first, device, dtype)
 

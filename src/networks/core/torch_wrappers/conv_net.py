@@ -99,7 +99,7 @@ class Conv1dNet(Net, nn.Conv1d):
         in_shape, out_shape = _compute_conv_in_out_shapes(
             1, in_channels, out_channels, kernel_size, stride, padding, dilation
         )
-        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape, allow_extra_dimensions=False)
         nn.Conv1d.__init__(
             self,
             in_channels=in_channels,
@@ -160,7 +160,7 @@ class Conv2dNet(Net, nn.Conv2d):
         in_shape, out_shape = _compute_conv_in_out_shapes(
             2, in_channels, out_channels, kernel_size, stride, padding, dilation
         )
-        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape, allow_extra_dimensions=False)
         nn.Conv2d.__init__(
             self,
             in_channels=in_channels,
@@ -223,7 +223,7 @@ class Conv3dNet(Net, nn.Conv3d):
         in_shape, out_shape = _compute_conv_in_out_shapes(
             3, in_channels, out_channels, kernel_size, stride, padding, dilation
         )
-        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape, allow_extra_dimensions=False)
         nn.Conv3d.__init__(
             self,
             in_channels=in_channels,

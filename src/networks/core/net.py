@@ -13,13 +13,21 @@ class Net(nn.Module, abc.ABC):
             self,
             in_shape: TensorShape,
             out_shape: TensorShape,
+            allow_extra_dimensions: bool = True,
     ):
         nn.Module.__init__(self)
 
         self.in_shape = in_shape
         self.out_shape = out_shape
 
+        self.allow_extra_dimensions = allow_extra_dimensions
+
     def check_in_shape(self, in_shape: TensorShape):
+        if not self.allow_extra_dimensions and self.in_shape.dimension_names != in_shape.dimension_names:
+            raise TensorShapeError(f'This net only accepts tensors with the following dimensions: '
+                                   f'{self.in_shape.dimension_names}, got {in_shape.dimension_names}',
+                                   self_in_shape=self.in_shape, in_shape=in_shape)
+
         for definite_dim in self.in_shape.definite_dimension_names:
             if in_shape.is_definite(definite_dim) and in_shape[definite_dim] != self.in_shape[definite_dim]:
                 raise TensorShapeError(f'This net only accepts tensors with size {self.in_shape[definite_dim]} '

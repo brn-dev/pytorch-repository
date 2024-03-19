@@ -22,6 +22,7 @@ class FlattenDimensions(Net):
         super().__init__(
             in_shape=in_shape,
             out_shape=out_shape,
+            allow_extra_dimensions=False,
         )
 
         permutation = list(dim_order)
