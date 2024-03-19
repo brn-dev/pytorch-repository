@@ -17,19 +17,60 @@ _size_1_t = _scalar_or_tuple_1_t[int]
 _size_2_t = _scalar_or_tuple_2_t[int]
 _size_3_t = _scalar_or_tuple_3_t[int]
 
+_int_size = Union[Tuple[int, ...], int]
+
+
+def to_tuple(value: _int_size, length: int):
+    if isinstance(value, tuple):
+        return value
+    return tuple(value for _ in range(length))
+
 
 def compute_conv_in_out_shapes(conv: nn.Conv1d | nn.Conv2d | nn.Conv3d):
-    in_shape, out_shape = TensorShape(features=conv.in_channels), TensorShape(features=conv.out_channels)
+    return _compute_conv_in_out_shapes(
+        nr_dims=len(conv.kernel_size),
+        in_channels=conv.in_channels,
+        out_channels=conv.out_channels,
+        kernel_size=conv.kernel_size,
+        stride=conv.stride,
+        padding=conv.padding,
+        dilation=conv.dilation,
+    )
 
-    for conv_dim_nr in range(len(conv.kernel_size)):
-        kernel_size = conv.kernel_size[conv_dim_nr]
-        stride = conv.stride[conv_dim_nr]
-        padding = conv.padding[conv_dim_nr]
-        dilation = conv.dilation[conv_dim_nr]
+
+def _compute_conv_in_out_shapes(
+        nr_dims: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: _int_size,
+        stride: _int_size,
+        padding: Union[_int_size, str],
+        dilation: _int_size,
+):
+    in_shape, out_shape = TensorShape(features=in_channels), TensorShape(features=out_channels)
+
+    if padding == 'same':
+        for conv_dim_nr in range(nr_dims):
+            in_shape.create_structural_dimension()
+            out_shape.create_structural_dimension()
+        return in_shape, out_shape
+    if padding == 'valid':
+        padding = 0
+
+    kernel_size = to_tuple(kernel_size, length=nr_dims)
+    stride = to_tuple(stride, length=nr_dims)
+    padding = to_tuple(padding, length=nr_dims)
+    dilation = to_tuple(dilation, length=nr_dims)
+
+    for conv_dim_nr in range(nr_dims):
+        dim_kernel_size = kernel_size[conv_dim_nr]
+        dim_stride = stride[conv_dim_nr]
+        dim_padding = padding[conv_dim_nr]
+        dim_dilation = dilation[conv_dim_nr]
 
         dim_key, dim_symbol = out_shape.create_structural_dimension()
         out_shape[dim_key] = sp.floor(
-            (dim_symbol + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
+            (dim_symbol + 2 * dim_padding - dim_dilation * (dim_kernel_size - 1) - 1) / dim_stride + 1
         )
 
         in_shape.create_structural_dimension()
@@ -55,6 +96,10 @@ class Conv1dNet(Net, nn.Conv1d):
             external_dim_order: list[str] = None,
             internal_dim_order: list[str] = None,
     ):
+        in_shape, out_shape = _compute_conv_in_out_shapes(
+            1, in_channels, out_channels, kernel_size, stride, padding, dilation
+        )
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
         nn.Conv1d.__init__(
             self,
             in_channels=in_channels,
@@ -69,7 +114,6 @@ class Conv1dNet(Net, nn.Conv1d):
             device=device,
             dtype=dtype,
         )
-        self.in_shape, self.out_shape = compute_conv_in_out_shapes(self)
 
         structural_prefix = TensorShape.STRUCTURAL_PREFIX
         if external_dim_order is None:
@@ -94,6 +138,7 @@ class Conv1dNet(Net, nn.Conv1d):
         x = torch.permute(x, self.exit_permutation)
         return x
 
+
 class Conv2dNet(Net, nn.Conv2d):
 
     def __init__(
@@ -112,6 +157,10 @@ class Conv2dNet(Net, nn.Conv2d):
             external_dim_order: list[str] = None,
             internal_dim_order: list[str] = None,
     ):
+        in_shape, out_shape = _compute_conv_in_out_shapes(
+            2, in_channels, out_channels, kernel_size, stride, padding, dilation
+        )
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
         nn.Conv2d.__init__(
             self,
             in_channels=in_channels,
@@ -126,7 +175,6 @@ class Conv2dNet(Net, nn.Conv2d):
             device=device,
             dtype=dtype,
         )
-        self.in_shape, self.out_shape = compute_conv_in_out_shapes(self)
 
         structural_prefix = TensorShape.STRUCTURAL_PREFIX
         if external_dim_order is None:
@@ -153,6 +201,7 @@ class Conv2dNet(Net, nn.Conv2d):
         x = torch.permute(x, self.exit_permutation)
         return x
 
+
 class Conv3dNet(Net, nn.Conv3d):
 
     def __init__(
@@ -171,6 +220,10 @@ class Conv3dNet(Net, nn.Conv3d):
             external_dim_order: list[str] = None,
             internal_dim_order: list[str] = None,
     ):
+        in_shape, out_shape = _compute_conv_in_out_shapes(
+            3, in_channels, out_channels, kernel_size, stride, padding, dilation
+        )
+        Net.__init__(self, in_shape=in_shape, out_shape=out_shape)
         nn.Conv3d.__init__(
             self,
             in_channels=in_channels,
@@ -185,8 +238,6 @@ class Conv3dNet(Net, nn.Conv3d):
             device=device,
             dtype=dtype,
         )
-        self.in_shape, self.out_shape = compute_conv_in_out_shapes(self)
-
 
         structural_prefix = TensorShape.STRUCTURAL_PREFIX
         if external_dim_order is None:

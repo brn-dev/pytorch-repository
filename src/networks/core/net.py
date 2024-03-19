@@ -14,7 +14,7 @@ class Net(nn.Module, abc.ABC):
             in_shape: TensorShape,
             out_shape: TensorShape,
     ):
-        super().__init__()
+        nn.Module.__init__(self)
 
         self.in_shape = in_shape
         self.out_shape = out_shape
