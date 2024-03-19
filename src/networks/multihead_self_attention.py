@@ -41,14 +41,13 @@ class MultiheadSelfAttention(Net):
     def forward(
             self,
             x: torch.Tensor,
-            extract_attn_output: bool = True,
             key_padding_mask: Optional[torch.Tensor] = None,
             need_weights: bool = True,
             attn_mask: Optional[torch.Tensor] = None,
             average_attn_weights: bool = True,
-            is_causal: bool = False
+            is_causal: bool = False,
     ) -> (torch.Tensor | tuple[torch.Tensor, Optional[torch.Tensor]]):
-        attention_out, attention_out_weights = self.mha.forward(
+        attention_out, attention_out_weights = self.mha(
             x, x, x,
             key_padding_mask=key_padding_mask,
             need_weights=need_weights,
@@ -56,6 +55,6 @@ class MultiheadSelfAttention(Net):
             average_attn_weights=average_attn_weights,
             is_causal=is_causal,
         )
-        if extract_attn_output:
-            return attention_out
-        return attention_out, attention_out_weights
+        if need_weights:
+            return attention_out, attention_out_weights
+        return attention_out
