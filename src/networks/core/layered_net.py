@@ -62,7 +62,7 @@ class LayeredNet(Net, abc.ABC):
 
         self.layer_connections = layer_connections
         self.incoming_layer_connections = [
-            self.find_incoming_tensor_layer_nrs(i, self.layer_connections)
+            self.find_incoming_tensor_step_indices(i, self.layer_connections)
             for i in range(self.num_layers + 1)
         ]
 
@@ -88,7 +88,7 @@ class LayeredNet(Net, abc.ABC):
                              f'(need {num_layers + 1}, have {len(connection_modulators)}) - {connection_modulators = }')
 
         for i, layer_modulators in enumerate(connection_modulators):
-            incoming_layer_nrs = set(LayeredNet.find_incoming_tensor_layer_nrs(i, layer_connections))
+            incoming_layer_nrs = set(LayeredNet.find_incoming_tensor_step_indices(i, layer_connections))
 
             if not len(layer_modulators) == i + 1:
                 raise ValueError(f'connections_modulators must be a 2-dimensional "triangular" list of Nets. '
@@ -115,43 +115,44 @@ class LayeredNet(Net, abc.ABC):
     ) -> tuple[TensorShape, TensorShape]:
         layer_shapes = [layers[0].in_shape]
 
-        for tensor_layer in range(0, len(layers) + 1):
-            incoming_tensor_layer_nrs = LayeredNet.find_incoming_tensor_layer_nrs(tensor_layer, layer_connections)
+        for tensor_step in range(0, len(layers) + 1):
+            incoming_tensor_step_indices = LayeredNet.find_incoming_tensor_step_indices(tensor_step, layer_connections)
             incoming_tensor_shapes: list[TensorShape] = [
-                layer_shapes[incoming_tensor_layer]
-                for incoming_tensor_layer
-                in incoming_tensor_layer_nrs
+                layer_shapes[incoming_tensor_step]
+                for incoming_tensor_step
+                in incoming_tensor_step_indices
             ]
 
             layer_in_shapes = incoming_tensor_shapes
             if connection_modulators is not None:
                 layer_in_shapes = []
-                for incoming_layer_nr, incoming_layer_shape in zip(incoming_tensor_layer_nrs, incoming_tensor_shapes):
+                for incoming_layer_nr, incoming_layer_shape \
+                        in zip(incoming_tensor_step_indices, incoming_tensor_shapes):
                     layer_in_shapes.append(
-                        connection_modulators[tensor_layer][incoming_layer_nr]
+                        connection_modulators[tensor_step][incoming_layer_nr]
                         .forward_shape(incoming_layer_shape)
                     )
 
             try:
                 combined_shape = LayeredNet.combine_shapes(layer_in_shapes, combination_method)
 
-                if tensor_layer < len(layers):
-                    layer_out_shape = layers[tensor_layer].forward_shape(combined_shape)
+                if tensor_step < len(layers):
+                    layer_out_shape = layers[tensor_step].forward_shape(combined_shape)
                     layer_shapes.append(layer_out_shape)
                 else:
                     return layer_shapes[0], combined_shape
             except TensorShapeError as tse:
-                raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_layer}, '
-                                       f'incoming tensor layers = {list(incoming_tensor_layer_nrs)}: \n' + tse.message,
+                raise TensorShapeError(f'Error while finding shapes for tensor layer {tensor_step}, '
+                                       f'incoming tensor layers = {list(incoming_tensor_step_indices)}: \n' + tse.message,
                                        **tse.shapes, parent_error=tse)
 
     @staticmethod
-    def find_incoming_tensor_layer_nrs(
-            tensor_layer: int,
+    def find_incoming_tensor_step_indices(
+            tensor_step: int,
             layer_connections: np.ndarray,
     ) -> list[int]:
-        incoming_tensor_layers = layer_connections[layer_connections[:, 1] == tensor_layer][:, 0].tolist()
-        return sorted(incoming_tensor_layers)
+        incoming_tensor_steps = layer_connections[layer_connections[:, 1] == tensor_step][:, 0].tolist()
+        return sorted(incoming_tensor_steps)
 
     @staticmethod
     def combine_shapes(

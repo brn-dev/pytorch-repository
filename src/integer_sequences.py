@@ -1,4 +1,16 @@
 from functools import cache
+from itertools import count
+from typing import Callable
+
+
+def generate_sequence_up_to(sequence: Callable[[int], int], up_to: int):
+    sequence_elements = []
+    for i in count(start=0, step=1):
+        elem = sequence(i)
+        if elem <= up_to:
+            sequence_elements.append(elem)
+        else:
+            return sequence_elements
 
 
 @cache
@@ -16,6 +28,8 @@ def fibonacci(n: int):
 
 @cache
 def factorial(n: int):
+    if n == 0:
+        return 1
     return n * factorial(n - 1)
 
 

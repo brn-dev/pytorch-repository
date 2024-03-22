@@ -24,9 +24,9 @@ class DenseSkipNet(LayeredNet):
             require_definite_dimensions=['features'],
         )
 
-    def get_dense_input(self, tensor_layer: int, dense_tensor_list: list[torch.Tensor]):
+    def get_dense_input(self, tensor_step: int, dense_tensor_list: list[torch.Tensor]):
         return torch.cat([
-            dense_tensor_list[j] for j in self.incoming_layer_connections[tensor_layer]
+            dense_tensor_list[j] for j in self.incoming_layer_connections[tensor_step]
         ], dim=-1)
 
     def forward(self, x, *args, **kwargs) -> torch.Tensor:
@@ -87,7 +87,7 @@ class DenseSkipNet(LayeredNet):
 
         layers_cum_in_out_sizes: list[tuple[int, int]] = []
         for i in range(num_layers):
-            in_size_sum = sizes[cls.find_incoming_tensor_layer_nrs(i, layer_connections)].sum()
+            in_size_sum = sizes[cls.find_incoming_tensor_step_indices(i, layer_connections)].sum()
             layers_cum_in_out_sizes.append((in_size_sum, layers_in_out_sizes[i][-1]))
 
         return layers_cum_in_out_sizes
