@@ -25,7 +25,7 @@ class TorchNet(Net):
 
 
     @staticmethod
-    def wrap(module: nn.Module) -> 'Net':
+    def wrap(module: nn.Module) -> Net:
         in_shape, out_shape = TorchNet.detect_in_out_shapes(module)
         return TorchNet(
             module=module,

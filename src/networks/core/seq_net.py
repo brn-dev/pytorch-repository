@@ -18,17 +18,6 @@ class SeqNet(LayeredNet):
             combination_method=None,
         )
 
-    @staticmethod
-    @override
-    def find_in_out_shapes(
-            layers: NetList,
-            layer_connections: np.ndarray,
-            combination_method: ShapeCombinationMethod,
-            *args, **kwargs
-    ) -> tuple[TensorShape, TensorShape]:
-        in_shape, out_shape = find_seq_in_out_shapes(layers)
-        return in_shape, out_shape
-
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
