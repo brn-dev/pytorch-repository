@@ -83,7 +83,7 @@ class ScalarWeighing(Weighing):
             out_shape=TensorShape(),
         )
 
-        self.w = nn.Parameter(torch.FloatTensor([initial_value]), requires_grad=trainable)
+        self.w = nn.Parameter(torch.tensor([initial_value]), requires_grad=trainable)
 
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:
         return self.w
@@ -106,7 +106,7 @@ class VectorWeighing(Weighing):
         if is_val_float:
             initial_value = torch.ones(num_features) * initial_value
         if is_val_tensor_like:
-            initial_value = torch.FloatTensor(initial_value)
+            initial_value = torch.tensor(initial_value)
 
         self.num_features = len(initial_value)
 

@@ -6,13 +6,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn, optim
 
-from src.reinforcement_learning.core.rl_base import RLBase
-from src.reinforcement_learning.rl_utils import compute_returns
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
 
 
-class ReinforceSTM(RLBase):
+class ReinforceSTM(EpisodicRLBase):
 
-    class RolloutMemory(RLBase.RolloutMemory):
+    class RolloutMemory(EpisodicRLBase.RolloutMemory):
 
         def __init__(self):
             self.action_log_probs: list[torch.Tensor] = []
@@ -50,10 +49,10 @@ class ReinforceSTM(RLBase):
             normalize_returns=True,
             reinforce_objective_weight=10.0,
             state_transition_objective_weight=1.0,
-            on_episode_done: Callable[['ReinforceSTM', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
-            on_optimization_done: Callable[['ReinforceSTM', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
+            on_episode_done: EpisodeDoneCallback['ReinforceSTM']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_optimization_done: EpisodeDoneCallback['ReinforceSTM']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
     ):
         super().__init__(
             env=env,
@@ -69,7 +68,7 @@ class ReinforceSTM(RLBase):
         self.state_transition_objective_weight = state_transition_objective_weight
 
     def optimize_using_episode(self):
-        returns = compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=self.normalize_returns)
+        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=self.normalize_returns)
         action_log_probs = torch.stack(self.memory.action_log_probs)
 
         reinforce_objective = -(action_log_probs * returns).mean()
@@ -88,12 +87,12 @@ class ReinforceSTM(RLBase):
 
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        action_pred, state_pred = self.policy_network(torch.FloatTensor(state))
+        action_pred, state_pred = self.policy_network(torch.tensor(state))
         action, action_log_probs = self.select_action(action_pred)
 
         state, reward, done, truncated, info = self.env.step(action)
         reward = float(reward)
 
-        self.memory.memorize(action_log_probs, state_pred, torch.FloatTensor(state), reward)
+        self.memory.memorize(action_log_probs, state_pred, torch.tensor(state), reward)
 
         return state, reward, done, truncated, info

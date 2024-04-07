@@ -5,12 +5,10 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.rl_base import RLBase
-from src.reinforcement_learning.rl_utils import compute_returns, normalize
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
 
-
-class CombinedNetworkA2C(RLBase):
-    class RolloutMemory(RLBase.RolloutMemory):
+class CombinedNetworkA2C(EpisodicRLBase):
+    class RolloutMemory(EpisodicRLBase.RolloutMemory):
         def __init__(self):
             self.action_log_probs: list[torch.Tensor] = []
             self.value_estimates: list[torch.Tensor] = []
@@ -37,10 +35,10 @@ class CombinedNetworkA2C(RLBase):
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
             critic_objective_weight=0.5,
-            on_episode_done: Callable[['CombinedNetworkA2C', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
-            on_optimization_done: Callable[['CombinedNetworkA2C', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
+            on_episode_done: EpisodeDoneCallback['CombinedNetworkA2C']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_optimization_done: EpisodeDoneCallback['CombinedNetworkA2C']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
     ):
         super().__init__(
             env=env,
@@ -58,7 +56,7 @@ class CombinedNetworkA2C(RLBase):
 
 
     def optimize_using_episode(self):
-        returns = compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
+        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates)
 

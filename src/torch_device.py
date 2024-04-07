@@ -9,3 +9,4 @@ def set_default_torch_device(device: torch.device | str = None):
     if device is None:
         device = get_torch_device()
     torch.set_default_device(device)
+    return torch.device(device)

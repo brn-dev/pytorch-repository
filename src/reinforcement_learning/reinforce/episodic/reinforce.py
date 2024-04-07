@@ -5,13 +5,12 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.rl_base import RLBase
-from src.reinforcement_learning.rl_utils import compute_returns
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
 
 
-class Reinforce(RLBase):
+class Reinforce(EpisodicRLBase):
 
-    class RolloutMemory(RLBase.RolloutMemory):
+    class RolloutMemory(EpisodicRLBase.RolloutMemory):
 
         def __init__(self):
             self.action_log_probs = []
@@ -34,10 +33,10 @@ class Reinforce(RLBase):
             policy_network_optimizer: optim.Optimizer,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
-            on_episode_done: Callable[['Reinforce', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
-            on_optimization_done: Callable[['Reinforce', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
+            on_episode_done: EpisodeDoneCallback['Reinforce']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_optimization_done: EpisodeDoneCallback['Reinforce']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
     ):
         super().__init__(
             env=env,
@@ -50,7 +49,7 @@ class Reinforce(RLBase):
         self.policy_network_optimizer = policy_network_optimizer
 
     def optimize_using_episode(self):
-        returns = compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=True)
+        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=True)
         action_log_probs = torch.stack(self.memory.action_log_probs)
 
         reinforce_objective = -(action_log_probs * returns).mean()

@@ -5,12 +5,11 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.rl_base import RLBase
-from src.reinforcement_learning.rl_utils import compute_returns, normalize
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
 
 
-class A2C(RLBase):
-    class RolloutMemory(RLBase.RolloutMemory):
+class A2C(EpisodicRLBase):
+    class RolloutMemory(EpisodicRLBase.RolloutMemory):
         def __init__(self):
             self.action_log_probs: list[torch.Tensor] = []
             self.value_estimates: list[torch.Tensor] = []
@@ -38,10 +37,10 @@ class A2C(RLBase):
             critic_loss: nn.Module,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
-            on_episode_done: Callable[['A2C', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
-            on_optimization_done: Callable[['A2C', int, bool, float], None]
-                = lambda _self, i_episode, is_best_episode, best_total_reward: None,
+            on_episode_done: EpisodeDoneCallback['A2C']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_optimization_done: EpisodeDoneCallback['A2C']
+                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
     ):
         super().__init__(
             env=env,
@@ -58,11 +57,14 @@ class A2C(RLBase):
         self.critic_loss = critic_loss
 
     def optimize_using_episode(self):
-        returns = compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
+        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates)
 
         advantages = returns - value_estimates.detach()
+
+        if action_log_probs.dim() == 2:
+            advantages = advantages.unsqueeze(1)
 
         actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
@@ -77,7 +79,8 @@ class A2C(RLBase):
         self.critic_network_optimizer.step()
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        state = torch.Tensor(state)
+        state = torch.tensor(state)
+
         action_pred = self.actor_network(state.float())
         action, action_log_prob = self.select_action(action_pred)
 
