@@ -49,10 +49,8 @@ class ReinforceSTM(EpisodicRLBase):
             normalize_returns=True,
             reinforce_objective_weight=10.0,
             state_transition_objective_weight=1.0,
-            on_episode_done: EpisodeDoneCallback['ReinforceSTM']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
-            on_optimization_done: EpisodeDoneCallback['ReinforceSTM']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_episode_done: EpisodeDoneCallback['ReinforceSTM'] = lambda _self, info: None,
+            on_optimization_done: EpisodeDoneCallback['ReinforceSTM'] = lambda _self, info: None,
     ):
         super().__init__(
             env=env,

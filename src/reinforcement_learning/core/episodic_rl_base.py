@@ -56,7 +56,9 @@ class EpisodicRLBase(RLBase, abc.ABC):
             max_timestep = 1000000
             timestep = 0
             for timestep in range(1, max_timestep + 1):  # Don't infinite loop while learning
-                state, reward, done, truncated, info = self.step(state)
+                state, reward, terminated, truncated, info = self.step(state)
+
+                done = terminated or truncated
 
                 if done:
                     break
@@ -64,34 +66,33 @@ class EpisodicRLBase(RLBase, abc.ABC):
             if timestep == max_timestep:
                 info['termination_reason'] = 'timestep_limit_reached'
 
-            episode_total_reward = sum(self.memory.rewards)
+            episode_cum_reward = sum(self.memory.rewards)
 
             is_best_episode = False
-            if episode_total_reward >= best_total_reward:
-                best_total_reward = episode_total_reward
+            if episode_cum_reward >= best_total_reward:
+                best_total_reward = episode_cum_reward
                 is_best_episode = True
+
+            info['i_episode'] = is_best_episode
+            info['is_best_episode'] = is_best_episode
+            info['episode_cumulative_reward'] = episode_cum_reward
+            info['end_timestep'] = timestep
 
             self.on_episode_done(
                 self,
-                i_episode,
-                is_best_episode,
-                episode_total_reward,
-                timestep
+                info
             )
 
             self.optimize_using_episode()
 
             self.on_optimization_done(
                 self,
-                i_episode,
-                is_best_episode,
-                episode_total_reward,
-                timestep
+                info
             )
 
             self.memory.reset()
 
 
 EpisodicRLBaseDerived = TypeVar('EpisodicRLBaseDerived', bound=EpisodicRLBase)
-EpisodeDoneCallback = Callable[[EpisodicRLBaseDerived, int, bool, float, int], None]
+EpisodeDoneCallback = Callable[[EpisodicRLBaseDerived, dict[str, Any]], None]
 RolloutMemoryDerived = TypeVar('RolloutMemoryDerived', bound=EpisodicRLBase.RolloutMemory)

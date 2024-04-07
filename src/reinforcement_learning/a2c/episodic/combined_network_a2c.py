@@ -35,10 +35,8 @@ class CombinedNetworkA2C(EpisodicRLBase):
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
             critic_objective_weight=0.5,
-            on_episode_done: EpisodeDoneCallback['CombinedNetworkA2C']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
-            on_optimization_done: EpisodeDoneCallback['CombinedNetworkA2C']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_episode_done: EpisodeDoneCallback['CombinedNetworkA2C'] = lambda _self, info: None,
+            on_optimization_done: EpisodeDoneCallback['CombinedNetworkA2C'] = lambda _self, info: None,
     ):
         super().__init__(
             env=env,

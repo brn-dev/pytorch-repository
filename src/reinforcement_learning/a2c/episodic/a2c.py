@@ -37,10 +37,8 @@ class A2C(EpisodicRLBase):
             critic_loss: nn.Module,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
-            on_episode_done: EpisodeDoneCallback['A2C']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
-            on_optimization_done: EpisodeDoneCallback['A2C']
-                = lambda _self, i_episode, is_best_episode, best_total_reward, end_timestep: None,
+            on_episode_done: EpisodeDoneCallback['A2C'] = lambda _self, info: None,
+            on_optimization_done: EpisodeDoneCallback['A2C'] = lambda _self, info: None,
     ):
         super().__init__(
             env=env,
