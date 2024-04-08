@@ -31,12 +31,6 @@ class ReinforceSTM(EpisodicRLBase):
             self.state_targets.append(state_target)
             self.rewards.append(reward)
 
-        def reset(self):
-            del self.action_log_probs[:]
-            del self.state_preds[:]
-            del self.state_targets[:]
-            del self.rewards[:]
-
     memory: RolloutMemory
 
     def __init__(

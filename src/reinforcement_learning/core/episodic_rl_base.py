@@ -18,9 +18,9 @@ class EpisodicRLBase(RLBase, abc.ABC):
         def memorize(self, *args):
             raise NotImplemented
 
-        @abc.abstractmethod
         def reset(self):
-            raise NotImplemented
+            for list_attribute in self.__dict__.values():
+                del list_attribute[:]
 
 
     def __init__(
@@ -51,7 +51,7 @@ class EpisodicRLBase(RLBase, abc.ABC):
 
         for i_episode in range(num_episodes):
             state, _ = self.env.reset()
-            info = {}
+            terminated, truncated, info = False, False, {}
 
             max_timestep = 1000000
             timestep = 0
@@ -73,6 +73,8 @@ class EpisodicRLBase(RLBase, abc.ABC):
                 best_total_reward = episode_cum_reward
                 is_best_episode = True
 
+            info['terminated'] = terminated
+            info['truncated'] = truncated
             info['i_episode'] = is_best_episode
             info['is_best_episode'] = is_best_episode
             info['episode_cumulative_reward'] = episode_cum_reward

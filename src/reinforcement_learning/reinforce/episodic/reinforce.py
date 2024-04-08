@@ -20,10 +20,6 @@ class Reinforce(EpisodicRLBase):
             self.action_log_probs.append(action_log_prob)
             self.rewards.append(reward)
 
-        def reset(self):
-            del self.action_log_probs[:]
-            del self.rewards[:]
-
     memory: RolloutMemory
 
     def __init__(

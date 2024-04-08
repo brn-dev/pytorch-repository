@@ -19,11 +19,6 @@ class CombinedNetworkA2C(EpisodicRLBase):
             self.value_estimates.append(value_estimate)
             self.rewards.append(reward)
 
-        def reset(self):
-            del self.action_log_probs[:]
-            del self.value_estimates[:]
-            del self.rewards[:]
-
     memory: RolloutMemory
 
     def __init__(
