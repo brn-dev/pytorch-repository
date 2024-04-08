@@ -7,6 +7,7 @@ from torch import nn, optim
 
 from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
 
+
 class A2CSTM(EpisodicRLBase):
     class RolloutMemory(EpisodicRLBase.RolloutMemory):
         def __init__(self):
