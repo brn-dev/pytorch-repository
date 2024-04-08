@@ -80,17 +80,11 @@ class EpisodicRLBase(RLBase, abc.ABC):
             info['episode_cumulative_reward'] = episode_cum_reward
             info['end_timestep'] = timestep
 
-            self.on_episode_done(
-                self,
-                info
-            )
+            self.on_episode_done(self, info)
 
             self.optimize_using_episode()
 
-            self.on_optimization_done(
-                self,
-                info
-            )
+            self.on_optimization_done(self, info)
 
             self.memory.reset()
 
