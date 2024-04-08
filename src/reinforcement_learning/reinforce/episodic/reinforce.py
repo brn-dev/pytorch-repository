@@ -42,7 +42,7 @@ class Reinforce(EpisodicRLBase):
         self.policy_network = policy_network
         self.policy_network_optimizer = policy_network_optimizer
 
-    def optimize_using_episode(self):
+    def optimize_using_episode(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=True)
         action_log_probs = torch.stack(self.memory.action_log_probs)
 
@@ -51,6 +51,8 @@ class Reinforce(EpisodicRLBase):
         self.policy_network_optimizer.zero_grad()
         reinforce_objective.backward()
         self.policy_network_optimizer.step()
+
+        info['returns'] = returns
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_pred = self.policy_network(torch.tensor(state).float())

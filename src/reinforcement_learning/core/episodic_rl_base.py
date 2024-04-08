@@ -39,7 +39,7 @@ class EpisodicRLBase(RLBase, abc.ABC):
         self.memory: RolloutMemoryDerived = self.RolloutMemory()
 
     @abc.abstractmethod
-    def optimize_using_episode(self) -> None:
+    def optimize_using_episode(self, info: dict[str, Any]) -> None:
         raise NotImplemented
 
     @abc.abstractmethod
@@ -75,14 +75,14 @@ class EpisodicRLBase(RLBase, abc.ABC):
 
             info['terminated'] = terminated
             info['truncated'] = truncated
-            info['i_episode'] = is_best_episode
+            info['i_episode'] = i_episode
             info['is_best_episode'] = is_best_episode
             info['episode_cumulative_reward'] = episode_cum_reward
             info['end_timestep'] = timestep
 
             self.on_episode_done(self, info)
 
-            self.optimize_using_episode()
+            self.optimize_using_episode(info)
 
             self.on_optimization_done(self, info)
 

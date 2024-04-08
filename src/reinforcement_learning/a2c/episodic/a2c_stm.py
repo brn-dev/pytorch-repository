@@ -27,7 +27,7 @@ class A2CSTM(EpisodicRLBase):
         ):
             self.action_log_probs.append(action_log_prob)
             self.value_estimates.append(value_estimate)
-            self.state_preds.append(state_target)
+            self.state_preds.append(state_pred)
             self.state_targets.append(state_target)
             self.rewards.append(reward)
 
@@ -42,6 +42,8 @@ class A2CSTM(EpisodicRLBase):
             state_transition_loss: nn.Module,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
+            normalize_advantage_var=False,
+            actor_objective_weight=1.0,
             critic_objective_weight=0.5,
             state_transition_objective_weight=0.1,
             on_episode_done: EpisodeDoneCallback['A2CSTM'] = lambda _self, info: None,
@@ -58,33 +60,57 @@ class A2CSTM(EpisodicRLBase):
         self.combined_network = combined_network
         self.combined_network_optimizer = combined_network_optimizer
 
+        self.actor_objective_weight = actor_objective_weight
+
         self.critic_loss = critic_loss
         self.critic_objective_weight = critic_objective_weight
 
         self.state_transition_loss = state_transition_loss
         self.state_transition_objective_weight = state_transition_objective_weight
 
+        self.normalize_advantage_std = normalize_advantage_var
 
-    def optimize_using_episode(self):
+
+    def optimize_using_episode(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
-        value_estimates = torch.stack(self.memory.value_estimates)
+        value_estimates = torch.stack(self.memory.value_estimates).squeeze()
         state_preds = torch.stack(self.memory.state_preds)
         state_targets = torch.stack(self.memory.state_targets)
 
-        advantages = returns - value_estimates.detach()
+        advantages: torch.Tensor = returns - value_estimates.detach()
+
+        if self.normalize_advantage_std:
+            advantages /= advantages.std()
+
+        if action_log_probs.dim() == 2:
+            advantages = advantages.unsqueeze(1)
 
         actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
         state_transition_objective = self.state_transition_loss(state_preds, state_targets)
 
-        combined_objective = (actor_objective
+        combined_objective = (self.actor_objective_weight * actor_objective
                               + self.critic_objective_weight * critic_objective
                               + self.state_transition_objective_weight * state_transition_objective)
 
         self.combined_network_optimizer.zero_grad()
         combined_objective.backward()
         self.combined_network_optimizer.step()
+
+        info['returns'] = returns
+        info['advantages'] = advantages
+
+        actor_objective = float(actor_objective.cpu())
+        info['actor_objective'] = actor_objective
+        info['actor_objective__weighted'] = self.actor_objective_weight * actor_objective
+        critic_objective = float(critic_objective.cpu())
+        info['critic_objective'] = critic_objective
+        info['critic_objective__weighted'] = self.critic_objective_weight * critic_objective
+        state_transition_objective = float(state_transition_objective.cpu())
+        info['state_transition_objective'] = state_transition_objective
+        info['state_transition_objective__weighted'] = \
+            self.state_transition_objective_weight * state_transition_objective
 
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -94,6 +120,6 @@ class A2CSTM(EpisodicRLBase):
         state, reward, done, truncated, info = self.env.step(action)
         reward = float(reward)
 
-        self.memory.memorize(action_log_prob, value_estimate, state_pred, state, reward)
+        self.memory.memorize(action_log_prob, value_estimate, state_pred, torch.tensor(state), reward)
 
         return state, reward, done, truncated, info

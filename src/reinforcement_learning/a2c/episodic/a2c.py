@@ -49,7 +49,7 @@ class A2C(EpisodicRLBase):
         self.critic_network_optimizer = critic_network_optimizer
         self.critic_loss = critic_loss
 
-    def optimize_using_episode(self):
+    def optimize_using_episode(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates)
@@ -70,6 +70,9 @@ class A2C(EpisodicRLBase):
 
         self.actor_network_optimizer.step()
         self.critic_network_optimizer.step()
+
+        info['returns'] = returns
+        info['advantages'] = advantages
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         state = torch.tensor(state)

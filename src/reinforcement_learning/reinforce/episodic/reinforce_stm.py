@@ -59,7 +59,7 @@ class ReinforceSTM(EpisodicRLBase):
         self.reinforce_objective_weight = reinforce_objective_weight
         self.state_transition_objective_weight = state_transition_objective_weight
 
-    def optimize_using_episode(self):
+    def optimize_using_episode(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=self.normalize_returns)
         action_log_probs = torch.stack(self.memory.action_log_probs)
 
@@ -75,7 +75,7 @@ class ReinforceSTM(EpisodicRLBase):
         combined_objective.backward()
         self.policy_network_optimizer.step()
 
-        return returns, reinforce_objective, state_transition_objective
+        info['returns'] = returns
 
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:

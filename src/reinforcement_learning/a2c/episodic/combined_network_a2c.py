@@ -48,12 +48,15 @@ class CombinedNetworkA2C(EpisodicRLBase):
         self.critic_objective_weight = critic_objective_weight
 
 
-    def optimize_using_episode(self):
+    def optimize_using_episode(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates)
 
         advantages = returns - value_estimates.detach()
+
+        if action_log_probs.dim() == 2:
+            advantages = advantages.unsqueeze(1)
 
         actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
@@ -63,6 +66,9 @@ class CombinedNetworkA2C(EpisodicRLBase):
         self.combined_network_optimizer.zero_grad()
         combined_objective.backward()
         self.combined_network_optimizer.step()
+
+        info['returns'] = returns
+        info['advantages'] = advantages
 
 
     def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
