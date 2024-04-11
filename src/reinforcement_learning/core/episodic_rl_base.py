@@ -1,94 +1,119 @@
 import abc
-from typing import Callable, Any, TypeVar
+from typing import Callable, Any, TypeVar, Generic
 
 import gymnasium
 import numpy as np
 import torch
+from gymnasium.vector import VectorEnv
 
-from src.reinforcement_learning.core.rl_base import RLBase
+from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.normalization import NormalizationType, normalize_np_array
+from src.reinforcement_learning.core.singleton_vector_env import SingletonVectorEnv
 
 
-class EpisodicRLBase(RLBase, abc.ABC):
-    class RolloutMemory(abc.ABC):
+Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 
-        action_log_probs: list[torch.Tensor]
-        rewards: list[float]
 
-        @abc.abstractmethod
-        def memorize(self, *args):
-            raise NotImplemented
-
-        def reset(self):
-            for list_attribute in self.__dict__.values():
-                del list_attribute[:]
+class EpisodicRLBase(Generic[Buffer], abc.ABC):
 
 
     def __init__(
             self,
             env: gymnasium.Env,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
-            gamma,
-            on_episode_done: 'EpisodeDoneCallback',
-            on_optimization_done: 'EpisodeDoneCallback',
+            buffer: Buffer,
+            gamma: float,
+            gae_lambda: float,
+            normalize_advantages: NormalizationType,
+            on_rollout_done: 'RolloutDoneCallback',
+            on_optimization_done: 'OptimizationDoneCallback',
     ):
-        self.env = env
+        self.env = self.as_vec_env(env)
         self.select_action = select_action
+        self.buffer = buffer
+
         self.gamma = gamma
-        self.on_episode_done = on_episode_done
+        self.gae_lambda = gae_lambda
+        self.normalize_advantages = normalize_advantages
+
+        self.on_rollout_done = on_rollout_done
         self.on_optimization_done = on_optimization_done
-        self.memory: RolloutMemoryDerived = self.RolloutMemory()
 
     @abc.abstractmethod
-    def optimize_using_episode(self, info: dict[str, Any]) -> None:
+    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
         raise NotImplemented
 
     @abc.abstractmethod
-    def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
         raise NotImplemented
 
-    def find_optimal_policy(self, num_episodes: int, *args, **kwargs):
-        best_total_reward = 0
 
-        for i_episode in range(num_episodes):
-            state, _ = self.env.reset()
-            terminated, truncated, info = False, False, {}
+    def perform_rollout(self, max_steps: int) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+        obs, info = self.env.reset()
 
-            max_timestep = 1000000
-            timestep = 0
-            for timestep in range(1, max_timestep + 1):  # Don't infinite loop while learning
-                state, reward, terminated, truncated, info = self.step(state)
+        terminated = np.empty((self.env.num_envs,), dtype=bool)
+        truncated = np.empty((self.env.num_envs,), dtype=bool)
+        step = 0
+        for step in range(min(self.buffer.buffer_size, max_steps)):
+            obs, rewards, episode_starts, info = self.rollout_step(obs)
 
-                done = terminated or truncated
+        return step, obs, terminated, truncated
 
-                if done:
-                    break
 
-            if timestep == max_timestep:
-                info['termination_reason'] = 'timestep_limit_reached'
+    def train(self, num_steps: int):
 
-            episode_cum_reward = sum(self.memory.rewards)
+        step = 0
+        while step < num_steps:
 
-            is_best_episode = False
-            if episode_cum_reward >= best_total_reward:
-                best_total_reward = episode_cum_reward
-                is_best_episode = True
+            steps_performed, last_obs, last_terminated, last_truncated = self.perform_rollout(num_steps - step)
+            step += steps_performed
 
-            info['terminated'] = terminated
-            info['truncated'] = truncated
-            info['i_episode'] = i_episode
-            info['is_best_episode'] = is_best_episode
-            info['episode_cumulative_reward'] = episode_cum_reward
-            info['end_timestep'] = timestep
+            self.on_rollout_done(self, step, last_obs, last_terminated, last_truncated)
 
-            self.on_episode_done(self, info)
+            self.optimize(last_obs, np.logical_or(last_terminated, last_truncated))
 
-            self.optimize_using_episode(info)
+            self.on_optimization_done(self, step)
 
-            self.on_optimization_done(self, info)
+            self.buffer.reset()
 
-            self.memory.reset()
+    # Adapted from
+    # https://github.com/DLR-RM/stable-baselines3/blob/5623d98f9d6bcfd2ab450e850c3f7b090aef5642/stable_baselines3/common/buffers.py#L402
+    def compute_gae_and_returns(
+            self,
+            last_values: torch.Tensor,
+            last_dones: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        last_values = last_values.clone().cpu().numpy()
+
+        value_estimates = torch.stack(self.buffer.value_estimates).detach().cpu().numpy()
+
+        advantages = np.zeros_like(self.buffer.rewards)
+
+        last_gae = 0
+        for step in reversed(range(self.buffer.buffer_size)):
+            if step == self.buffer.buffer_size - 1:
+                next_non_terminal = 1.0 - last_dones
+                next_values = last_values
+            else:
+                next_non_terminal = 1.0 - self.buffer.episode_starts[step + 1]
+                next_values = value_estimates[step + 1]
+            delta = self.buffer.rewards[step] + self.gamma * next_values * next_non_terminal - value_estimates[step]
+            last_gae = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae
+
+            advantages[step] = last_gae
+
+        returns = advantages + value_estimates
+
+        if self.normalize_advantages is not None:
+            advantages = normalize_np_array(advantages, normalization_type=self.normalize_advantages)
+
+        return advantages, returns
+
+    @staticmethod
+    def as_vec_env(env: gymnasium.Env):
+        return env if isinstance(env, VectorEnv) else SingletonVectorEnv(env)
 
 
 EpisodicRLBaseDerived = TypeVar('EpisodicRLBaseDerived', bound=EpisodicRLBase)
-EpisodeDoneCallback = Callable[[EpisodicRLBaseDerived, dict[str, Any]], None]
-RolloutMemoryDerived = TypeVar('RolloutMemoryDerived', bound=EpisodicRLBase.RolloutMemory)
+RolloutDoneCallback = Callable[[EpisodicRLBaseDerived, int, np.ndarray, np.ndarray, np.ndarray], None]
+OptimizationDoneCallback = Callable[[EpisodicRLBaseDerived, int], None]

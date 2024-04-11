@@ -5,22 +5,10 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, RolloutDoneCallback
 
 
 class A2C(EpisodicRLBase):
-    class RolloutMemory(EpisodicRLBase.RolloutMemory):
-        def __init__(self):
-            self.action_log_probs: list[torch.Tensor] = []
-            self.value_estimates: list[torch.Tensor] = []
-            self.rewards: list[float] = []
-
-        def memorize(self, action_log_prob: torch.Tensor, value_estimate: torch.Tensor, reward: float):
-            self.action_log_probs.append(action_log_prob)
-            self.value_estimates.append(value_estimate)
-            self.rewards.append(reward)
-
-    memory: RolloutMemory
 
     def __init__(
             self,
@@ -32,14 +20,14 @@ class A2C(EpisodicRLBase):
             critic_loss: nn.Module,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
-            on_episode_done: EpisodeDoneCallback['A2C'] = lambda _self, info: None,
-            on_optimization_done: EpisodeDoneCallback['A2C'] = lambda _self, info: None,
+            on_rollout_done: RolloutDoneCallback['A2C'] = lambda _self, info: None,
+            on_optimization_done: RolloutDoneCallback['A2C'] = lambda _self, info: None,
     ):
         super().__init__(
             env=env,
             select_action=select_action,
             gamma=gamma,
-            on_episode_done=on_episode_done,
+            on_rollout_done=on_rollout_done,
             on_optimization_done=on_optimization_done,
         )
         self.actor_network = actor_network
@@ -49,7 +37,7 @@ class A2C(EpisodicRLBase):
         self.critic_network_optimizer = critic_network_optimizer
         self.critic_loss = critic_loss
 
-    def optimize_using_episode(self, info: dict[str, Any]):
+    def optimize(self, info: dict[str, Any]):
         returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates)
@@ -74,7 +62,7 @@ class A2C(EpisodicRLBase):
         info['returns'] = returns
         info['advantages'] = advantages
 
-    def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         state = torch.tensor(state)
 
         action_pred = self.actor_network(state.float())
@@ -82,7 +70,7 @@ class A2C(EpisodicRLBase):
 
         value_estimate = self.critic_network(state).squeeze()
 
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, truncated, info = self.env.rollout_step(action)
         reward = float(reward)
 
         self.memory.memorize(action_log_prob, value_estimate, reward)

@@ -5,7 +5,8 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, EpisodeDoneCallback
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, RolloutDoneCallback
+from src.reinforcement_learning.core.rl_base import NormalizationType
 
 
 class A2CSTM(EpisodicRLBase):
@@ -15,7 +16,7 @@ class A2CSTM(EpisodicRLBase):
             self.value_estimates: list[torch.Tensor] = []
             self.state_preds: list[torch.Tensor] = []
             self.state_targets: list[torch.Tensor] = []
-            self.rewards: list[float] = []
+            self.rewards: list[np.ndarray] = []
 
         def memorize(
                 self,
@@ -23,13 +24,13 @@ class A2CSTM(EpisodicRLBase):
                 value_estimate: torch.Tensor,
                 state_pred: torch.Tensor,
                 state_target: torch.Tensor,
-                reward: float
+                reward: np.ndarray | float
         ):
             self.action_log_probs.append(action_log_prob)
             self.value_estimates.append(value_estimate)
             self.state_preds.append(state_pred)
             self.state_targets.append(state_target)
-            self.rewards.append(reward)
+            self.rewards.append(np.asarray(reward, dtype=float))
 
     memory: RolloutMemory
 
@@ -42,18 +43,19 @@ class A2CSTM(EpisodicRLBase):
             state_transition_loss: nn.Module,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             gamma=0.99,
-            normalize_advantage_var=False,
+            normalize_returns: NormalizationType | None = None,
+            normalize_advantages: NormalizationType | None = None,
             actor_objective_weight=1.0,
             critic_objective_weight=0.5,
             state_transition_objective_weight=0.1,
-            on_episode_done: EpisodeDoneCallback['A2CSTM'] = lambda _self, info: None,
-            on_optimization_done: EpisodeDoneCallback['A2CSTM'] = lambda _self, info: None,
+            on_rollout_done: RolloutDoneCallback['A2CSTM'] = lambda _self, info: None,
+            on_optimization_done: RolloutDoneCallback['A2CSTM'] = lambda _self, info: None,
     ):
         super().__init__(
             env=env,
             select_action=select_action,
             gamma=gamma,
-            on_episode_done=on_episode_done,
+            on_rollout_done=on_rollout_done,
             on_optimization_done=on_optimization_done,
         )
 
@@ -68,11 +70,12 @@ class A2CSTM(EpisodicRLBase):
         self.state_transition_loss = state_transition_loss
         self.state_transition_objective_weight = state_transition_objective_weight
 
-        self.normalize_advantage_std = normalize_advantage_var
+        self.normalize_returns = normalize_returns
+        self.normalize_advantages = normalize_advantages
 
 
-    def optimize_using_episode(self, info: dict[str, Any]):
-        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
+    def optimize(self, info: dict[str, Any]):
+        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=self.normalize_returns)
         action_log_probs = torch.stack(self.memory.action_log_probs)
         value_estimates = torch.stack(self.memory.value_estimates).squeeze()
         state_preds = torch.stack(self.memory.state_preds)
@@ -80,8 +83,8 @@ class A2CSTM(EpisodicRLBase):
 
         advantages: torch.Tensor = returns - value_estimates.detach()
 
-        if self.normalize_advantage_std:
-            advantages /= advantages.std()
+        if self.normalize_advantages is not None:
+            advantages = self.normalize_tensor(advantages, self.normalize_advantages)
 
         if action_log_probs.dim() == 2:
             advantages = advantages.unsqueeze(1)
@@ -113,11 +116,11 @@ class A2CSTM(EpisodicRLBase):
             self.state_transition_objective_weight * state_transition_objective
 
 
-    def step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_pred, value_estimate, state_pred = self.combined_network(torch.tensor(state).float())
         action, action_log_prob = self.select_action(action_pred)
 
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, truncated, info = self.env.rollout_step(action)
         reward = float(reward)
 
         self.memory.memorize(action_log_prob, value_estimate, state_pred, torch.tensor(state), reward)
