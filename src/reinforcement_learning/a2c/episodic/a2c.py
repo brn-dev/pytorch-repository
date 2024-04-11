@@ -5,74 +5,73 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, RolloutDoneCallback
+from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
+from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase, RolloutDoneCallback, \
+    OptimizationDoneCallback
+from src.reinforcement_learning.core.normalization import NormalizationType
+from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 
 
 class A2C(EpisodicRLBase):
 
+    policy: ActorCriticPolicy
+    buffer: ActorCriticRolloutBuffer
+
+
     def __init__(
             self,
             env: gymnasium.Env,
-            actor_network: nn.Module,
-            actor_network_optimizer: optim.Optimizer,
-            critic_network: nn.Module,
-            critic_network_optimizer: optim.Optimizer,
-            critic_loss: nn.Module,
+            policy: ActorCriticPolicy,
+            policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
-            gamma=0.99,
-            on_rollout_done: RolloutDoneCallback['A2C'] = lambda _self, info: None,
-            on_optimization_done: RolloutDoneCallback['A2C'] = lambda _self, info: None,
+            buffer_size: int,
+            gamma: float,
+            gae_lambda: float,
+            normalize_advantages: NormalizationType,
+            critic_loss: nn.Module,
+            critic_objective_weight: float,
+            on_rollout_done: RolloutDoneCallback,
+            on_optimization_done: OptimizationDoneCallback,
+            buffer_type=ActorCriticRolloutBuffer,
     ):
+        env = self.as_vec_env(env)
+
         super().__init__(
             env=env,
+            policy=policy,
             select_action=select_action,
+            buffer=buffer_type(buffer_size, env.num_envs, env.observation_space),
             gamma=gamma,
+            gae_lambda=gae_lambda,
+            normalize_advantages=normalize_advantages,
             on_rollout_done=on_rollout_done,
             on_optimization_done=on_optimization_done,
         )
-        self.actor_network = actor_network
-        self.actor_network_optimizer = actor_network_optimizer
 
-        self.critic_network = critic_network
-        self.critic_network_optimizer = critic_network_optimizer
+        self.policy_optimizer = (
+            policy_optimizer
+            if isinstance(policy_optimizer, optim.Optimizer)
+            else policy_optimizer(policy)
+        )
+
         self.critic_loss = critic_loss
+        self.critic_objective_weight = critic_objective_weight
 
-    def optimize(self, info: dict[str, Any]):
-        returns = self.compute_returns(self.memory.rewards, gamma=self.gamma, normalize_returns=False)
-        action_log_probs = torch.stack(self.memory.action_log_probs)
-        value_estimates = torch.stack(self.memory.value_estimates)
+    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
+        last_values = self.policy.predict_values(last_obs)
 
-        advantages = returns - value_estimates.detach()
+        advantages, returns = self.compute_gae_and_returns(last_values, last_dones)
+        advantages = torch.tensor(advantages)
+        returns = torch.tensor(returns)
 
-        if action_log_probs.dim() == 2:
-            advantages = advantages.unsqueeze(1)
+        action_log_probs = torch.stack(self.buffer.action_log_probs)
+        value_estimates = torch.stack(self.buffer.value_estimates)
 
         actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
 
-        self.actor_network_optimizer.zero_grad()
-        self.critic_network_optimizer.zero_grad()
+        combined_objective = actor_objective + self.critic_objective_weight * critic_objective
 
-        actor_objective.backward()
-        critic_objective.backward()
-
-        self.actor_network_optimizer.step()
-        self.critic_network_optimizer.step()
-
-        info['returns'] = returns
-        info['advantages'] = advantages
-
-    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        state = torch.tensor(state)
-
-        action_pred = self.actor_network(state.float())
-        action, action_log_prob = self.select_action(action_pred)
-
-        value_estimate = self.critic_network(state).squeeze()
-
-        state, reward, done, truncated, info = self.env.rollout_step(action)
-        reward = float(reward)
-
-        self.memory.memorize(action_log_prob, value_estimate, reward)
-
-        return state, reward, done, truncated, info
+        self.policy_optimizer.zero_grad()
+        combined_objective.backward()
+        self.policy_optimizer.step()

@@ -8,18 +8,20 @@ from gymnasium.vector import VectorEnv
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.normalization import NormalizationType, normalize_np_array
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.singleton_vector_env import SingletonVectorEnv
 
 
 Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 
 
-class EpisodicRLBase(Generic[Buffer], abc.ABC):
+class EpisodicRLBase(abc.ABC):
 
 
     def __init__(
             self,
             env: gymnasium.Env,
+            policy: BasePolicy,
             select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             buffer: Buffer,
             gamma: float,
@@ -29,6 +31,7 @@ class EpisodicRLBase(Generic[Buffer], abc.ABC):
             on_optimization_done: 'OptimizationDoneCallback',
     ):
         self.env = self.as_vec_env(env)
+        self.policy = policy
         self.select_action = select_action
         self.buffer = buffer
 
@@ -43,9 +46,21 @@ class EpisodicRLBase(Generic[Buffer], abc.ABC):
     def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
         raise NotImplemented
 
-    @abc.abstractmethod
-    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        raise NotImplemented
+    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+        action_preds, extra_predictions = self.policy.process_obs(state)
+        actions, action_log_probs = self.select_action(action_preds)
+
+        next_states, rewards, terminated, truncated, info = self.env.step(actions)
+
+        self.buffer.add(
+            observations=state,
+            rewards=rewards,
+            episode_starts=np.logical_or(terminated, truncated),
+            action_log_probs=action_log_probs,
+            **extra_predictions
+        )
+
+        return next_states, rewards, terminated, truncated, info
 
 
     def perform_rollout(self, max_steps: int) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
@@ -55,7 +70,7 @@ class EpisodicRLBase(Generic[Buffer], abc.ABC):
         truncated = np.empty((self.env.num_envs,), dtype=bool)
         step = 0
         for step in range(min(self.buffer.buffer_size, max_steps)):
-            obs, rewards, episode_starts, info = self.rollout_step(obs)
+            obs, rewards, terminated, truncated, info = self.rollout_step(obs)
 
         return step, obs, terminated, truncated
 
@@ -89,7 +104,7 @@ class EpisodicRLBase(Generic[Buffer], abc.ABC):
 
         advantages = np.zeros_like(self.buffer.rewards)
 
-        last_gae = 0
+        gae = 0
         for step in reversed(range(self.buffer.buffer_size)):
             if step == self.buffer.buffer_size - 1:
                 next_non_terminal = 1.0 - last_dones
@@ -98,9 +113,9 @@ class EpisodicRLBase(Generic[Buffer], abc.ABC):
                 next_non_terminal = 1.0 - self.buffer.episode_starts[step + 1]
                 next_values = value_estimates[step + 1]
             delta = self.buffer.rewards[step] + self.gamma * next_values * next_non_terminal - value_estimates[step]
-            last_gae = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae
+            gae = delta + self.gamma * self.gae_lambda * next_non_terminal * gae
 
-            advantages[step] = last_gae
+            advantages[step] = gae
 
         returns = advantages + value_estimates
 

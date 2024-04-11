@@ -8,7 +8,7 @@ class BasicRolloutBuffer:
         self.num_envs = num_envs
         self.obs_shape = obs_shape
 
-        self.states = np.zeros((buffer_size,) + obs_shape, dtype=np.float32)
+        self.observations = np.zeros((buffer_size,) + obs_shape, dtype=np.float32)
         self.rewards = np.zeros((buffer_size, num_envs), dtype=np.float32)
         self.episode_starts = np.zeros((buffer_size, num_envs)).astype(bool)
         self.action_log_probs: list[torch.Tensor] = []
@@ -21,7 +21,7 @@ class BasicRolloutBuffer:
         return self.pos == self.buffer_size
 
     def reset(self):
-        self.states = np.zeros((self.buffer_size, self.num_envs) + self.obs_shape)
+        self.observations = np.zeros((self.buffer_size, self.num_envs) + self.obs_shape)
         self.rewards = np.zeros((self.buffer_size, self.num_envs))
         self.episode_starts = np.zeros((self.buffer_size, self.num_envs)).astype(bool)
 
@@ -32,19 +32,19 @@ class BasicRolloutBuffer:
 
     def add(
             self,
-            states: np.ndarray,
+            observations: np.ndarray,
             rewards: np.ndarray,
             episode_starts: np.ndarray,
             action_log_probs: torch.Tensor,
-            value_estimates: torch.Tensor,
+            **extra_predictions: torch.Tensor
     ):
         assert not self.full
+        assert not extra_predictions
 
-        self.states[self.pos] = states
+        self.observations[self.pos] = observations
         self.rewards[self.pos] = rewards
         self.episode_starts[self.pos] = episode_starts
 
         self.action_log_probs.append(action_log_probs)
-        self.value_estimates.append(value_estimates)
 
         self.pos += 1
