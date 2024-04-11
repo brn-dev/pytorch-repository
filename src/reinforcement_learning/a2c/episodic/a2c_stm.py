@@ -3,6 +3,7 @@ from typing import Callable, Any
 import gymnasium
 import numpy as np
 import torch
+from overrides import override
 from torch import nn, optim
 
 from src.reinforcement_learning.a2c.episodic.a2c import A2C
@@ -61,6 +62,7 @@ class A2CSTM(A2C):
         self.stm_objective_weight = stm_objective_weight
 
 
+    @override
     def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
         last_values = self.policy.predict_values(last_obs)
 
