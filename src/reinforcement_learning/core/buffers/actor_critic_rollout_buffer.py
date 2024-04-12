@@ -28,7 +28,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             **extra_predictions: torch.Tensor
     ):
         assert value_estimates is not None
-        self.value_estimates.append(value_estimates)
+        self.value_estimates.append(value_estimates.squeeze(-1))
         super().add(
             observations=observations,
             rewards=rewards,
