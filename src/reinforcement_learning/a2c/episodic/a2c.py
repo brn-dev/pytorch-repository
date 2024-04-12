@@ -40,7 +40,7 @@ class A2C(EpisodicRLBase):
             env=env,
             policy=policy,
             select_action=select_action,
-            buffer=buffer_type(buffer_size, env.num_envs, env.observation_space),
+            buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
             normalize_advantages=normalize_advantages,

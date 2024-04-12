@@ -73,7 +73,7 @@ class A2CSTM(A2C):
         action_log_probs = torch.stack(self.buffer.action_log_probs)
         value_estimates = torch.stack(self.buffer.value_estimates)
         state_preds = torch.stack(self.buffer.state_preds)
-        state_targets = torch.stack([torch.tensor(self.buffer.observations[1:]), torch.tensor(last_obs).unsqueeze(0)])
+        state_targets = torch.concat((torch.tensor(self.buffer.observations[1:]), torch.tensor(last_obs).unsqueeze(0)))
 
         actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)

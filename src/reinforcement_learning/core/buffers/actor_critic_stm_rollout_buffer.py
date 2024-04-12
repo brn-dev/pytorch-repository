@@ -29,7 +29,7 @@ class ActorCriticSTMRolloutBuffer(ActorCriticRolloutBuffer):
             **extra_predictions: torch.Tensor
     ):
         assert state_preds is not None
-        self.state_preds.append(state_preds)
+        self.state_preds.append(state_preds.squeeze(-1))
         super().add(
             observations=observations,
             rewards=rewards,

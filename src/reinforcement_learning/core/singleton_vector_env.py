@@ -43,8 +43,5 @@ class SingletonVectorEnv(VectorEnv):
 
     @staticmethod
     def _add_env_singleton_dim(val: SupportsFloat | np.ndarray):
-        if isinstance(val, np.ndarray) and len(val.shape) == 0:
-            val = np.expand_dims(val, axis=0)
-
         return np.expand_dims(np.asarray(val), axis=0)
 

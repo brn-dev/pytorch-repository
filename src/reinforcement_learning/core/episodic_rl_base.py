@@ -100,7 +100,7 @@ class EpisodicRLBase(abc.ABC):
     ) -> tuple[np.ndarray, np.ndarray]:
         last_values = last_values.clone().cpu().numpy()
 
-        value_estimates = torch.stack(self.buffer.value_estimates).detach().cpu().numpy()
+        value_estimates = torch.stack(self.buffer.value_estimates).squeeze(-1).detach().cpu().numpy()
 
         advantages = np.zeros_like(self.buffer.rewards)
 
