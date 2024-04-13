@@ -244,3 +244,6 @@ class TensorShape:
             for dim_key, dim_info
             in self.dimensions.items()
         })
+
+    def get_definite_features(self):
+        return self.get_definite_size(self.FEATURES_KEY)

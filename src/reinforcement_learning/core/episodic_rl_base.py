@@ -26,7 +26,7 @@ class EpisodicRLBase(abc.ABC):
             buffer: Buffer,
             gamma: float,
             gae_lambda: float,
-            normalize_advantages: NormalizationType,
+            normalize_advantages: NormalizationType | None,
             on_rollout_done: 'RolloutDoneCallback',
             on_optimization_done: 'OptimizationDoneCallback',
     ):
@@ -43,7 +43,7 @@ class EpisodicRLBase(abc.ABC):
         self.on_optimization_done = on_optimization_done
 
     @abc.abstractmethod
-    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
+    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         raise NotImplemented
 
     def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
@@ -72,7 +72,7 @@ class EpisodicRLBase(abc.ABC):
         for step in range(min(self.buffer.buffer_size, max_steps)):
             obs, rewards, terminated, truncated, info = self.rollout_step(obs)
 
-        return step, obs, terminated, truncated
+        return step + 1, obs, terminated, truncated
 
 
     def train(self, num_steps: int):
@@ -85,9 +85,9 @@ class EpisodicRLBase(abc.ABC):
 
             self.on_rollout_done(self, step, last_obs, last_terminated, last_truncated)
 
-            self.optimize(last_obs, np.logical_or(last_terminated, last_truncated))
+            advantages, returns = self.optimize(last_obs, np.logical_or(last_terminated, last_truncated))
 
-            self.on_optimization_done(self, step)
+            self.on_optimization_done(self, step, advantages, returns)
 
             self.buffer.reset()
 
@@ -98,7 +98,7 @@ class EpisodicRLBase(abc.ABC):
             last_values: torch.Tensor,
             last_dones: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
-        last_values = last_values.clone().cpu().numpy()
+        last_values = last_values.squeeze(-1).detach().clone().cpu().numpy()
 
         value_estimates = torch.stack(self.buffer.value_estimates).squeeze(-1).detach().cpu().numpy()
 
@@ -131,4 +131,4 @@ class EpisodicRLBase(abc.ABC):
 
 EpisodicRLBaseDerived = TypeVar('EpisodicRLBaseDerived', bound=EpisodicRLBase)
 RolloutDoneCallback = Callable[[EpisodicRLBaseDerived, int, np.ndarray, np.ndarray, np.ndarray], None]
-OptimizationDoneCallback = Callable[[EpisodicRLBaseDerived, int], None]
+OptimizationDoneCallback = Callable[[EpisodicRLBaseDerived, int, np.ndarray, np.ndarray], None]

@@ -27,11 +27,13 @@ class A2C(EpisodicRLBase):
             buffer_size: int,
             gamma: float,
             gae_lambda: float,
-            normalize_advantages: NormalizationType,
+            normalize_advantages: NormalizationType | None,
             critic_loss: nn.Module,
             critic_objective_weight: float,
-            on_rollout_done: RolloutDoneCallback,
-            on_optimization_done: OptimizationDoneCallback,
+            on_rollout_done: RolloutDoneCallback['A2C'] =
+                lambda a2c, step, last_obs, last_terminated, last_truncated: None,
+            on_optimization_done: OptimizationDoneCallback['A2C'] =
+                lambda a2c, step, advantages, returns: None,
             buffer_type=ActorCriticRolloutBuffer,
     ):
         env = self.as_vec_env(env)
@@ -57,17 +59,16 @@ class A2C(EpisodicRLBase):
         self.critic_loss = critic_loss
         self.critic_objective_weight = critic_objective_weight
 
-    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
+    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         last_values = self.policy.predict_values(last_obs)
-
         advantages, returns = self.compute_gae_and_returns(last_values, last_dones)
-        advantages = torch.tensor(advantages)
-        returns = torch.tensor(returns)
+        advantages = torch.tensor(advantages, dtype=torch.float32)
+        returns = torch.tensor(returns, dtype=torch.float32)
 
         action_log_probs = torch.stack(self.buffer.action_log_probs)
         value_estimates = torch.stack(self.buffer.value_estimates)
 
-        actor_objective = -(action_log_probs * advantages).mean()
+        actor_objective = -(action_log_probs * advantages.unsqueeze(-1)).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
 
         combined_objective = actor_objective + self.critic_objective_weight * critic_objective
@@ -75,3 +76,5 @@ class A2C(EpisodicRLBase):
         self.policy_optimizer.zero_grad()
         combined_objective.backward()
         self.policy_optimizer.step()
+
+        return advantages.detach().cpu().numpy(), returns.detach().cpu().numpy()

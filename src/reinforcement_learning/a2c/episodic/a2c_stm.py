@@ -29,7 +29,7 @@ class A2CSTM(A2C):
             buffer_size: int,
             gamma: float,
             gae_lambda: float,
-            normalize_advantages: NormalizationType,
+            normalize_advantages: NormalizationType | None,
             actor_objective_weight: float,
             critic_loss: nn.Module,
             critic_objective_weight: float,
@@ -63,7 +63,7 @@ class A2CSTM(A2C):
 
 
     @override
-    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> None:
+    def optimize(self, last_obs: np.ndarray, last_dones: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         last_values = self.policy.predict_values(last_obs)
 
         advantages, returns = self.compute_gae_and_returns(last_values, last_dones)
@@ -88,3 +88,5 @@ class A2CSTM(A2C):
         self.policy_optimizer.zero_grad()
         combined_objective.backward()
         self.policy_optimizer.step()
+
+        return advantages.detach().cpu().numpy(), returns.detach().cpu().numpy()
