@@ -35,5 +35,6 @@ class ActorCriticSTMRolloutBuffer(ActorCriticRolloutBuffer):
             rewards=rewards,
             episode_starts=episode_starts,
             action_log_probs=action_log_probs,
-            value_estimates=value_estimates
+            value_estimates=value_estimates,
+            **extra_predictions
         )

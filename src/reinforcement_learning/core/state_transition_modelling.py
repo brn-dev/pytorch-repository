@@ -1,0 +1,25 @@
+from typing import Any, TypeVar
+
+import numpy as np
+import torch
+from torch import nn
+
+from src.reinforcement_learning.core.buffers.actor_critic_stm_rollout_buffer import ActorCriticSTMRolloutBuffer
+
+def compute_stm_objective(
+        buffer: ActorCriticSTMRolloutBuffer,
+        last_obs: np.ndarray,
+        stm_loss: nn.Module,
+        stm_objective_weight: float,
+        info: dict[str, Any],
+) -> torch.Tensor:
+    state_preds = torch.stack(buffer.state_preds)
+    state_targets = torch.concat((torch.tensor(buffer.observations[1:]), torch.tensor(last_obs).unsqueeze(0)))
+
+    stm_objective = stm_loss(state_preds, state_targets)
+    weighted_stm_objective = stm_objective_weight * stm_objective
+
+    info['stm_objective'] = stm_objective.detach().cpu()
+    info['weighted_stm_objective'] = weighted_stm_objective.detach().cpu()
+
+    return weighted_stm_objective
