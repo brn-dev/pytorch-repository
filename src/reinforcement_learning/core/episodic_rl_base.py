@@ -11,7 +11,7 @@ from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRo
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.core.singleton_vector_env import SingletonVectorEnv
+from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
 
 Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 
@@ -72,14 +72,14 @@ class EpisodicRLBase(abc.ABC):
         objective.backward()
         self.policy_optimizer.step()
 
-    def rollout_step(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
-        action_preds, extra_predictions = self.policy.process_obs(state)
-        actions, action_log_probs = self.select_action(action_preds)
+    def rollout_step(self, obs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+        action_logits, extra_predictions = self.policy.process_obs(obs)
+        actions, action_log_probs = self.select_action(action_logits)
 
         next_states, rewards, terminated, truncated, info = self.env.step(actions)
 
         self.buffer.add(
-            observations=state,
+            observations=obs,
             rewards=rewards,
             episode_starts=np.logical_or(terminated, truncated),
             action_log_probs=action_log_probs,

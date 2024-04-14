@@ -92,10 +92,12 @@ class A2C(EpisodicRLBase):
         advantages = torch.tensor(advantages_np, dtype=torch.float32)
         returns = torch.tensor(returns_np, dtype=torch.float32)
 
-        action_log_probs = torch.stack(self.buffer.action_log_probs)
+        action_log_probs = (torch.stack(self.buffer.action_log_probs)
+                            .reshape((self.buffer.pos, self.env.num_envs, -1))
+                            .mean(dim=-1))
         value_estimates = torch.stack(self.buffer.value_estimates)
 
-        actor_objective = -(action_log_probs * advantages.unsqueeze(-1)).mean()
+        actor_objective = -(action_log_probs * advantages).mean()
         critic_objective = self.critic_loss(value_estimates, returns)
 
         return actor_objective, critic_objective, advantages_np, returns_np

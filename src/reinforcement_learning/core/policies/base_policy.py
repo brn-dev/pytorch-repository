@@ -17,5 +17,8 @@ class BasePolicy(nn.Module, abc.ABC):
     def process_obs(self, obs: np.ndarray) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         raise NotImplemented
 
+    def predict_actions(self, obs: np.ndarray) -> torch.Tensor:
+        return self.process_obs(obs)[0]
+
 
 
