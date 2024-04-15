@@ -36,6 +36,7 @@ class A2C(EpisodicRLBase):
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             critic_objective_reduction: TorchReductionFunction = torch.mean,
             critic_objective_weight: float = 1.0,
+            log_unreduced: bool = False,
             callback: Callback['A2C'] = Callback(),
     ):
         env = self.as_vec_env(env)
@@ -58,6 +59,8 @@ class A2C(EpisodicRLBase):
         self.critic_loss_fn = critic_loss_fn
         self.critic_objective_reduction = critic_objective_reduction
         self.critic_objective_weight = critic_objective_weight
+
+        self.log_unreduced = log_unreduced
 
     @override
     def compute_objectives(
@@ -107,8 +110,11 @@ class A2C(EpisodicRLBase):
                             .mean(dim=-1))
         value_estimates = torch.stack(self.buffer.value_estimates)
 
-        actor_objective = actor_objective_reduction(-action_log_probs * advantages)
-        critic_objective = critic_objective_reduction(critic_loss_fn(value_estimates, returns, reduction='none'))
+        actor_objective_unreduced = -action_log_probs * advantages
+        critic_objective_unreduced = critic_loss_fn(value_estimates, returns, reduction='none')
+
+        actor_objective = actor_objective_reduction(actor_objective_unreduced)
+        critic_objective = critic_objective_reduction(critic_objective_unreduced)
 
         weighted_actor_objective = actor_objective_weight * actor_objective
         weighted_critic_objective = critic_objective_weight * critic_objective
@@ -119,6 +125,10 @@ class A2C(EpisodicRLBase):
         info['weighted_actor_objective'] = weighted_actor_objective.detach().cpu()
         info['critic_objective'] = critic_objective.detach().cpu()
         info['weighted_critic_objective'] = weighted_critic_objective.detach().cpu()
+
+        if self.log_unreduced:
+            info['actor_objective_unreduced'] = actor_objective_unreduced.detach().cpu()
+            info['critic_objective_unreduced'] = critic_objective_unreduced.detach().cpu()
 
         return actor_objective, critic_objective, advantages_np, returns_np
 

@@ -106,6 +106,7 @@ class EpisodicRLBase(abc.ABC):
 
 
     def train(self, num_steps: int):
+        # TODO: flag for not resetting env after resetting buffer
 
         step = 0
         while step < num_steps:
