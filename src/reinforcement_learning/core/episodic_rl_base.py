@@ -125,4 +125,3 @@ class EpisodicRLBase(abc.ABC):
     @staticmethod
     def as_vec_env(env: gymnasium.Env):
         return env if isinstance(env, VectorEnv) else SingletonVectorEnv(env)
-

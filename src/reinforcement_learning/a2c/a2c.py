@@ -6,6 +6,7 @@ import torch
 from overrides import override
 from torch import nn, optim
 
+from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase
@@ -30,8 +31,10 @@ class A2C(EpisodicRLBase):
             gamma: float = 0.99,
             gae_lambda: float = 1.0,
             normalize_advantages: NormalizationType | None = None,
+            actor_objective_reduction: TorchReductionFunction = torch.mean,
             actor_objective_weight: float = 1.0,
-            critic_loss: nn.Module = nn.MSELoss(),
+            critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
+            critic_objective_reduction: TorchReductionFunction = torch.mean,
             critic_objective_weight: float = 1.0,
             callback: Callback['A2C'] = Callback(),
     ):
@@ -49,9 +52,11 @@ class A2C(EpisodicRLBase):
             callback=callback
         )
 
+        self.actor_objective_reduction = actor_objective_reduction
         self.actor_objective_weight = actor_objective_weight
 
-        self.critic_loss = critic_loss
+        self.critic_loss_fn = critic_loss_fn
+        self.critic_objective_reduction = critic_objective_reduction
         self.critic_objective_weight = critic_objective_weight
 
     @override
@@ -61,24 +66,29 @@ class A2C(EpisodicRLBase):
             last_dones: np.ndarray,
             info: dict[str, Any],
     ) -> list[torch.Tensor]:
-        actor_objective, critic_objective, advantages, returns = self.compute_a2c_objectives(last_obs, last_dones)
+        actor_objective, critic_objective, advantages, returns = self.compute_a2c_objectives(
+            last_obs=last_obs,
+            last_dones=last_dones,
+            info=info,
+            actor_objective_reduction=self.actor_objective_reduction,
+            actor_objective_weight=self.actor_objective_weight,
+            critic_loss_fn=self.critic_loss_fn,
+            critic_objective_reduction=self.critic_objective_reduction,
+            critic_objective_weight=self.critic_objective_weight,
+        )
 
-        weighted_actor_objective = self.actor_objective_weight * actor_objective
-        weighted_critic_objective = self.critic_objective_weight * critic_objective
-
-        info['advantages'] = advantages
-        info['returns'] = returns
-        info['actor_objective'] = actor_objective.detach().cpu()
-        info['weighted_actor_objective'] = weighted_actor_objective.detach().cpu()
-        info['critic_objective'] = critic_objective.detach().cpu()
-        info['weighted_critic_objective'] = weighted_critic_objective.detach().cpu()
-
-        return [weighted_actor_objective, weighted_critic_objective]
+        return [actor_objective, critic_objective]
 
     def compute_a2c_objectives(
             self,
             last_obs: np.ndarray,
-            last_dones: np.ndarray
+            last_dones: np.ndarray,
+            info: dict[str, Any],
+            actor_objective_reduction: TorchReductionFunction,
+            actor_objective_weight: float,
+            critic_loss_fn: TorchLossFunction,
+            critic_objective_reduction: TorchReductionFunction,
+            critic_objective_weight,
     ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
         last_values = self.policy.predict_values(last_obs)
 
@@ -97,8 +107,18 @@ class A2C(EpisodicRLBase):
                             .mean(dim=-1))
         value_estimates = torch.stack(self.buffer.value_estimates)
 
-        actor_objective = -(action_log_probs * advantages).mean()
-        critic_objective = self.critic_loss(value_estimates, returns)
+        actor_objective = actor_objective_reduction(-action_log_probs * advantages)
+        critic_objective = critic_objective_reduction(critic_loss_fn(value_estimates, returns, reduction='none'))
+
+        weighted_actor_objective = actor_objective_weight * actor_objective
+        weighted_critic_objective = critic_objective_weight * critic_objective
+
+        info['advantages'] = advantages
+        info['returns'] = returns
+        info['actor_objective'] = actor_objective.detach().cpu()
+        info['weighted_actor_objective'] = weighted_actor_objective.detach().cpu()
+        info['critic_objective'] = critic_objective.detach().cpu()
+        info['weighted_critic_objective'] = weighted_critic_objective.detach().cpu()
 
         return actor_objective, critic_objective, advantages_np, returns_np
 
