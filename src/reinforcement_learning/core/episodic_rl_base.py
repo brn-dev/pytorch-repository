@@ -3,7 +3,6 @@ from typing import Callable, Any, TypeVar
 
 import gymnasium
 import numpy as np
-import torch
 from gymnasium.vector import VectorEnv
 from torch import optim
 
@@ -24,7 +23,6 @@ class EpisodicRLBase(abc.ABC):
             env: gymnasium.Env,
             policy: BasePolicy,
             policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
-            select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             buffer: Buffer,
             gamma: float,
             gae_lambda: float,
@@ -38,7 +36,6 @@ class EpisodicRLBase(abc.ABC):
             if isinstance(policy_optimizer, optim.Optimizer)
             else policy_optimizer(policy)
         )
-        self.select_action = select_action
         self.buffer = buffer
 
         self.gamma = gamma
@@ -48,41 +45,26 @@ class EpisodicRLBase(abc.ABC):
         self.callback = callback
 
     @abc.abstractmethod
-    def compute_objectives(
-            self,
-            last_obs: np.ndarray,
-            last_dones: np.ndarray,
-            info: dict[str, Any],
-    ) -> list[torch.Tensor]:
-        raise NotImplemented
-
     def optimize(
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
             info: dict[str, Any]
     ) -> None:
-        objectives = self.compute_objectives(last_obs, last_dones, info)
-
-        objective = torch.stack(objectives).sum()
-
-        info['objective'] = objective
-
-        self.policy_optimizer.zero_grad()
-        objective.backward()
-        self.policy_optimizer.step()
+        raise NotImplemented
 
     def rollout_step(self, obs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
-        action_logits, extra_predictions = self.policy.process_obs(obs)
-        actions, action_log_probs = self.select_action(action_logits)
+        actions_dist, extra_predictions = self.policy.process_obs(obs)
+        actions = actions_dist.sample()
 
-        next_states, rewards, terminated, truncated, info = self.env.step(actions)
+        next_states, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
         self.buffer.add(
             observations=obs,
             rewards=rewards,
             episode_starts=np.logical_or(terminated, truncated),
-            action_log_probs=action_log_probs,
+            actions=actions,
+            action_log_probs=actions_dist.log_prob(actions),
             **extra_predictions
         )
 

@@ -74,16 +74,7 @@ class A2CSTM(A2C):
             last_dones: np.ndarray,
             info: dict[str, Any],
     ) -> list[torch.Tensor]:
-        actor_objective, critic_objective, advantages, returns = self.compute_a2c_objectives(
-            last_obs=last_obs,
-            last_dones=last_dones,
-            info=info,
-            actor_objective_reduction=self.actor_objective_reduction,
-            actor_objective_weight=self.actor_objective_weight,
-            critic_loss_fn=self.critic_loss_fn,
-            critic_objective_reduction=self.critic_objective_reduction,
-            critic_objective_weight=self.critic_objective_weight,
-        )
+        a2c_objectives = super().compute_objectives(last_obs, last_dones, info)
 
         stm_objective = compute_stm_objective(
             buffer=self.buffer,
@@ -94,4 +85,4 @@ class A2CSTM(A2C):
             info=info
         )
 
-        return [actor_objective, critic_objective, stm_objective]
+        return a2c_objectives + [stm_objective]

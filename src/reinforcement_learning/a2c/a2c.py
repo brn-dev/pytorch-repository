@@ -25,7 +25,6 @@ class A2C(EpisodicRLBase):
             env: gymnasium.Env,
             policy: ActorCriticPolicy,
             policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
-            select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             buffer_size: int,
             buffer_type=ActorCriticRolloutBuffer,
             gamma: float = 0.99,
@@ -45,7 +44,6 @@ class A2C(EpisodicRLBase):
             env=env,
             policy=policy,
             policy_optimizer=policy_optimizer,
-            select_action=select_action,
             buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
@@ -62,7 +60,24 @@ class A2C(EpisodicRLBase):
 
         self.log_unreduced = log_unreduced
 
+
     @override
+    def optimize(
+            self,
+            last_obs: np.ndarray,
+            last_dones: np.ndarray,
+            info: dict[str, Any]
+    ) -> None:
+        objectives = self.compute_objectives(last_obs, last_dones, info)
+
+        objective = torch.stack(objectives).sum()
+
+        info['objective'] = objective
+
+        self.policy_optimizer.zero_grad()
+        objective.backward()
+        self.policy_optimizer.step()
+
     def compute_objectives(
             self,
             last_obs: np.ndarray,
@@ -92,7 +107,7 @@ class A2C(EpisodicRLBase):
             critic_loss_fn: TorchLossFunction,
             critic_objective_reduction: TorchReductionFunction,
             critic_objective_weight,
-    ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+    ) -> list[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
         last_values = self.policy.predict_values(last_obs)
 
         advantages_np, returns_np = self.buffer.compute_gae_and_returns(
@@ -130,5 +145,5 @@ class A2C(EpisodicRLBase):
             info['actor_objective_unreduced'] = actor_objective_unreduced.detach().cpu()
             info['critic_objective_unreduced'] = critic_objective_unreduced.detach().cpu()
 
-        return actor_objective, critic_objective, advantages_np, returns_np
+        return weighted_actor_objective, weighted_critic_objective, advantages_np, returns_np
 
