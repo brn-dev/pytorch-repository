@@ -13,7 +13,7 @@ from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.core.policies.actor_critic_stm_policy import ActorCriticSTMPolicy
-from src.reinforcement_learning.core.state_transition_modelling import compute_stm_objective
+from src.reinforcement_learning.core.objectives import compute_stm_objective
 
 
 class A2CSTM(A2C):
@@ -26,11 +26,11 @@ class A2CSTM(A2C):
             env: gymnasium.Env,
             policy: ActorCriticSTMPolicy,
             policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
-            select_action: Callable[[torch.tensor], tuple[Any, torch.Tensor]],
             buffer_size: int,
             buffer_type=ActorCriticSTMRolloutBuffer,
             gamma: float = 0.99,
             gae_lambda: float = 1.0,
+            normalize_rewards: NormalizationType | None = None,
             normalize_advantages: NormalizationType | None = None,
             actor_objective_reduction: TorchReductionFunction = torch.mean,
             actor_objective_weight: float = 1.0,
@@ -48,11 +48,11 @@ class A2CSTM(A2C):
             env=env,
             policy=policy,
             policy_optimizer=policy_optimizer,
-            select_action=select_action,
             buffer_size=buffer_size,
             buffer_type=buffer_type,
             gamma=gamma,
             gae_lambda=gae_lambda,
+            normalize_rewards=normalize_rewards,
             normalize_advantages=normalize_advantages,
             actor_objective_reduction=actor_objective_reduction,
             actor_objective_weight=actor_objective_weight,

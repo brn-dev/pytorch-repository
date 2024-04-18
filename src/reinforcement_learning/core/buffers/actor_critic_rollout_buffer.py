@@ -24,6 +24,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             observations: np.ndarray,
             rewards: np.ndarray,
             episode_starts: np.ndarray,
+            actions: torch.Tensor,
             action_log_probs: torch.Tensor,
             value_estimates: torch.Tensor = None,
             **extra_predictions: torch.Tensor
@@ -34,6 +35,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             observations=observations,
             rewards=rewards,
             episode_starts=episode_starts,
+            actions=actions,
             action_log_probs=action_log_probs,
             **extra_predictions
         )
@@ -46,11 +48,16 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             last_dones: np.ndarray,
             gamma: float,
             gae_lambda: float,
-            normalize_advantages: NormalizationType | None
+            normalize_rewards: NormalizationType | None,
+            normalize_advantages: NormalizationType | None,
     ) -> tuple[np.ndarray, np.ndarray]:
         last_values = last_values.squeeze(-1).detach().clone().cpu().numpy()
 
         value_estimates = torch.stack(self.value_estimates).squeeze(-1).detach().cpu().numpy()
+
+        rewards = self.rewards
+        if normalize_rewards is not None:
+            rewards = normalize_np_array(rewards, normalization_type=normalize_rewards)
 
         advantages = np.zeros_like(self.rewards[:self.pos])
 
@@ -62,7 +69,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             else:
                 next_non_terminal = 1.0 - self.episode_starts[step + 1]
                 next_values = value_estimates[step + 1]
-            delta = self.rewards[step] + gamma * next_values * next_non_terminal - value_estimates[step]
+            delta = rewards[step] + gamma * next_values * next_non_terminal - value_estimates[step]
             gae = delta + gamma * gae_lambda * next_non_terminal * gae
 
             advantages[step] = gae

@@ -10,3 +10,8 @@ Adjust learning rate based on performance, discourage repeating actions that lea
 Warning when an environment doesn't terminate within the buffer range 
 
 torch jit trace policy
+
+ppo :
+* fetch batch from buffer 
+* use factor of old/new value estimate instead of static range
+* early stopping with KL divergence

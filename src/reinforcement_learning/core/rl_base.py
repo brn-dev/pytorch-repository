@@ -8,29 +8,30 @@ from torch import optim
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
 
 Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 
+Policy = TypeVar('Policy', bound=BasePolicy)
+PolicyProvider = Callable[[], Policy]
 
-class EpisodicRLBase(abc.ABC):
+
+class RLBase(abc.ABC):
 
 
     def __init__(
             self,
             env: gymnasium.Env,
-            policy: BasePolicy,
+            policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
             buffer: Buffer,
             gamma: float,
             gae_lambda: float,
-            normalize_advantages: NormalizationType | None,
             callback: Callback,
     ):
         self.env = self.as_vec_env(env)
-        self.policy = policy
+        self.policy = policy if isinstance(policy, BasePolicy) else policy()
         self.policy_optimizer = (
             policy_optimizer
             if isinstance(policy_optimizer, optim.Optimizer)
@@ -40,7 +41,6 @@ class EpisodicRLBase(abc.ABC):
 
         self.gamma = gamma
         self.gae_lambda = gae_lambda
-        self.normalize_advantages = normalize_advantages
 
         self.callback = callback
 
@@ -108,3 +108,4 @@ class EpisodicRLBase(abc.ABC):
     @staticmethod
     def as_vec_env(env: gymnasium.Env):
         return env if isinstance(env, VectorEnv) else SingletonVectorEnv(env)
+

@@ -9,12 +9,12 @@ from torch import nn, optim
 from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.episodic_rl_base import EpisodicRLBase
+from src.reinforcement_learning.core.rl_base import RLBase
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 
 
-class A2C(EpisodicRLBase):
+class A2C(RLBase):
 
     policy: ActorCriticPolicy
     buffer: ActorCriticRolloutBuffer
@@ -29,6 +29,7 @@ class A2C(EpisodicRLBase):
             buffer_type=ActorCriticRolloutBuffer,
             gamma: float = 0.99,
             gae_lambda: float = 1.0,
+            normalize_rewards: NormalizationType | None = None,
             normalize_advantages: NormalizationType | None = None,
             actor_objective_reduction: TorchReductionFunction = torch.mean,
             actor_objective_weight: float = 1.0,
@@ -47,9 +48,11 @@ class A2C(EpisodicRLBase):
             buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
-            normalize_advantages=normalize_advantages,
             callback=callback
         )
+
+        self.normalize_rewards = normalize_rewards
+        self.normalize_advantages = normalize_advantages
 
         self.actor_objective_reduction = actor_objective_reduction
         self.actor_objective_weight = actor_objective_weight
@@ -84,7 +87,7 @@ class A2C(EpisodicRLBase):
             last_dones: np.ndarray,
             info: dict[str, Any],
     ) -> list[torch.Tensor]:
-        actor_objective, critic_objective, advantages, returns = self.compute_a2c_objectives(
+        actor_objective, critic_objective = self.compute_a2c_objectives(
             last_obs=last_obs,
             last_dones=last_dones,
             info=info,
@@ -107,15 +110,16 @@ class A2C(EpisodicRLBase):
             critic_loss_fn: TorchLossFunction,
             critic_objective_reduction: TorchReductionFunction,
             critic_objective_weight,
-    ) -> list[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         last_values = self.policy.predict_values(last_obs)
 
         advantages_np, returns_np = self.buffer.compute_gae_and_returns(
-            last_values,
-            last_dones,
-            self.gamma,
-            self.gae_lambda,
-            self.normalize_advantages,
+            last_values=last_values,
+            last_dones=last_dones,
+            gamma=self.gamma,
+            gae_lambda=self.gae_lambda,
+            normalize_rewards=self.normalize_rewards,
+            normalize_advantages=self.normalize_advantages,
         )
         advantages = torch.tensor(advantages_np, dtype=torch.float32)
         returns = torch.tensor(returns_np, dtype=torch.float32)
@@ -145,5 +149,5 @@ class A2C(EpisodicRLBase):
             info['actor_objective_unreduced'] = actor_objective_unreduced.detach().cpu()
             info['critic_objective_unreduced'] = critic_objective_unreduced.detach().cpu()
 
-        return weighted_actor_objective, weighted_critic_objective, advantages_np, returns_np
+        return weighted_actor_objective, weighted_critic_objective
 

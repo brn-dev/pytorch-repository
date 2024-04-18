@@ -24,10 +24,11 @@ class BasicRolloutBuffer:
         return self.pos == self.buffer_size
 
     def reset(self):
-        self.observations = np.zeros((self.buffer_size, self.num_envs) + self.obs_shape)
+        self.observations = np.zeros((self.buffer_size,) + self.obs_shape)
         self.rewards = np.zeros((self.buffer_size, self.num_envs))
         self.episode_starts = np.zeros((self.buffer_size, self.num_envs)).astype(bool)
 
+        del self.actions[:]
         del self.action_log_probs[:]
 
         self.pos = 0
@@ -48,7 +49,7 @@ class BasicRolloutBuffer:
         self.rewards[self.pos] = rewards
         self.episode_starts[self.pos] = episode_starts
 
-        self.actions = actions.detach() if self.detach_actions else actions
+        self.actions.append(actions.detach() if self.detach_actions else actions)
         self.action_log_probs.append(action_log_probs)
 
         self.pos += 1

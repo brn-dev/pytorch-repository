@@ -6,6 +6,8 @@ import torch
 import torch.distributions as dist
 from torch import nn
 
+TensorOrNpArray = torch.Tensor | np.ndarray
+
 
 class BasePolicy(nn.Module, abc.ABC):
 
@@ -35,12 +37,15 @@ class BasePolicy(nn.Module, abc.ABC):
         else:
             return dist.Categorical(logits=action_logits)
 
-    @abc.abstractmethod
-    def process_obs(self, obs: np.ndarray) -> tuple[dist.Distribution, dict[str, torch.Tensor]]:
-        raise NotImplemented
-
-    def predict_actions(self, obs: np.ndarray) -> dist.Distribution:
+    def predict_actions(self, obs: TensorOrNpArray) -> dist.Distribution:
         return self.process_obs(obs)[0]
 
+    @abc.abstractmethod
+    def process_obs(self, obs: TensorOrNpArray) -> tuple[dist.Distribution, dict[str, torch.Tensor]]:
+        raise NotImplemented
 
-
+    @staticmethod
+    def as_tensor(obs: TensorOrNpArray) -> torch.Tensor:
+        if isinstance(obs, torch.Tensor):
+            return obs
+        return torch.tensor(obs, dtype=torch.float32)

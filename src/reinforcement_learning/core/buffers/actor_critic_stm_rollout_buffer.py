@@ -23,6 +23,7 @@ class ActorCriticSTMRolloutBuffer(ActorCriticRolloutBuffer):
             observations: np.ndarray,
             rewards: np.ndarray,
             episode_starts: np.ndarray,
+            actions: torch.Tensor,
             action_log_probs: torch.Tensor,
             value_estimates: torch.Tensor = None,
             state_preds: torch.Tensor = None,
@@ -34,6 +35,7 @@ class ActorCriticSTMRolloutBuffer(ActorCriticRolloutBuffer):
             observations=observations,
             rewards=rewards,
             episode_starts=episode_starts,
+            actions=actions,
             action_log_probs=action_log_probs,
             value_estimates=value_estimates,
             **extra_predictions
