@@ -43,9 +43,3 @@ class BasePolicy(nn.Module, abc.ABC):
     @abc.abstractmethod
     def process_obs(self, obs: TensorOrNpArray) -> tuple[dist.Distribution, dict[str, torch.Tensor]]:
         raise NotImplemented
-
-    @staticmethod
-    def as_tensor(obs: TensorOrNpArray) -> torch.Tensor:
-        if isinstance(obs, torch.Tensor):
-            return obs
-        return torch.tensor(obs, dtype=torch.float32)

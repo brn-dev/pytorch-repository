@@ -3,6 +3,8 @@ from typing import SupportsFloat, Any
 from gymnasium import Wrapper, Env
 from gymnasium.core import WrapperActType, WrapperObsType
 
+from src.reinforcement_learning.core.infos import InfoDict
+
 
 class StepSkipWrapper(Wrapper):
 
@@ -16,7 +18,7 @@ class StepSkipWrapper(Wrapper):
 
     def step(
         self, action: WrapperActType
-    ) -> tuple[WrapperObsType, SupportsFloat, bool, bool, dict[str, Any]]:
+    ) -> tuple[WrapperObsType, SupportsFloat, bool, bool, InfoDict]:
         obs, total_reward, terminated, truncated, step_info = self.env.step(action)
 
         info = {'#0': step_info}

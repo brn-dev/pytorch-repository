@@ -11,6 +11,7 @@ from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.core.batching import batched
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.infos import InfoDict, stack_infos, concat_infos
 from src.reinforcement_learning.core.rl_base import RLBase
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
@@ -77,7 +78,7 @@ class PPO(RLBase):
         self.log_unreduced = log_unreduced
 
     @override
-    def perform_rollout(self, max_steps: int, info: dict[str, Any]) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+    def perform_rollout(self, max_steps: int, info: InfoDict) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
         with torch.no_grad():
             return super().perform_rollout(max_steps, info)
 
@@ -87,7 +88,7 @@ class PPO(RLBase):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any]
+            info: InfoDict
     ) -> None:
         last_values = self.policy.predict_values(last_obs)
 
@@ -111,10 +112,15 @@ class PPO(RLBase):
         old_action_log_probs = torch.stack(self.buffer.action_log_probs).detach()
         old_value_estimates = torch.stack(self.buffer.value_estimates).detach()
 
+        optimization_infos: list[InfoDict] = []
         for _ in range(self.ppo_epochs):
+            epoch_infos: list[InfoDict] = []
+
             for batched_tensors in batched(self.ppo_batch_size,
                                            observations, advantages, returns, old_actions,
                                            old_action_log_probs, old_value_estimates):
+
+                batch_info: InfoDict = {}
                 objectives = self.compute_ppo_objectives(
                     observations=batched_tensors[0],
                     advantages=batched_tensors[1],
@@ -122,16 +128,24 @@ class PPO(RLBase):
                     old_actions=batched_tensors[3],
                     old_action_log_probs=batched_tensors[4],
                     old_value_estimates=batched_tensors[5],
-                    info=info,
+                    info=batch_info,
                 )
 
                 objective = torch.stack(objectives).sum()
 
-                info['objective'] = objective
+                batch_info['objective'] = objective
 
                 self.policy_optimizer.zero_grad()
                 objective.backward()
                 self.policy_optimizer.step()
+
+                epoch_infos.append(batch_info)
+
+            optimization_infos.append(concat_infos(epoch_infos))
+
+        for info_key, info_value in stack_infos(optimization_infos).items():
+            info[info_key] = info_value
+
 
     def compute_ppo_objectives(
             self,
@@ -141,7 +155,7 @@ class PPO(RLBase):
             old_actions: torch.Tensor,
             old_action_log_probs: torch.Tensor,
             old_value_estimates: torch.Tensor,
-            info: dict[str, Any],
+            info: InfoDict,
     ) -> list[torch.Tensor]:
         new_action_logits, value_estimates = self.policy.predict_actions_and_values(observations)
         new_actions_dist = self.policy.create_actions_dist(new_action_logits)
@@ -182,7 +196,7 @@ class PPO(RLBase):
             action_ratio_clip_range,
             actor_objective_reduction: TorchReductionFunction,
             actor_objective_weight: float,
-            info: dict[str, Any],
+            info: InfoDict,
             log_unreduced: bool
     ) -> torch.Tensor:
         new_action_log_probs = new_actions_dist.log_prob(old_actions)
@@ -216,7 +230,7 @@ class PPO(RLBase):
             critic_loss_fn: TorchLossFunction,
             critic_objective_reduction: TorchReductionFunction,
             critic_objective_weight: float,
-            info: dict[str, Any],
+            info: InfoDict,
             log_unreduced: bool,
     ) -> torch.Tensor:
         value_estimates = new_value_estimates

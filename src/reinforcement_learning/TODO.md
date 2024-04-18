@@ -15,3 +15,4 @@ ppo :
 * fetch batch from buffer 
 * use factor of old/new value estimate instead of static range
 * early stopping with KL divergence
+* summary info instead of last one

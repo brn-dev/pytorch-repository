@@ -24,6 +24,6 @@ class ActorCriticPolicy(BasePolicy):
         return self.predict_actions_and_values(obs)[1]
 
     def predict_actions_and_values(self, obs: TensorOrNpArray) -> tuple[torch.Tensor, torch.Tensor]:
-        obs_tensor = self.as_tensor(obs)
+        obs_tensor = torch.as_tensor(obs, dtype=torch.float32)
         actions_logits, value_estimates = self(obs_tensor)
         return actions_logits, value_estimates

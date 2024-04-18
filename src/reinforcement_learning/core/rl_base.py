@@ -8,6 +8,7 @@ from torch import optim
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
 
@@ -49,7 +50,7 @@ class RLBase(abc.ABC):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any]
+            info: InfoDict
     ) -> None:
         raise NotImplemented
 
@@ -71,7 +72,7 @@ class RLBase(abc.ABC):
         return next_states, rewards, terminated, truncated, info
 
 
-    def perform_rollout(self, max_steps: int, info: dict[str, Any]) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+    def perform_rollout(self, max_steps: int, info: InfoDict) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
         obs, _ = self.env.reset()
 
         terminated = np.empty((self.env.num_envs,), dtype=bool)
@@ -92,7 +93,7 @@ class RLBase(abc.ABC):
 
         step = 0
         while step < num_steps:
-            info: dict[str, Any] = {}
+            info: InfoDict = {}
 
             steps_performed, last_obs, last_terminated, last_truncated = self.perform_rollout(num_steps - step, info)
             step += steps_performed

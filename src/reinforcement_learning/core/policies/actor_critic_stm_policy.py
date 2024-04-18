@@ -32,6 +32,6 @@ class ActorCriticSTMPolicy(ActorCriticPolicy):
 
     def __predict_actions_values_and_states(self, obs: TensorOrNpArray) \
             -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        obs_tensor = self.as_tensor(obs)
+        obs_tensor = torch.as_tensor(obs, dtype=torch.float32)
         action_logits, value_estimates, state_preds = self(obs_tensor)
         return action_logits, value_estimates, state_preds

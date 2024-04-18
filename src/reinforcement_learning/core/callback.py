@@ -1,7 +1,9 @@
-from typing import Generic, TypeVar, Callable, Any
+from typing import Generic, TypeVar, Callable
+
+from src.reinforcement_learning.core.infos import InfoDict
 
 T = TypeVar('T')
-CallbackWithStep = Callable[[T, int, dict[str, Any]], None]
+CallbackWithStep = Callable[[T, int, InfoDict], None]
 
 class Callback(Generic[T]):
 

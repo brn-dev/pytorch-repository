@@ -9,6 +9,7 @@ from torch import nn, optim
 from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.rl_base import RLBase
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
@@ -69,7 +70,7 @@ class A2C(RLBase):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any]
+            info: InfoDict
     ) -> None:
         objectives = self.compute_objectives(last_obs, last_dones, info)
 
@@ -85,7 +86,7 @@ class A2C(RLBase):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any],
+            info: InfoDict,
     ) -> list[torch.Tensor]:
         actor_objective, critic_objective = self.compute_a2c_objectives(
             last_obs=last_obs,
@@ -104,7 +105,7 @@ class A2C(RLBase):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any],
+            info: InfoDict,
             actor_objective_reduction: TorchReductionFunction,
             actor_objective_weight: float,
             critic_loss_fn: TorchLossFunction,

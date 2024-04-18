@@ -10,6 +10,7 @@ from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.a2c.a2c import A2C
 from src.reinforcement_learning.core.buffers.actor_critic_stm_rollout_buffer import ActorCriticSTMRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.core.policies.actor_critic_stm_policy import ActorCriticSTMPolicy
@@ -72,7 +73,7 @@ class A2CSTM(A2C):
             self,
             last_obs: np.ndarray,
             last_dones: np.ndarray,
-            info: dict[str, Any],
+            info: InfoDict,
     ) -> list[torch.Tensor]:
         a2c_objectives = super().compute_objectives(last_obs, last_dones, info)
 
