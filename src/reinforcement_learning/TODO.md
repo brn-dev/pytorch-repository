@@ -15,4 +15,5 @@ ppo :
 * fetch batch from buffer 
 * use factor of old/new value estimate instead of static range
 * early stopping with KL divergence
-* summary info instead of last one
+* summary info instead of last 
+* save some high return action-sequences beyond the rollout buffer
