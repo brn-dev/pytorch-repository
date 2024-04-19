@@ -28,8 +28,6 @@ class SingletonVectorEnv(VectorEnv):
     def step_wait(self, **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
         obs, rewards, terminated, truncated, info = self.env.step(self._actions[0])
 
-        print(obs, rewards, terminated, truncated, info)
-
         return (
             self._add_env_singleton_dim(obs),
             self._add_env_singleton_dim(rewards),
@@ -43,5 +41,8 @@ class SingletonVectorEnv(VectorEnv):
 
     @staticmethod
     def _add_env_singleton_dim(val: SupportsFloat | np.ndarray):
-        return np.expand_dims(np.asarray(val), axis=0)
+
+        arr = np.asarray(val)
+
+        return np.expand_dims(arr, axis=0)
 

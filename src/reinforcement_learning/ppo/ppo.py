@@ -159,7 +159,7 @@ class PPO(RLBase):
     ) -> list[torch.Tensor]:
         new_action_logits, value_estimates = self.policy.predict_actions_and_values(observations)
         new_actions_dist = self.policy.create_actions_dist(new_action_logits)
-        value_estimates = value_estimates.squeeze()
+        value_estimates = value_estimates.squeeze(dim=-1)
 
         actor_objective = self.compute_ppo_actor_objective(
             new_actions_dist=new_actions_dist,

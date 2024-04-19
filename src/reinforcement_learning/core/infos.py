@@ -16,16 +16,16 @@ def concat_infos(infos: list[InfoDict]) -> InfoDict:
 
 def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'concat']) -> InfoDict:
     assert len(infos) > 0
-    assert all(info.keys() == infos[0].keys() for info in infos[1:])
 
-    keys = infos[0].keys()
+    keys = set.union(*[set(info.keys()) for info in infos])
 
     stacked_info: InfoDict = {}
     for key in keys:
-        values: list[Any] = [infos[0][key]]
+        values: list[Any] = []
 
-        for info in infos[1:]:
-            values.append(info[key])
+        for info in infos:
+            if key in info:
+                values.append(info[key])
 
         if isinstance(values[0], torch.Tensor):
             match combination_method:

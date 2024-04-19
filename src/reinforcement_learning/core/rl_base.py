@@ -8,7 +8,7 @@ from torch import optim
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.infos import InfoDict
+from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
 
@@ -72,18 +72,31 @@ class RLBase(abc.ABC):
         return next_states, rewards, terminated, truncated, info
 
 
-    def perform_rollout(self, max_steps: int, info: InfoDict) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
-        obs, _ = self.env.reset()
+    def perform_rollout(
+            self,
+            max_steps: int,
+            info: InfoDict
+    ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+
+        obs, reset_info = self.env.reset()
 
         terminated = np.empty((self.env.num_envs,), dtype=bool)
         truncated = np.empty((self.env.num_envs,), dtype=bool)
         step = 0
-        for step in range(min(self.buffer.buffer_size, max_steps)):
-            obs, rewards, terminated, truncated, _ = self.rollout_step(obs)
 
-        info['last_obs'] = obs
-        info['last_terminated'] = terminated
-        info['last_truncated'] = truncated
+        infos: list[InfoDict] = []
+        for step in range(min(self.buffer.buffer_size, max_steps)):
+            obs, rewards, terminated, truncated, step_info = self.rollout_step(obs)
+            infos.append(step_info)
+
+
+        info['rollout_reset'] = reset_info
+
+        info['rollout'] = stack_infos(infos)
+
+        info['rollout_last_obs'] = obs
+        info['rollout_last_terminated'] = terminated
+        info['rollout_last_truncated'] = truncated
 
         return step + 1, obs, terminated, truncated
 
@@ -107,6 +120,17 @@ class RLBase(abc.ABC):
             self.buffer.reset()
 
     @staticmethod
+    def is_vec_env(env: gymnasium.Env):
+        try:
+            env.get_wrapper_attr('num_envs')
+            return True
+        except AttributeError:
+            return False
+
+    @staticmethod
     def as_vec_env(env: gymnasium.Env):
-        return env if isinstance(env, VectorEnv) else SingletonVectorEnv(env)
+        if not RLBase.is_vec_env(env):
+            return SingletonVectorEnv(env)
+
+        return env
 

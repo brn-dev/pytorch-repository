@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.generalized_advantage_estimate import compute_gae_and_returns
 from src.reinforcement_learning.core.normalization import NormalizationType, normalize_np_array
 
 
@@ -52,31 +53,16 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             normalize_advantages: NormalizationType | None,
     ) -> tuple[np.ndarray, np.ndarray]:
         last_values = last_values.squeeze(-1).detach().clone().cpu().numpy()
+        value_estimates = torch.stack(self.value_estimates).detach().cpu().numpy()
 
-        value_estimates = torch.stack(self.value_estimates).squeeze(-1).detach().cpu().numpy()
-
-        rewards = self.rewards
-        if normalize_rewards is not None:
-            rewards = normalize_np_array(rewards, normalization_type=normalize_rewards)
-
-        advantages = np.zeros_like(self.rewards[:self.pos])
-
-        gae = 0
-        for step in reversed(range(self.pos)):
-            if step == self.pos - 1:
-                next_non_terminal = 1.0 - last_dones
-                next_values = last_values
-            else:
-                next_non_terminal = 1.0 - self.episode_starts[step + 1]
-                next_values = value_estimates[step + 1]
-            delta = rewards[step] + gamma * next_values * next_non_terminal - value_estimates[step]
-            gae = delta + gamma * gae_lambda * next_non_terminal * gae
-
-            advantages[step] = gae
-
-        returns = advantages + value_estimates
-
-        if normalize_advantages is not None:
-            advantages = normalize_np_array(advantages, normalization_type=normalize_advantages)
-
-        return advantages, returns
+        return compute_gae_and_returns(
+            value_estimates=value_estimates,
+            rewards=self.rewards[:self.pos],
+            episode_starts=self.episode_starts[:self.pos],
+            last_values=last_values,
+            last_dones=last_dones,
+            gamma=gamma,
+            gae_lambda=gae_lambda,
+            normalize_rewards=normalize_rewards,
+            normalize_advantages=normalize_advantages
+        )
