@@ -21,18 +21,12 @@ def format_summary_statics(
     if std_format:
         representation += f' ± {std.__format__(std_format)}'
 
-    if min_value_format or max_value_format:
-        representation += ' '
-
-        if min_value_format:
-            representation += f'[{min_value.__format__(min_value_format)},'
-        else:
-            representation += f'(,'
-
-        if max_value_format:
-            representation += f' {max_value.__format__(max_value_format)}]'
-        else:
-            representation += f')'
+    if min_value_format and max_value_format:
+        representation += f' [{min_value.__format__(min_value_format)}, {max_value.__format__(max_value_format)}]'
+    elif min_value_format:
+        representation += f' ≥ {min_value.__format__(min_value_format)}'
+    elif max_value_format:
+        representation += f' ≤ {max_value.__format__(max_value_format)}'
 
     return representation
 

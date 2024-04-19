@@ -69,7 +69,6 @@ class PPO(RLBase):
         self.critic_objective_weight = critic_objective_weight
 
         self.ppo_epochs = ppo_epochs
-        # TODO
         self.ppo_batch_size = ppo_batch_size if ppo_batch_size is not None else self.buffer.buffer_size
 
         self.action_ratio_clip_range = action_ratio_clip_range
@@ -116,10 +115,11 @@ class PPO(RLBase):
         for _ in range(self.ppo_epochs):
             epoch_infos: list[InfoDict] = []
 
-            for batched_tensors in batched(self.ppo_batch_size,
-                                           observations, advantages, returns, old_actions,
-                                           old_action_log_probs, old_value_estimates):
-
+            for batched_tensors in batched(
+                    self.ppo_batch_size,
+                    observations[:self.buffer.pos], advantages[:self.buffer.pos], returns[:self.buffer.pos],
+                    old_actions, old_action_log_probs, old_value_estimates
+            ):
                 batch_info: InfoDict = {}
                 objectives = self.compute_ppo_objectives(
                     observations=batched_tensors[0],
