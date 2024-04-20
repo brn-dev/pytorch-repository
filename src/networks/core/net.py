@@ -3,7 +3,7 @@ from typing import Union, Literal
 
 from torch import nn
 
-from src.module_analysis import count_parameters, get_gradients_per_layer
+from src.module_analysis import count_parameters, get_gradients_per_parameter
 from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 
@@ -59,7 +59,7 @@ class Net(nn.Module, abc.ABC):
         return count_parameters(self, requires_grad_only)
 
     def get_gradients_per_layer(self, param_type: Literal['all', 'weight', 'bias'] = 'all'):
-        return get_gradients_per_layer(self, param_type)
+        return get_gradients_per_parameter(self, param_type)
 
     @staticmethod
     def as_net(module: Union['Net', nn.Module]) -> 'Net':
