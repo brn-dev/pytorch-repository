@@ -44,6 +44,7 @@ class PPO(RLBase):
             action_ratio_clip_range: float = 0.2,
             value_function_clip_range: float | None = None,  # Depends on return scaling
             log_unreduced: bool = False,
+            reset_env_between_rollouts: bool = False,
             callback: Callback['PPO'] = Callback(),
     ):
         env = self.as_vec_env(env)
@@ -55,6 +56,7 @@ class PPO(RLBase):
             buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
+            reset_env_between_rollouts=reset_env_between_rollouts,
             callback=callback
         )
 
@@ -77,9 +79,14 @@ class PPO(RLBase):
         self.log_unreduced = log_unreduced
 
     @override
-    def perform_rollout(self, max_steps: int, info: InfoDict) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+    def perform_rollout(
+            self,
+            max_steps: int,
+            obs: np.ndarray,
+            info: InfoDict
+    ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
         with torch.no_grad():
-            return super().perform_rollout(max_steps, info)
+            return super().perform_rollout(max_steps, obs, info)
 
 
     @override
@@ -159,6 +166,7 @@ class PPO(RLBase):
     ) -> list[torch.Tensor]:
         new_action_logits, value_estimates = self.policy.predict_actions_and_values(observations)
         new_actions_dist = self.policy.create_actions_dist(new_action_logits)
+
         value_estimates = value_estimates.squeeze(dim=-1)
 
         actor_objective = self.compute_ppo_actor_objective(

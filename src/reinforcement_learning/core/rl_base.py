@@ -29,6 +29,7 @@ class RLBase(abc.ABC):
             buffer: Buffer,
             gamma: float,
             gae_lambda: float,
+            reset_env_between_rollouts: bool,
             callback: Callback,
     ):
         self.env = self.as_vec_env(env)
@@ -42,6 +43,8 @@ class RLBase(abc.ABC):
 
         self.gamma = gamma
         self.gae_lambda = gae_lambda
+
+        self.reset_env_between_rollouts = reset_env_between_rollouts
 
         self.callback = callback
 
@@ -75,10 +78,9 @@ class RLBase(abc.ABC):
     def perform_rollout(
             self,
             max_steps: int,
+            obs: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
-
-        obs, reset_info = self.env.reset()
 
         terminated = np.empty((self.env.num_envs,), dtype=bool)
         truncated = np.empty((self.env.num_envs,), dtype=bool)
@@ -88,9 +90,6 @@ class RLBase(abc.ABC):
         for step in range(min(self.buffer.buffer_size, max_steps)):
             obs, rewards, terminated, truncated, step_info = self.rollout_step(obs)
             infos.append(step_info)
-
-
-        info['rollout_reset'] = reset_info
 
         info['rollout'] = stack_infos(infos)
 
@@ -102,18 +101,26 @@ class RLBase(abc.ABC):
 
 
     def train(self, num_steps: int):
-        # TODO: flag for not resetting env after resetting buffer
+        obs: np.ndarray = np.empty(())
 
         step = 0
         while step < num_steps:
             info: InfoDict = {}
 
-            steps_performed, last_obs, last_terminated, last_truncated = self.perform_rollout(num_steps - step, info)
+            if step == 0 or self.reset_env_between_rollouts:
+                obs, reset_info = self.env.reset()
+                info['reset'] = reset_info
+
+            steps_performed, obs, last_terminated, last_truncated = self.perform_rollout(
+                max_steps=num_steps - step,
+                obs=obs,
+                info=info
+            )
             step += steps_performed
 
             self.callback.on_rollout_done(self, step, info)
 
-            self.optimize(last_obs, np.logical_or(last_terminated, last_truncated), info)
+            self.optimize(obs, np.logical_or(last_terminated, last_truncated), info)
 
             self.callback.on_optimization_done(self, step, info)
 

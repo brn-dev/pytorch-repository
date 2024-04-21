@@ -37,6 +37,7 @@ class A2C(RLBase):
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             critic_objective_reduction: TorchReductionFunction = torch.mean,
             critic_objective_weight: float = 1.0,
+            reset_env_between_rollouts: bool = False,
             log_unreduced: bool = False,
             callback: Callback['A2C'] = Callback(),
     ):
@@ -49,6 +50,7 @@ class A2C(RLBase):
             buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
+            reset_env_between_rollouts=reset_env_between_rollouts,
             callback=callback
         )
 

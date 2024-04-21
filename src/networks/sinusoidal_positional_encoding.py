@@ -3,6 +3,7 @@ import math
 import torch
 
 from src.networks.core.net import Net
+from src.networks.core.tensor_shape import TensorShape
 
 
 class SinusoidalPositionalEncoding(Net):
@@ -18,7 +19,16 @@ class SinusoidalPositionalEncoding(Net):
     pos_embedding: torch.Tensor
 
     def __init__(self, d_model: int, max_len: int):
-        super().__init__()
+        in_shape = TensorShape(features=0)
+        in_shape.create_structural_dimension()
+
+        out_shape = TensorShape(features=d_model)
+        out_shape.create_structural_dimension()
+
+        super().__init__(
+            in_shape=in_shape,
+            out_shape=out_shape,
+        )
 
         pos_embedding = torch.zeros(max_len, d_model)
         positions_list = torch.arange(0, max_len, dtype=torch.float).view(-1, 1)
