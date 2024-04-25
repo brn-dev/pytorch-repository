@@ -110,6 +110,7 @@ class RLBase(abc.ABC):
             if step == 0 or self.reset_env_between_rollouts:
                 obs, reset_info = self.env.reset()
                 info['reset'] = reset_info
+                print('envs reset')
 
             steps_performed, obs, last_terminated, last_truncated = self.perform_rollout(
                 max_steps=num_steps - step,
