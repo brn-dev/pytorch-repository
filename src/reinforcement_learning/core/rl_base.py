@@ -32,7 +32,8 @@ class RLBase(abc.ABC):
             reset_env_between_rollouts: bool,
             callback: Callback,
     ):
-        self.env = self.as_vec_env(env)
+        self.env, self.num_envs = self.as_vec_env(env)
+
         self.policy = policy if isinstance(policy, BasePolicy) else policy()
         self.policy_optimizer = (
             policy_optimizer
@@ -61,7 +62,7 @@ class RLBase(abc.ABC):
         actions_dist, extra_predictions = self.policy.process_obs(obs)
         actions = actions_dist.sample()
 
-        next_states, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
+        next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
         self.buffer.add(
             observations=obs,
@@ -72,7 +73,7 @@ class RLBase(abc.ABC):
             **extra_predictions
         )
 
-        return next_states, rewards, terminated, truncated, info
+        return next_obs, rewards, terminated, truncated, info
 
 
     def perform_rollout(
@@ -81,9 +82,10 @@ class RLBase(abc.ABC):
             obs: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+        num_envs = self.env.get_wrapper_attr('num_envs')
 
-        terminated = np.empty((self.env.num_envs,), dtype=bool)
-        truncated = np.empty((self.env.num_envs,), dtype=bool)
+        terminated = np.empty((num_envs,), dtype=bool)
+        truncated = np.empty((num_envs,), dtype=bool)
         step = 0
 
         infos: list[InfoDict] = []
@@ -127,18 +129,12 @@ class RLBase(abc.ABC):
 
             self.buffer.reset()
 
-    @staticmethod
-    def is_vec_env(env: gymnasium.Env):
-        try:
-            env.get_wrapper_attr('num_envs')
-            return True
-        except AttributeError:
-            return False
 
     @staticmethod
     def as_vec_env(env: gymnasium.Env):
-        if not RLBase.is_vec_env(env):
-            return SingletonVectorEnv(env)
-
-        return env
+        try:
+            num_envs = env.get_wrapper_attr('num_envs')
+            return env, num_envs
+        except AttributeError:
+            return SingletonVectorEnv(env), 1
 

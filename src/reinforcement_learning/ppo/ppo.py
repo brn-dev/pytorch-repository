@@ -38,22 +38,23 @@ class PPO(RLBase):
             actor_objective_weight: float = 1.0,
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             critic_objective_reduction: TorchReductionFunction = torch.mean,
+            critic_objective_normalize: bool = False,  # TODO: put objective parameter in dataclass
             critic_objective_weight: float = 1.0,
             ppo_epochs: int = 3,
             ppo_batch_size: int | None = None,
             action_ratio_clip_range: float = 0.2,
-            value_function_clip_range: float | None = None,  # Depends on return scaling
+            value_function_clip_range: float | None = None,  # TODO: Depends on return scaling
             log_unreduced: bool = False,
             reset_env_between_rollouts: bool = False,
             callback: Callback['PPO'] = Callback(),
     ):
-        env = self.as_vec_env(env)
+        env, num_envs = self.as_vec_env(env)
 
         super().__init__(
             env=env,
             policy=policy,
             policy_optimizer=policy_optimizer,
-            buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
+            buffer=buffer_type(buffer_size, num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
             reset_env_between_rollouts=reset_env_between_rollouts,
@@ -68,6 +69,7 @@ class PPO(RLBase):
 
         self.critic_loss_fn = critic_loss_fn
         self.critic_objective_reduction = critic_objective_reduction
+        self.critic_objective_normalize = critic_objective_normalize
         self.critic_objective_weight = critic_objective_weight
 
         self.ppo_epochs = ppo_epochs
@@ -188,6 +190,7 @@ class PPO(RLBase):
             value_function_clip_range=self.value_function_clip_range,
             critic_loss_fn=self.critic_loss_fn,
             critic_objective_reduction=self.critic_objective_reduction,
+            critic_objective_normalize=self.critic_objective_normalize,
             critic_objective_weight=self.critic_objective_weight,
             info=info,
             log_unreduced=self.log_unreduced,
@@ -210,6 +213,9 @@ class PPO(RLBase):
         new_action_log_probs = new_actions_dist.log_prob(old_actions)
 
         action_log_probs_ratios = torch.exp(new_action_log_probs - old_action_log_probs)
+
+        if action_log_probs_ratios.dim() > 2:
+            action_log_probs_ratios = action_log_probs_ratios.flatten(start_dim=2).sum(dim=2)
 
         unclipped_actor_objective = advantages * action_log_probs_ratios
         clipped_actor_objective = advantages * torch.clamp(
@@ -237,6 +243,7 @@ class PPO(RLBase):
             value_function_clip_range: float | None,
             critic_loss_fn: TorchLossFunction,
             critic_objective_reduction: TorchReductionFunction,
+            critic_objective_normalize: bool,
             critic_objective_weight: float,
             info: InfoDict,
             log_unreduced: bool,
@@ -250,7 +257,12 @@ class PPO(RLBase):
 
         critic_objective_unreduced = critic_loss_fn(value_estimates, returns, reduction='none')
         critic_objective = critic_objective_reduction(critic_objective_unreduced)
-        weighted_critic_objective = critic_objective_weight * critic_objective
+
+        weighted_critic_objective = critic_objective
+        if critic_objective_normalize:
+            weighted_critic_objective = weighted_critic_objective / weighted_critic_objective.item()
+
+        weighted_critic_objective = critic_objective_weight * weighted_critic_objective
 
         info['critic_objective'] = critic_objective.detach().cpu()
         info['weighted_critic_objective'] = weighted_critic_objective.detach().cpu()

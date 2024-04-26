@@ -43,7 +43,7 @@ class A2CSTM(A2C):
             stm_objective_weight: float = 1.0,
             callback: Callback['A2CSTM'] = Callback(),
     ):
-        env = self.as_vec_env(env)
+        env, num_envs = self.as_vec_env(env)
 
         super().__init__(
             env=env,

@@ -41,13 +41,13 @@ class A2C(RLBase):
             log_unreduced: bool = False,
             callback: Callback['A2C'] = Callback(),
     ):
-        env = self.as_vec_env(env)
+        env, num_envs = self.as_vec_env(env)
 
         super().__init__(
             env=env,
             policy=policy,
             policy_optimizer=policy_optimizer,
-            buffer=buffer_type(buffer_size, env.num_envs, env.observation_space.shape),
+            buffer=buffer_type(buffer_size, num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
             reset_env_between_rollouts=reset_env_between_rollouts,
@@ -128,7 +128,7 @@ class A2C(RLBase):
         returns = torch.tensor(returns_np, dtype=torch.float32)
 
         action_log_probs = (torch.stack(self.buffer.action_log_probs)
-                            .reshape((self.buffer.pos, self.env.num_envs, -1))
+                            .reshape((self.buffer.pos, self.num_envs, -1))
                             .mean(dim=-1))
         value_estimates = torch.stack(self.buffer.value_estimates)
 
