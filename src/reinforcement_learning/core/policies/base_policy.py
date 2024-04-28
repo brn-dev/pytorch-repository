@@ -1,5 +1,5 @@
 import abc
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
 import torch
@@ -11,31 +11,13 @@ TensorOrNpArray = torch.Tensor | np.ndarray
 
 class BasePolicy(nn.Module, abc.ABC):
 
-    def __init__(self, network: nn.Module, continuous_actions: bool, actions_std: float = None):
+    def __init__(self, network: nn.Module, action_dist_provider: Callable[[torch.Tensor], dist.Distribution]):
         super().__init__()
         self.network = network
-        self.continuous_actions = continuous_actions
-
-        self.actions_std: Optional[float] = None
-        self.set_actions_std(actions_std)
-
-
-    def set_actions_std(self, actions_std: float):
-        if not self.continuous_actions and actions_std is not None:
-            raise ValueError(f'actions_std has to be None when using discrete actions ({actions_std = })')
-        if self.continuous_actions and (actions_std is None or actions_std <= 0):
-            raise ValueError(f'actions_std needs to be positive when using continuous actions ({actions_std = })')
-
-        self.actions_std = actions_std
+        self.action_dist_provider = action_dist_provider
 
     def forward(self, obs: torch.Tensor):
         return self.network(obs)
-
-    def create_actions_dist(self, action_logits) -> dist.Distribution:
-        if self.continuous_actions:
-            return dist.Normal(loc=action_logits, scale=self.actions_std)
-        else:
-            return dist.Categorical(logits=action_logits)
 
     def predict_actions(self, obs: TensorOrNpArray) -> dist.Distribution:
         return self.process_obs(obs)[0]

@@ -1,3 +1,5 @@
+from typing import Callable
+
 from overrides import override
 
 import numpy as np
@@ -13,13 +15,13 @@ STATE_PREDS_KEY = 'state_preds'
 
 class ActorCriticSTMPolicy(ActorCriticPolicy):
 
-    def __init__(self, network: nn.Module, continuous_actions: bool, actions_std: float = None):
-        super().__init__(network, continuous_actions, actions_std)
+    def __init__(self, network: nn.Module, action_dist_provider: Callable[[torch.Tensor], dist.Distribution]):
+        super().__init__(network, action_dist_provider)
 
     @override
     def process_obs(self, obs: TensorOrNpArray) -> tuple[dist.Distribution, dict[str, torch.Tensor]]:
         action_logits, value_estimates, state_preds = self.__predict_actions_values_and_states(obs)
-        actions_dist = self.create_actions_dist(action_logits)
+        actions_dist = self.action_dist_provider(action_logits)
         return actions_dist, {VALUE_ESTIMATES_KEY: value_estimates, STATE_PREDS_KEY: state_preds}
 
     @override
