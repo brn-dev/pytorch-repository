@@ -86,7 +86,7 @@ class ModelDB:
 
         return entry
 
-    def all(self) -> list[ModelEntry]:
+    def all_entries(self) -> list[ModelEntry]:
         return self.db.all()
 
     def fetch_entry(self, model_id: str) -> ModelEntry:
