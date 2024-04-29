@@ -80,12 +80,17 @@ class ModelDB:
             model: nn.Module,
             model_id: str
     ) -> ModelEntry:
-        entry: ModelEntry = self.db.search(ModelDB.create_model_id_query(model_id))[0]
+        entry: ModelEntry = self.fetch_entry(model_id)
         state_dict = torch.load(entry['state_dict_path'])
         model.load_state_dict(state_dict)
 
         return entry
 
+    def all(self) -> list[ModelEntry]:
+        return self.db.all()
+
+    def fetch_entry(self, model_id: str) -> ModelEntry:
+        return self.db.search(ModelDB.create_model_id_query(model_id))[0]
 
     @staticmethod
     def create_model_id_query(model_id: str) -> QueryLike:
