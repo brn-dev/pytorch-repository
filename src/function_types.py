@@ -3,7 +3,8 @@ from typing import Protocol, Callable
 import torch
 
 
-TorchReductionFunction = Callable[[torch.Tensor], torch.Tensor]
+TorchTensorTransformation = Callable[[torch.Tensor], torch.Tensor]
+TorchReductionFunction = TorchTensorTransformation
 
 
 class TorchLossFunction(Protocol):

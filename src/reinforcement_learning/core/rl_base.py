@@ -1,9 +1,9 @@
 import abc
-from typing import Callable, Any, TypeVar
+from dataclasses import dataclass
+from typing import Callable, TypeVar
 
 import gymnasium
 import numpy as np
-from gymnasium.vector import VectorEnv
 from torch import optim
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
@@ -12,6 +12,14 @@ from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
 
+
+@dataclass
+class LoggingConfig:
+    log_rollout_infos: bool = False
+    log_reset_info: bool = False
+
+
+LogConf = TypeVar('LogConf', bound=LoggingConfig)
 Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 
 Policy = TypeVar('Policy', bound=BasePolicy)
@@ -31,6 +39,7 @@ class RLBase(abc.ABC):
             gae_lambda: float,
             reset_env_between_rollouts: bool,
             callback: Callback,
+            logging_config: LogConf
     ):
         self.env, self.num_envs = self.as_vec_env(env)
 
@@ -48,6 +57,7 @@ class RLBase(abc.ABC):
         self.reset_env_between_rollouts = reset_env_between_rollouts
 
         self.callback = callback
+        self.logging_config = logging_config
 
     @abc.abstractmethod
     def optimize(
@@ -93,11 +103,8 @@ class RLBase(abc.ABC):
             obs, rewards, terminated, truncated, step_info = self.rollout_step(obs)
             infos.append(step_info)
 
-        info['rollout'] = stack_infos(infos)
-
-        info['rollout_last_obs'] = obs
-        info['rollout_last_terminated'] = terminated
-        info['rollout_last_truncated'] = truncated
+        if self.logging_config.log_rollout_infos:
+            info['rollout'] = stack_infos(infos)
 
         return step + 1, obs, terminated, truncated
 
@@ -111,8 +118,9 @@ class RLBase(abc.ABC):
 
             if step == 0 or self.reset_env_between_rollouts:
                 obs, reset_info = self.env.reset()
-                info['reset'] = reset_info
-                print('envs reset')
+
+                if self.logging_config.log_reset_info:
+                    info['reset'] = reset_info
 
             steps_performed, obs, last_terminated, last_truncated = self.perform_rollout(
                 max_steps=num_steps - step,

@@ -1,3 +1,4 @@
+import abc
 import datetime
 import inspect
 import os.path
@@ -21,7 +22,44 @@ class ModelEntry(TypedDict):
 
     last_update_time: str
 
-class ModelDB:
+
+class ModelDB(abc.ABC):
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    @abc.abstractmethod
+    def close(self):
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def save_model_state_dict(
+            self,
+            model: nn.Module,
+            model_id: str,
+            parent_model_id: str,
+            model_info: dict[str, Any],
+            init_function: Optional[Callable[[], nn.Module]] = None,
+    ) -> ModelEntry:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def all_entries(self) -> list[ModelEntry]:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def fetch_entry(self, model_id: str) -> ModelEntry:
+        raise NotImplemented
+
+
+class ModelTinyDB(ModelDB):
 
     def __init__(
             self,
@@ -52,7 +90,6 @@ class ModelDB:
             model_info: dict[str, Any],
             init_function: Optional[Callable[[], nn.Module]] = None,
     ) -> ModelEntry:
-
         serialized_init_function: Optional[str] = None
         if init_function is not None:
             serialized_init_function = inspect.getsource(init_function)
@@ -71,7 +108,7 @@ class ModelDB:
 
         torch.save(model.state_dict(), state_dict_path)
 
-        self.db.upsert(entry, cond=ModelDB.create_model_id_query(model_id))
+        self.db.upsert(entry, cond=self.create_model_id_query(model_id))
 
         return entry
 
@@ -90,9 +127,45 @@ class ModelDB:
         return self.db.all()
 
     def fetch_entry(self, model_id: str) -> ModelEntry:
-        return self.db.search(ModelDB.create_model_id_query(model_id))[0]
+        return self.db.search(self.create_model_id_query(model_id))[0]
 
     @staticmethod
     def create_model_id_query(model_id: str) -> QueryLike:
         entry_query = Query()
         return entry_query.model_id == model_id
+
+
+class DummyModelDB(ModelDB):
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def close(self):
+        pass
+
+    def save_model_state_dict(
+            self,
+            model: nn.Module,
+            model_id: str,
+            parent_model_id: str,
+            model_info: dict[str, Any],
+            init_function: Optional[Callable[[], nn.Module]] = None,
+    ) -> ModelEntry:
+        pass
+
+    def load_model_state_dict(
+            self,
+            model: nn.Module,
+            model_id: str
+    ) -> ModelEntry:
+        raise NotImplementedError('Dummy ModelDB can not load models')
+
+    def all_entries(self) -> list[ModelEntry]:
+        raise NotImplementedError('Dummy ModelDB fetch entries')
+
+    def fetch_entry(self, model_id: str) -> ModelEntry:
+        raise NotImplementedError('Dummy ModelDB fetch entries')
+

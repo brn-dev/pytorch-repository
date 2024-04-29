@@ -66,3 +66,14 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             normalize_rewards=normalize_rewards,
             normalize_advantages=normalize_advantages
         )
+
+    # https://github.com/DLR-RM/stable-baselines3/blob/285e01f64aa8ba4bd15aa339c45876d56ed0c3b4/stable_baselines3/common/utils.py#L49
+    def compute_critic_explained_variance(self, returns: np.ndarray):
+        return_variance = np.var(returns)
+
+        if return_variance == 0:
+            return np.nan
+
+        value_predictions = torch.stack(self.value_estimates).squeeze().detach().cpu().numpy()
+        return 1 - np.var(returns - value_predictions) / return_variance
+

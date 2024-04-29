@@ -64,9 +64,6 @@ class A2C(RLBase):
         self.critic_objective_reduction = critic_objective_reduction
         self.critic_objective_weight = critic_objective_weight
 
-        self.log_unreduced = log_unreduced
-
-
     @override
     def optimize(
             self,
