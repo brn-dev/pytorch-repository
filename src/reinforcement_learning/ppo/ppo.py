@@ -143,6 +143,7 @@ class PPO(RLBase):
 
         optimization_infos: list[InfoDict] = []
         continue_training = True
+        nr_updates = 0
         i_epoch = 0
         for i_epoch in range(self.ppo_max_epochs):
             epoch_infos: list[InfoDict] = []
@@ -178,6 +179,7 @@ class PPO(RLBase):
                 self.policy_optimizer.step()
 
                 epoch_infos.append(batch_info)
+                nr_updates += 1
 
             optimization_infos.append(concat_infos(epoch_infos))
 
@@ -188,6 +190,7 @@ class PPO(RLBase):
             info[info_key] = info_value
 
         info['nr_ppo_epochs'] = i_epoch + 1
+        info['nr_ppo_updates'] = nr_updates
 
 
     def compute_ppo_objectives(
