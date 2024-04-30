@@ -58,6 +58,10 @@ class ModelDB(abc.ABC):
     def fetch_entry(self, model_id: str) -> ModelEntry:
         raise NotImplemented
 
+    @abc.abstractmethod
+    def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
+        raise NotImplemented
+
 
 class ModelTinyDB(ModelDB):
 
@@ -127,7 +131,19 @@ class ModelTinyDB(ModelDB):
         return self.db.all()
 
     def fetch_entry(self, model_id: str) -> ModelEntry:
-        return self.db.search(self.create_model_id_query(model_id))[0]
+        search_result = self.db.search(self.create_model_id_query(model_id))
+
+        if len(search_result) == 0:
+            raise ValueError(f'Model id {model_id} not found')
+
+        return search_result[0]
+
+    def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
+        if delete_state_dict:
+            entry = self.fetch_entry(model_id)
+            os.remove(entry['state_dict_path'])
+
+        self.db.remove(cond=self.create_model_id_query(model_id))
 
     @staticmethod
     def create_model_id_query(model_id: str) -> QueryLike:
@@ -168,4 +184,7 @@ class DummyModelDB(ModelDB):
 
     def fetch_entry(self, model_id: str) -> ModelEntry:
         raise NotImplementedError('Dummy ModelDB fetch entries')
+
+    def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
+        pass
 
