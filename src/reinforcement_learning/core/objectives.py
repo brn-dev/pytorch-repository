@@ -33,3 +33,5 @@ def reduce_and_weigh_objective(
         info[f'weighted_{objective_name}'] = weighted_critic_objective.detach().cpu()
 
     return weighted_critic_objective
+
+

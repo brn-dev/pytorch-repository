@@ -1,5 +1,7 @@
 from typing import Literal
 
+import numpy as np
+import torch
 from torch import nn
 
 
@@ -11,3 +13,7 @@ def get_gradients_per_parameter(model: nn.Module, param_type: Literal['all', 'we
     for name, param in model.named_parameters():
         if param_type == 'all' or name.endswith(param_type):
             yield name, param.grad
+
+
+def calculate_grad_norm(model: nn.Module) -> float:
+    return np.sqrt(sum([torch.norm(p)**2 for p in model.parameters()]))

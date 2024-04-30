@@ -9,6 +9,7 @@ from torch import nn, optim
 import torch.distributions as dist
 
 from src.function_types import TorchReductionFunction, TorchLossFunction, TorchTensorTransformation
+from src.module_analysis import calculate_grad_norm
 from src.reinforcement_learning.core.batching import batched
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -25,7 +26,9 @@ class PPOLoggingConfig(LoggingConfig):
     log_advantages: bool = False
 
     log_ppo_objective: bool = False
+    log_grad_norm: bool = False
     log_actor_kl_divergence: bool = False
+
     actor_objective: ObjectiveLoggingConfig = None
     critic_objective: ObjectiveLoggingConfig = None
 
@@ -63,6 +66,7 @@ class PPO(RLBase):
             ppo_batch_size: int | None = None,
             action_ratio_clip_range: float = 0.2,
             value_function_clip_range_factor: float | None = None,
+            grad_norm_clip_value: float | None = None,
             reset_env_between_rollouts: bool = False,
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
@@ -97,6 +101,8 @@ class PPO(RLBase):
 
         self.action_ratio_clip_range = action_ratio_clip_range
         self.value_function_clip_range_factor = value_function_clip_range_factor
+
+        self.grad_norm_clip_value = grad_norm_clip_value
 
     @override
     def perform_rollout(
@@ -175,7 +181,18 @@ class PPO(RLBase):
                     batch_info['objective'] = objective
 
                 self.policy_optimizer.zero_grad()
+
                 objective.backward()
+
+                grad_norm: float | None = None
+                if self.grad_norm_clip_value:
+                    grad_norm = nn.utils.clip_grad_norm_(self.policy.parameters(), self.grad_norm_clip_value).item()
+                if self.logging_config.log_grad_norm:
+                    if grad_norm is None:
+                        grad_norm = calculate_grad_norm(self.policy)
+
+                    batch_info['grad_norm'] = np.array([grad_norm])
+
                 self.policy_optimizer.step()
 
                 epoch_infos.append(batch_info)
