@@ -23,4 +23,4 @@ Genetic Policy Selection:
 4. create copies of them as to have N policies again 
 5. optional: add noise to each policies weight -> "mutation"
 6. repeat
-
+=> Can be implemented using model db
