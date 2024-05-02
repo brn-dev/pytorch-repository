@@ -1,22 +1,25 @@
 import abc
-from typing import Any, Callable, TypedDict, Optional
+from typing import Any, Callable, TypedDict, Optional, TypeVar, Generic
 
 from torch import nn
 
 
-class ModelEntry(TypedDict):
+ModelInfoType = TypeVar('ModelInfoType', bound=dict[str, Any])
+
+
+class ModelEntry(TypedDict, Generic[ModelInfoType]):
     model_id: str
     parent_model_id: Optional[str]
     state_dict_path: str
 
-    model_info: dict[str, Any]
+    model_info: ModelInfoType
 
     init_function: Optional[str]
 
     last_update_time: str
 
 
-class ModelDB(abc.ABC):
+class ModelDB(abc.ABC, Generic[ModelInfoType]):
 
     def __enter__(self):
         pass
@@ -34,21 +37,21 @@ class ModelDB(abc.ABC):
             model: nn.Module,
             model_id: str,
             parent_model_id: str,
-            model_info: dict[str, Any],
+            model_info: ModelInfoType,
             init_function: Optional[Callable[[], nn.Module] | str] = None,
-    ) -> ModelEntry:
+    ) -> ModelEntry[ModelInfoType]:
         raise NotImplemented
 
     @abc.abstractmethod
-    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry:
+    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry[ModelInfoType]:
         raise NotImplemented
 
     @abc.abstractmethod
-    def all_entries(self) -> list[ModelEntry]:
+    def all_entries(self) -> list[ModelEntry[ModelInfoType]]:
         raise NotImplemented
 
     @abc.abstractmethod
-    def fetch_entry(self, model_id: str) -> ModelEntry:
+    def fetch_entry(self, model_id: str) -> ModelEntry[ModelInfoType]:
         raise NotImplemented
 
     @abc.abstractmethod

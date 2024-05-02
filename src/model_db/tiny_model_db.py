@@ -9,10 +9,10 @@ from tinydb import TinyDB
 from tinydb.queries import QueryLike, Query
 from torch import nn
 
-from src.model_db.model_db import ModelDB, ModelEntry
+from src.model_db.model_db import ModelDB, ModelEntry, ModelInfoType
 
 
-class TinyModelDB(ModelDB):
+class TinyModelDB(ModelDB[ModelInfoType]):
 
     def __init__(
             self,
@@ -40,9 +40,9 @@ class TinyModelDB(ModelDB):
             model: nn.Module,
             model_id: str,
             parent_model_id: str,
-            model_info: dict[str, Any],
+            model_info: ModelInfoType,
             init_function: Optional[Callable[[], nn.Module] | str] = None,
-    ) -> ModelEntry:
+    ) -> ModelEntry[ModelInfoType]:
         serialized_init_function: Optional[str] = None
         if init_function is not None:
             if isinstance(init_function, Callable):
@@ -50,7 +50,7 @@ class TinyModelDB(ModelDB):
             else:
                 serialized_init_function = init_function
 
-        entry: ModelEntry = {
+        entry: ModelEntry[ModelInfoType] = {
             'model_id': model_id,
             'parent_model_id': parent_model_id,
             'state_dict_path': '',
@@ -72,17 +72,17 @@ class TinyModelDB(ModelDB):
             self,
             model: nn.Module,
             model_id: str
-    ) -> ModelEntry:
-        entry: ModelEntry = self.fetch_entry(model_id)
+    ) -> ModelEntry[ModelInfoType]:
+        entry: ModelEntry[ModelInfoType] = self.fetch_entry(model_id)
         state_dict = torch.load(entry['state_dict_path'])
         model.load_state_dict(state_dict)
 
         return entry
 
-    def all_entries(self) -> list[ModelEntry]:
+    def all_entries(self) -> list[ModelEntry[ModelInfoType]]:
         return self.db.all()
 
-    def fetch_entry(self, model_id: str) -> ModelEntry:
+    def fetch_entry(self, model_id: str) -> ModelEntry[ModelInfoType]:
         search_result = self.db.search(self.create_model_id_query(model_id))
 
         if len(search_result) == 0:
