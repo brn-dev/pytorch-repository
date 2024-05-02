@@ -106,7 +106,6 @@ def update_mean_var_count_from_moments(
 #         return (obs - self.obs_rms.mean) / np.sqrt(self.obs_rms.var + self.epsilon)
 
 
-
 class NormalizeRewardWrapper(gymnasium.core.Wrapper, gymnasium.utils.RecordConstructorArgs):
     r"""This wrapper will normalize immediate rewards s.t. their exponential moving average has a fixed variance.
 
@@ -149,7 +148,8 @@ class NormalizeRewardWrapper(gymnasium.core.Wrapper, gymnasium.utils.RecordConst
         """Steps through the environment, normalizing the rewards returned."""
         observations, rewards, terminated, truncated, infos = self.env.step(action)
 
-        infos['unnormalized_rewards'] = rewards
+        if 'raw_rewards' not in infos:
+            infos['raw_rewards'] = rewards
 
         if not self.is_vector_env:
             rewards = np.array([rewards])

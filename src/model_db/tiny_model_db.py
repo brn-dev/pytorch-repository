@@ -32,6 +32,9 @@ class TinyModelDB(ModelDB[ModelInfoType]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.base_path = }, {self.db_file_name = })'
+
     def close(self):
         self.db.close()
 
