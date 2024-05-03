@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable
 
 import gymnasium
 import numpy as np
@@ -10,12 +10,12 @@ from src.function_types import TorchReductionFunction, TorchLossFunction
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
-from src.reinforcement_learning.core.rl_base import RLBase
+from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 
 
-class A2C(RLBase):
+class A2C(PolicyOptimizationBase):
 
     policy: ActorCriticPolicy
     buffer: ActorCriticRolloutBuffer

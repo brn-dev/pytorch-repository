@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable
 
 import gymnasium
 import numpy as np
@@ -7,7 +7,7 @@ from overrides import override
 from torch import nn, optim
 
 from src.function_types import TorchReductionFunction, TorchLossFunction
-from src.reinforcement_learning.a2c.a2c import A2C
+from src.reinforcement_learning.algorithms.a2c.a2c import A2C
 from src.reinforcement_learning.core.buffers.actor_critic_stm_rollout_buffer import ActorCriticSTMRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict

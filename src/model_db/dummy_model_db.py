@@ -25,7 +25,6 @@ class DummyModelDB(ModelDB[ModelInfoType]):
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType,
-            init_function: Optional[Callable[[], nn.Module] | str] = None,
     ) -> ModelEntry[ModelInfoType]:
         pass
 

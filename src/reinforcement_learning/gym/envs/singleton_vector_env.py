@@ -5,6 +5,14 @@ from gymnasium.core import RenderFrame, Env
 from gymnasium.vector import VectorEnv
 
 
+def as_vec_env(env: Env):
+    try:
+        num_envs = env.get_wrapper_attr('num_envs')
+        return env, num_envs
+    except AttributeError:
+        return SingletonVectorEnv(env), 1
+
+
 class SingletonVectorEnv(VectorEnv):
 
     def __init__(self, env: Env):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Any, Optional
+from typing import Callable, Optional
 
 import gymnasium
 import numpy as np
@@ -13,11 +13,12 @@ from src.module_analysis import calculate_grad_norm
 from src.reinforcement_learning.core.batching import batched
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.infos import InfoDict, stack_infos, concat_infos
+from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.objectives import reduce_and_weigh_objective, ObjectiveLoggingConfig
-from src.reinforcement_learning.core.rl_base import RLBase, LoggingConfig
+from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, LoggingConfig
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
+from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
 
 
 @dataclass
@@ -39,7 +40,7 @@ class PPOLoggingConfig(LoggingConfig):
             self.critic_objective = ObjectiveLoggingConfig()
 
 
-class PPO(RLBase):
+class PPO(PolicyOptimizationBase):
 
     policy: ActorCriticPolicy
     buffer: ActorCriticRolloutBuffer
@@ -71,7 +72,7 @@ class PPO(RLBase):
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
     ):
-        env, num_envs = self.as_vec_env(env)
+        env, num_envs = as_vec_env(env)
 
         super().__init__(
             env=env,

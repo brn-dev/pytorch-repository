@@ -44,21 +44,13 @@ class TinyModelDB(ModelDB[ModelInfoType]):
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType,
-            init_function: Optional[Callable[[], nn.Module] | str] = None,
     ) -> ModelEntry[ModelInfoType]:
-        serialized_init_function: Optional[str] = None
-        if init_function is not None:
-            if isinstance(init_function, Callable):
-                serialized_init_function = inspect.getsource(init_function)
-            else:
-                serialized_init_function = init_function
 
         entry: ModelEntry[ModelInfoType] = {
             'model_id': model_id,
             'parent_model_id': parent_model_id,
             'state_dict_path': '',
             'model_info': model_info,
-            'init_function': serialized_init_function,
             'last_update_time': str(datetime.datetime.now())
         }
 

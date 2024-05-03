@@ -24,3 +24,5 @@ Genetic Policy Selection:
 5. optional: add noise to each policies weight -> "mutation"
 6. repeat
 => Can be implemented using model db
+
+compute score/return function without GAE

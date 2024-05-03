@@ -10,7 +10,7 @@ from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRo
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.gym.envs.singleton_vector_env import SingletonVectorEnv
+from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
 
 
 @dataclass
@@ -26,7 +26,7 @@ Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class RLBase(abc.ABC):
+class PolicyOptimizationBase(abc.ABC):
 
 
     def __init__(
@@ -41,7 +41,7 @@ class RLBase(abc.ABC):
             callback: Callback,
             logging_config: LogConf
     ):
-        self.env, self.num_envs = self.as_vec_env(env)
+        self.env, self.num_envs = as_vec_env(env)
 
         self.policy = policy if isinstance(policy, BasePolicy) else policy()
         self.policy_optimizer = (
@@ -136,13 +136,4 @@ class RLBase(abc.ABC):
             self.callback.on_optimization_done(self, step, info)
 
             self.buffer.reset()
-
-
-    @staticmethod
-    def as_vec_env(env: gymnasium.Env):
-        try:
-            num_envs = env.get_wrapper_attr('num_envs')
-            return env, num_envs
-        except AttributeError:
-            return SingletonVectorEnv(env), 1
 

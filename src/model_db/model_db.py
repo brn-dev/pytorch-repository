@@ -14,8 +14,6 @@ class ModelEntry(TypedDict, Generic[ModelInfoType]):
 
     model_info: ModelInfoType
 
-    init_function: Optional[str]
-
     last_update_time: str
 
 
@@ -38,7 +36,6 @@ class ModelDB(abc.ABC, Generic[ModelInfoType]):
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType,
-            init_function: Optional[Callable[[], nn.Module] | str] = None,
     ) -> ModelEntry[ModelInfoType]:
         raise NotImplemented
 
