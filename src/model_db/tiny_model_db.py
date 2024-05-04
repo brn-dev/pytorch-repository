@@ -18,19 +18,25 @@ class TinyModelDB(ModelDB[ModelInfoType]):
             self,
             base_path: str,
             db_file_name: str = '_model_db.json',
+            readonly: bool = False
     ):
         self.base_path = base_path
         Path(base_path).mkdir(parents=True, exist_ok=True)
 
         self.db_file_name = db_file_name
 
-        self.db = TinyDB(os.path.join(self.base_path, self.db_file_name))
+        self.readonly = readonly
+        access_mode = 'r' if readonly else 'r+'
+        self.db = TinyDB(os.path.join(self.base_path, self.db_file_name), access_mode=access_mode)
 
     def __enter__(self):
-        pass
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    def __len__(self):
+        return len(self.db)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.base_path = }, {self.db_file_name = })'

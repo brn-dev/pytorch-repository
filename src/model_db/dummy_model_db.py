@@ -16,6 +16,9 @@ class DummyModelDB(ModelDB[ModelInfoType]):
     def __repr__(self):
         return 'DummyModelDB()'
 
+    def __len__(self):
+        return 0
+
     def close(self):
         pass
 

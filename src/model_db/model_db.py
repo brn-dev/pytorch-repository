@@ -26,6 +26,10 @@ class ModelDB(abc.ABC, Generic[ModelInfoType]):
         self.close()
 
     @abc.abstractmethod
+    def __len__(self):
+        raise NotImplemented
+
+    @abc.abstractmethod
     def close(self):
         raise NotImplemented
 

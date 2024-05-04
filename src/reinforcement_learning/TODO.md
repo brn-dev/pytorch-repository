@@ -26,3 +26,5 @@ Genetic Policy Selection:
 => Can be implemented using model db
 
 compute score/return function without GAE
+
+also save & load optimizer state dict
