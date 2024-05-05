@@ -13,6 +13,10 @@ class MovingAverage(abc.ABC):
     def update(self, value: float) -> float:
         raise NotImplemented
 
+    @abc.abstractmethod
+    def get(self) -> float:
+        raise NotImplemented
+
 
 class SimpleMovingAverage(MovingAverage):
 
@@ -32,6 +36,10 @@ class SimpleMovingAverage(MovingAverage):
 
         return self.sma
 
+    def get(self) -> float:
+        return self.sma
+
+
 class ExponentialMovingAverage(MovingAverage):
 
     def __init__(self, alpha: float):
@@ -45,3 +53,5 @@ class ExponentialMovingAverage(MovingAverage):
             self.ema = self.alpha * value + (1 - self.alpha) * self.ema
         return self.ema
 
+    def get(self) -> float:
+        return self.ema
