@@ -25,7 +25,7 @@ class AsyncPolicyMitosis(PolicyMitosis):
             num_workers: int,
             policy_db: ModelDB[PolicyInfo],
             policy_train_function: Callable[[PolicyWithEnvAndInfo], tuple[int, float]],
-            env: VectorEnv,
+            env_fn: Callable[[], VectorEnv],
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
             select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
@@ -36,7 +36,7 @@ class AsyncPolicyMitosis(PolicyMitosis):
         super().__init__(
             policy_db=MultiprocessingSyncWrapper(policy_db),
             policy_train_function=policy_train_function,
-            env=env,
+            env=[env_fn() for _ in range(num_workers)],
             new_init_policy_function=new_init_policy_function,
             new_wrap_env_function=new_wrap_env_function,
             select_policy_selection_probs=select_policy_selection_probs,

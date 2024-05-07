@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Optional, TypedDict, Iterable
+from typing import Any, Callable, TypedDict, Iterable
 
 import numpy as np
 from gymnasium import Env
@@ -7,7 +7,6 @@ from gymnasium.vector import VectorEnv
 
 from src.datetime import get_current_timestamp
 from src.model_db.model_db import ModelDB, ModelEntry
-from src.np_functions import softmax
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
 from src.reinforcement_learning.core.policy_info import PolicyInfo
@@ -24,13 +23,14 @@ class PolicyWithEnvAndInfo(TypedDict):
     parent_policy_id: str | None
     policy_info: PolicyInfo
 
+
 class PolicyMitosis:
 
     def __init__(
             self,
             policy_db: ModelDB[PolicyInfo],
             policy_train_function: Callable[[PolicyWithEnvAndInfo], tuple[int, float]],
-            env: VectorEnv,
+            env: VectorEnv | list[VectorEnv],
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
             select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
@@ -40,7 +40,13 @@ class PolicyMitosis:
     ):
         self.policy_db = policy_db
         self.policy_train_function = policy_train_function
-        self.env = env
+
+        self.envs: list[VectorEnv]
+        if isinstance(env, list):
+            assert len(env) > 0
+            self.envs = env
+        else:
+            self.envs = [env]
 
         self.new_init_policy_function = new_init_policy_function
         self.new_init_policy_source_code = inspect.getsource(new_init_policy_function)
@@ -59,16 +65,18 @@ class PolicyMitosis:
 
     def train_with_mitosis(self, nr_iterations: int):
         for i_iteration in range(nr_iterations):
-            policy_with_env_and_info = self.pick_policy()
+            policy_with_env_and_info = self.pick_policy(self.envs[0])
             self.train_iteration(policy_with_env_and_info)
+            self.save_policy(policy_with_env_and_info)
 
     def train_lineage(self, start_policy_policy_id: str, nr_iterations: int):
         policy_id = start_policy_policy_id
         for i_iteration in range(nr_iterations):
             policy_entry = self.policy_db.fetch_entry(policy_id)
-            policy_with_env_and_info = self.create_child_policy(policy_entry)
+            policy_with_env_and_info = self.create_child_policy(policy_entry, self.envs[0])
 
             self.train_iteration(policy_with_env_and_info)
+            self.save_policy(policy_with_env_and_info)
 
             policy_id = policy_with_env_and_info['policy_id']
 
@@ -79,28 +87,21 @@ class PolicyMitosis:
         policy_info['steps_trained'] += steps_trained
         policy_info['score'] = score
 
-        self.policy_db.save_model_state_dict(
-            model=policy_with_env_and_info['policy'],
-            model_id=policy_with_env_and_info['policy_id'],
-            parent_model_id=policy_with_env_and_info['parent_policy_id'],
-            model_info=policy_info
-        )
-
-    def pick_policy(self) -> PolicyWithEnvAndInfo:
+    def pick_policy(self, env: VectorEnv) -> PolicyWithEnvAndInfo:
         nr_policies = len(self.policy_db)
         sufficient_base_ancestors = self.eval_sufficient_base_ancestors()
 
         if not sufficient_base_ancestors or self.rng.random() < 1.0 / (nr_policies + 1):
-            return self.create_new_policy()
+            return self.create_new_policy(env)
         else:
             selected_parent_policy_entry = self.select_parent_policy()
-            return self.create_child_policy(selected_parent_policy_entry)
+            return self.create_child_policy(selected_parent_policy_entry, env)
 
-    def create_new_policy(self) -> PolicyWithEnvAndInfo:
+    def create_new_policy(self, env: VectorEnv) -> PolicyWithEnvAndInfo:
         policy_id = self.create_policy_id()
 
         policy = self.new_init_policy_function()
-        wrapped_env = self.new_wrap_env_function(self.env)
+        wrapped_env = self.new_wrap_env_function(env)
 
         policy_info = {
             'score': -1e6,
@@ -135,8 +136,7 @@ class PolicyMitosis:
 
         return policy_entries[selected_parent_policy_index]
 
-
-    def create_child_policy(self, parent_policy_entry: ModelEntry[PolicyInfo]) -> PolicyWithEnvAndInfo:
+    def create_child_policy(self, parent_policy_entry: ModelEntry[PolicyInfo], env: VectorEnv) -> PolicyWithEnvAndInfo:
         policy_id = self.create_policy_id()
 
         policy_info = parent_policy_entry['model_info'].copy()
@@ -144,7 +144,7 @@ class PolicyMitosis:
         wrap_env_source = policy_info['wrap_env_source_code']
 
         policy = init_policy_using_source(init_policy_source, self._globals)
-        wrapped_env = wrap_env_using_source(self.env, wrap_env_source, self._globals)
+        wrapped_env = wrap_env_using_source(env, wrap_env_source, self._globals)
 
         self.policy_db.load_model_state_dict(policy, parent_policy_entry['model_id'])
 
@@ -157,6 +157,16 @@ class PolicyMitosis:
             'parent_policy_id': parent_policy_id,
             'policy_info': policy_info
         }
+
+    def save_policy(self, policy_with_env_and_info: PolicyWithEnvAndInfo):
+        policy_info = policy_with_env_and_info['policy_info']
+
+        self.policy_db.save_model_state_dict(
+            model=policy_with_env_and_info['policy'],
+            model_id=policy_with_env_and_info['policy_id'],
+            parent_model_id=policy_with_env_and_info['parent_policy_id'],
+            model_info=policy_info
+        )
 
     def create_policy_id(self) -> str:
         random_alphanumeric = ''.join(np.random.choice(
