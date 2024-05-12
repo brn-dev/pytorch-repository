@@ -69,8 +69,8 @@ class PolicyOptimizationBase(abc.ABC):
         raise NotImplemented
 
     def rollout_step(self, obs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
-        actions_dist, extra_predictions = self.policy.process_obs(obs)
-        actions = actions_dist.sample()
+        action_selector, extra_predictions = self.policy.process_obs(obs)
+        actions = action_selector.get_actions()
 
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
@@ -79,7 +79,7 @@ class PolicyOptimizationBase(abc.ABC):
             rewards=rewards,
             episode_starts=np.logical_or(terminated, truncated),
             actions=actions,
-            action_log_probs=actions_dist.log_prob(actions),
+            action_log_probs=action_selector.log_prob(actions),
             **extra_predictions
         )
 

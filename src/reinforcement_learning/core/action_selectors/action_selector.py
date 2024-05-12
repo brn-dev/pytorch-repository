@@ -1,0 +1,65 @@
+import abc
+import math
+from typing import TypeVar
+
+import torch
+from torch import nn
+
+SelfActionDistribution = TypeVar('SelfActionDistribution', bound='ActionDistribution')
+
+
+class ActionSelector(nn.Module, abc.ABC):
+
+    def __init__(self, latent_dim: int, action_dim: int):
+        super().__init__()
+        self.latent_dim = latent_dim
+        self.action_dim = action_dim
+
+        if latent_dim == action_dim:
+            self.action_net = nn.Identity()
+        else:
+            self.action_net = nn.Linear(latent_dim, action_dim)
+
+    @abc.abstractmethod
+    def update_latent_features(self: SelfActionDistribution, latent_pi: torch.Tensor) -> SelfActionDistribution:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def update_distribution_params(self: SelfActionDistribution, *args, **kwargs) -> SelfActionDistribution:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def sample(self) -> torch.Tensor:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def mode(self) -> torch.Tensor:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def log_prob(self, actions: torch.Tensor) -> torch.Tensor:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def entropy(self) -> torch.Tensor | None:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def actions_from_distribution_params(self, *args, **kwargs) -> torch.Tensor:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def log_prob_from_distribution_params(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def set_log_std(self, log_std: float):
+        raise NotImplemented
+
+    def set_std(self, std: float) -> None:
+        self.set_log_std(math.log(std))
+
+    def get_actions(self, deterministic: bool = False) -> torch.Tensor:
+        if deterministic:
+            return self.mode()
+        return self.sample()

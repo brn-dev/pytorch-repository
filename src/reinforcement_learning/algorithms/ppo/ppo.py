@@ -6,10 +6,10 @@ import numpy as np
 import torch
 from overrides import override
 from torch import nn, optim
-import torch.distributions as dist
 
 from src.function_types import TorchReductionFunction, TorchLossFunction, TorchTensorTransformation
 from src.module_analysis import calculate_grad_norm
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.batching import batched
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -221,13 +221,13 @@ class PPO(PolicyOptimizationBase):
             old_value_estimates: torch.Tensor,
             info: InfoDict,
     ) -> Optional[list[torch.Tensor]]:
-        new_action_logits, value_estimates = self.policy.predict_actions_and_values(observations)
-        new_actions_dist = self.policy.action_dist_provider(new_action_logits)
+        latent_pi, value_estimates = self.policy.predict_latent_pi_and_values(observations)
+        new_action_selector = self.policy.action_selector.update_latent_features(latent_pi)
 
         value_estimates = value_estimates.squeeze(dim=-1)
 
         actor_objective = self.compute_ppo_actor_objective(
-            new_actions_dist=new_actions_dist,
+            new_action_selector=new_action_selector,
             advantages=advantages,
             old_actions=old_actions,
             old_action_log_probs=old_action_log_probs,
@@ -248,13 +248,13 @@ class PPO(PolicyOptimizationBase):
 
     def compute_ppo_actor_objective(
             self,
-            new_actions_dist: dist.Distribution,
+            new_action_selector: ActionSelector,
             advantages: torch.Tensor,
             old_actions: torch.Tensor,
             old_action_log_probs: torch.Tensor,
             info: InfoDict,
     ) -> Optional[torch.Tensor]:
-        new_action_log_probs = new_actions_dist.log_prob(old_actions)
+        new_action_log_probs = new_action_selector.log_prob(old_actions)
 
         if self.ppo_kl_target is not None or self.logging_config.log_actor_kl_divergence:
             # https://github.com/DLR-RM/stable-baselines3/blob/285e01f64aa8ba4bd15aa339c45876d56ed0c3b4/stable_baselines3/ppo/ppo.py#L266

@@ -6,22 +6,27 @@ import torch
 import torch.distributions as dist
 from torch import nn
 
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
+
 TensorOrNpArray = torch.Tensor | np.ndarray
+ActionDistStd = float | torch.Tensor
+ActionDistProvider = Callable[[torch.Tensor, ActionDistStd | None], dist.Distribution]
 
 
 class BasePolicy(nn.Module, abc.ABC):
 
-    def __init__(self, network: nn.Module, action_dist_provider: Callable[[torch.Tensor], dist.Distribution]):
+    def __init__(
+            self,
+            network: nn.Module,
+            action_selector: ActionSelector
+    ):
         super().__init__()
         self.network = network
-        self.action_dist_provider = action_dist_provider
+        self.action_selector = action_selector
+
+    @abc.abstractmethod
+    def process_obs(self, obs: TensorOrNpArray) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
+        raise NotImplemented
 
     def forward(self, obs: torch.Tensor):
         return self.network(obs)
-
-    def predict_actions(self, obs: TensorOrNpArray) -> dist.Distribution:
-        return self.process_obs(obs)[0]
-
-    @abc.abstractmethod
-    def process_obs(self, obs: TensorOrNpArray) -> tuple[dist.Distribution, dict[str, torch.Tensor]]:
-        raise NotImplemented
