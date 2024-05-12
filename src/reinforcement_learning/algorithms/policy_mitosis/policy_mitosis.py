@@ -36,7 +36,6 @@ class PolicyMitosis:
             select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
             min_base_ancestors: int,
             rng_seed: int | None,
-            _globals: dict[str, Any],  # TODO: remove globals and instead try importing inside the init/wrap functions
     ):
         self.policy_db = policy_db
         self.policy_train_function = policy_train_function
@@ -58,7 +57,6 @@ class PolicyMitosis:
         self.min_base_ancestors = min_base_ancestors
 
         self.rng = np.random.default_rng(rng_seed)
-        self._globals = _globals
 
         self.policy_id_random_alphanumeric_length = 6
         self.sufficient_base_ancestors = False
@@ -100,8 +98,9 @@ class PolicyMitosis:
     def create_new_policy(self, env: VectorEnv) -> PolicyWithEnvAndInfo:
         policy_id = self.create_policy_id()
 
-        policy = self.new_init_policy_function()
-        wrapped_env = self.new_wrap_env_function(env)
+        # Using source code initialization to catch error early
+        policy = init_policy_using_source(self.new_init_policy_source_code)
+        wrapped_env = wrap_env_using_source(env, self.new_wrap_env_source_code)
 
         policy_info = {
             'score': -1e6,
@@ -143,8 +142,8 @@ class PolicyMitosis:
         init_policy_source = policy_info['init_policy_source_code']
         wrap_env_source = policy_info['wrap_env_source_code']
 
-        policy = init_policy_using_source(init_policy_source, self._globals)
-        wrapped_env = wrap_env_using_source(env, wrap_env_source, self._globals)
+        policy = init_policy_using_source(init_policy_source)
+        wrapped_env = wrap_env_using_source(env, wrap_env_source)
 
         self.policy_db.load_model_state_dict(policy, parent_policy_entry['model_id'])
 
