@@ -1,6 +1,7 @@
 
-return dist entropy in select action -> add as objective to reduce entropy
+entropy objective
 
+sde
 
 When negative advantage has been observed, lower learning rate for critic. This keeps the expectation higher.
 or

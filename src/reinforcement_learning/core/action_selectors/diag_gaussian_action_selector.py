@@ -15,13 +15,15 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
             latent_dim: int,
             action_dim: int,
             std: float,
-            std_learnable: bool
+            std_learnable: bool,
+            sum_action_dim: bool = False,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
             std=std,
-            std_learnable=std_learnable
+            std_learnable=std_learnable,
+            sum_action_dim=sum_action_dim
         )
 
         self.distribution: Optional[torchdist.Normal] = None
@@ -48,8 +50,7 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
     def log_prob_from_distribution_params(
             self,
             mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-            *args, **kwargs
+            log_stds: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         actions = self.actions_from_distribution_params(mean_actions, log_stds)
         log_prob = self.log_prob(actions)

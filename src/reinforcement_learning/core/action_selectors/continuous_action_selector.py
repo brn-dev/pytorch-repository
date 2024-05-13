@@ -18,7 +18,8 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
             latent_dim: int,
             action_dim: int,
             std: float,
-            std_learnable: bool
+            std_learnable: bool,
+            sum_action_dim: bool,
     ):
         super().__init__(
             latent_dim=latent_dim,
@@ -28,8 +29,9 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
         self.distribution: Optional[torchdist.Distribution] = None
 
         self.std_learnable = std_learnable
-
         self.set_log_stds_as_parameter(math.log(std))
+
+        self._sum_action_dim = sum_action_dim
 
 
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
@@ -37,10 +39,10 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
         return self.update_distribution_params(action_means, self.log_stds)
 
     def log_prob(self, actions: torch.Tensor) -> torch.Tensor:
-        return sum_independent_dims(self.distribution.log_prob(actions))
+        return self.sum_action_dim(self.distribution.log_prob(actions))
 
     def entropy(self) -> torch.Tensor | None:
-        return sum_independent_dims(self.distribution.entropy())
+        return self.sum_action_dim(self.distribution.entropy())
 
     def set_log_std(self, log_std: float) -> None:
         if self.std_learnable:
@@ -55,17 +57,8 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
             requires_grad=self.std_learnable
         )
 
-
-def sum_independent_dims(tensor: torch.Tensor) -> torch.Tensor:
-    """
-    Continuous actions are usually considered to be independent,
-    so we can sum components of the ``log_prob`` or the entropy.
-
-    :param tensor: shape: (n_batch, n_actions) or (n_batch,)
-    :return: shape: (n_batch,) for (n_batch, n_actions) input, scalar for (n_batch,) input
-    """
-    if len(tensor.shape) > 1:
-        tensor = tensor.sum(dim=1)
-    else:
-        tensor = tensor.sum()
-    return tensor
+    def sum_action_dim(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self._sum_action_dim:
+            return tensor.sum(dim=-1)
+        else:
+            return tensor

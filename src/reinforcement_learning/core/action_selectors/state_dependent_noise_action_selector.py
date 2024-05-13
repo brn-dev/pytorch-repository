@@ -5,8 +5,7 @@ import torch.distributions as torchdist
 from overrides import override
 from torch import nn
 
-from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector, \
-    sum_independent_dims
+from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
 
 
@@ -29,19 +28,14 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             squash_output: bool = False,
             learn_sde_features: bool = True,
             epsilon: float = 1e-6,
+            sum_action_dim: bool = False,
     ):
-        super().__init__(
-            latent_dim=latent_dim,
-            action_dim=action_dim,
-            std=initial_std,
-            std_learnable=True
-        )
+        self.use_full_stds = use_full_stds
 
         self.distribution: Optional[torchdist.Normal] = None
-
-        self.use_full_stds = use_full_stds
         self.use_stds_expln = use_stds_expln
         self.learn_sde_features = learn_sde_features
+
         self.latent_pi: Optional[torch.Tensor] = None
 
         self.epsilon = epsilon
@@ -50,6 +44,14 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             self.output_bijector = TanhBijector(epsilon)
         else:
             self.output_bijector = None
+
+        super().__init__(
+            latent_dim=latent_dim,
+            action_dim=action_dim,
+            std=initial_std,
+            std_learnable=True,
+            sum_action_dim=sum_action_dim,
+        )
 
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
@@ -88,7 +90,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             unsquashed_actions = actions
 
         log_prob = self.distribution.log_prob(unsquashed_actions)
-        log_prob = sum_independent_dims(log_prob)
+        log_prob = self.sum_action_dim(log_prob)
 
         if self.output_bijector is not None:
             log_prob -= torch.sum(self.output_bijector.log_prob_correction(unsquashed_actions), dim=1)
@@ -98,7 +100,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
     def entropy(self) -> torch.Tensor | None:
         if self.output_bijector is not None:
             return None
-        return sum_independent_dims(self.distribution.entropy())
+        return self.sum_action_dim(self.distribution.entropy())
 
     def actions_from_distribution_params(
             self,
@@ -143,10 +145,12 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
     def get_noise(self, latent_pi: torch.Tensor):
         latent_pi = latent_pi if self.learn_sde_features else latent_pi.detach()
 
-        if len(latent_pi) == 1: # or len(latent_pi) != len(self.exploration_noise_matrices): # TODO: is this necessary?
+        if len(latent_pi) == 1:  # or len(latent_pi) != len(self.exploration_noise_matrices): # TODO: is this necessary?
             return torch.mm(latent_pi, self.exploration_noise_mat)
 
         latent_pi = latent_pi.unsqueeze(dim=1)
+        print(f'{latent_pi.shape = }')
+        print(f'{self.exploration_noise_matrices.shape = }')
         noise = torch.bmm(latent_pi, self.exploration_noise_matrices)
         return noise.squeeze(dim=1)
 

@@ -17,13 +17,15 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
             action_dim: int,
             std: float,
             std_learnable: bool,
-            epsilon: float = 1e-6
+            epsilon: float = 1e-6,
+            sum_action_dim: bool = False,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
             std=std,
             std_learnable=std_learnable,
+            sum_action_dim=sum_action_dim
         )
 
         self.epsilon = epsilon
@@ -35,12 +37,12 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
         return self
 
     @override
-    def log_prob(self, actions: torch.Tensor, unsquashed_action: Optional[torch.Tensor]) -> torch.Tensor:
+    def log_prob(self, actions: torch.Tensor, unsquashed_action: Optional[torch.Tensor] = None) -> torch.Tensor:
         if unsquashed_action is None:
             unsquashed_action = TanhBijector.inverse(actions)
 
         log_prob = super().log_prob(unsquashed_action)
-        log_prob -= torch.sum(torch.log(1 - actions**2 + self.epsilon), dim=1)
+        log_prob -= self.sum_action_dim(torch.log(1 - actions ** 2 + self.epsilon))
 
         return log_prob
 
