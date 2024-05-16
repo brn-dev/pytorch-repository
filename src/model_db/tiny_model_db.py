@@ -1,13 +1,11 @@
 import datetime
-import inspect
 import os
 from pathlib import Path
-from typing import Any, Optional, Callable
+from typing import Any
 
 import torch
 from tinydb import TinyDB
 from tinydb.queries import QueryLike, Query
-from torch import nn
 
 from src.model_db.model_db import ModelDB, ModelEntry, ModelInfoType
 
@@ -44,9 +42,9 @@ class TinyModelDB(ModelDB[ModelInfoType]):
     def close(self):
         self.db.close()
 
-    def save_model_state_dict(
+    def save_state_dict(
             self,
-            model: nn.Module,
+            state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType,
@@ -63,22 +61,17 @@ class TinyModelDB(ModelDB[ModelInfoType]):
         state_dict_path = os.path.join(self.base_path, f'{model_id}--state_dict.pth')
         entry['state_dict_path'] = state_dict_path
 
-        torch.save(model.state_dict(), state_dict_path)
+        torch.save(state_dict, state_dict_path)
 
         self.db.upsert(entry, cond=self.create_model_id_query(model_id))
 
         return entry
 
-    def load_model_state_dict(
-            self,
-            model: nn.Module,
-            model_id: str
-    ) -> ModelEntry[ModelInfoType]:
+    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
         entry: ModelEntry[ModelInfoType] = self.fetch_entry(model_id)
         state_dict = torch.load(entry['state_dict_path'])
-        model.load_state_dict(state_dict)
 
-        return entry
+        return state_dict, entry
 
     def all_entries(self) -> list[ModelEntry[ModelInfoType]]:
         return self.db.all()

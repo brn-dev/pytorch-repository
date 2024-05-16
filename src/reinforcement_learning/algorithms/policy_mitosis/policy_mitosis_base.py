@@ -115,14 +115,6 @@ class PolicyMitosisBase(abc.ABC):
 
         return policy_info
 
-    def save_policy(self, policy: BasePolicy, policy_info: PolicyInfo):
-        self.policy_db.save_model_state_dict(
-            model=policy,
-            model_id=policy_info['policy_id'],
-            parent_model_id=policy_info['parent_policy_id'],
-            model_info=policy_info
-        )
-
     def create_policy_id(self) -> str:
         random_alphanumeric = ''.join(np.random.choice(
             ALPHANUMERIC_ALPHABET,

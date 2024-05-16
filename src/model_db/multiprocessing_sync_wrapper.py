@@ -26,19 +26,19 @@ class MultiprocessingSyncWrapper(ModelDB):
         with self.access_lock:
             self.model_db.close()
 
-    def save_model_state_dict(
+    def save_state_dict(
             self,
-            model: nn.Module,
+            state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType
     ) -> ModelEntry[ModelInfoType]:
         with self.access_lock:
-            return self.model_db.save_model_state_dict(model, model_id, parent_model_id, model_info)
+            return self.model_db.save_state_dict(state_dict, model_id, parent_model_id, model_info)
 
-    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry[ModelInfoType]:
+    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
         with self.access_lock:
-            return self.model_db.load_model_state_dict(model, model_id)
+            return self.model_db.load_state_dict(model_id)
 
     def all_entries(self) -> list[ModelEntry[ModelInfoType]]:
         with self.access_lock:

@@ -1,6 +1,4 @@
-from typing import Any, Callable, Optional
-
-from torch import nn
+from typing import Any
 
 from src.model_db.model_db import ModelDB, ModelEntry, ModelInfoType
 
@@ -22,20 +20,16 @@ class DummyModelDB(ModelDB[ModelInfoType]):
     def close(self):
         pass
 
-    def save_model_state_dict(
+    def save_state_dict(
             self,
-            model: nn.Module,
+            state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfoType,
     ) -> ModelEntry[ModelInfoType]:
         pass
 
-    def load_model_state_dict(
-            self,
-            model: nn.Module,
-            model_id: str
-    ) -> ModelEntry[ModelInfoType]:
+    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
         raise NotImplementedError('Dummy ModelDB can not load models')
 
     def all_entries(self) -> list[ModelEntry[ModelInfoType]]:

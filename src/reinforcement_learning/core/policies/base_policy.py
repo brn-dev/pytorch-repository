@@ -1,16 +1,9 @@
 import abc
-from typing import Optional, Callable
 
-import numpy as np
 import torch
-import torch.distributions as dist
 from torch import nn
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
-
-TensorOrNpArray = torch.Tensor | np.ndarray
-ActionDistStd = float | torch.Tensor
-ActionDistProvider = Callable[[torch.Tensor, ActionDistStd | None], dist.Distribution]
 
 
 class BasePolicy(nn.Module, abc.ABC):
@@ -25,7 +18,7 @@ class BasePolicy(nn.Module, abc.ABC):
         self.action_selector = action_selector
 
     @abc.abstractmethod
-    def process_obs(self, obs: TensorOrNpArray) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
+    def process_obs(self, obs: torch.Tensor) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
         raise NotImplemented
 
     def forward(self, obs: torch.Tensor):

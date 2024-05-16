@@ -31,7 +31,6 @@ def format_summary_statics(
     return representation
 
 
-
 def compute_summary_statistics(
         arr: TensorOrNpArray
 ) -> tuple[TensorOrNpArray, TensorOrNpArray, TensorOrNpArray, TensorOrNpArray]:

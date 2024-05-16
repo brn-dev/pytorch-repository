@@ -45,11 +45,7 @@ class PolicyMitosis(PolicyMitosisBase):
         for i_iteration in range(nr_iterations):
             policy_info = self.pick_policy_info()
 
-            policy_with_env_and_info: PolicyWithEnvAndInfo = {
-                'policy': init_policy_using_source(policy_info['init_policy_source_code']),
-                'env': wrap_env_using_source(self.env, policy_info['wrap_env_source_code']),
-                'policy_info': policy_info,
-            }
+            policy_with_env_and_info = self.create_policy_with_env_and_info(policy_info)
 
             PolicyMitosisBase.train_policy_iteration(self.train_policy_function, policy_with_env_and_info)
 
@@ -68,10 +64,22 @@ class PolicyMitosis(PolicyMitosisBase):
 
             policy_id = policy_info['policy_id']
 
-
     def create_policy_with_env_and_info(self, policy_info: PolicyInfo) -> PolicyWithEnvAndInfo:
+        policy = init_policy_using_source(policy_info['init_policy_source_code'])
+
+        if policy_info['parent_policy_id'] is not None:
+            self.policy_db.load_model_state_dict(policy, policy_info['parent_policy_id'])
+
         return {
-            'policy': init_policy_using_source(policy_info['init_policy_source_code']),
+            'policy': policy,
             'env': wrap_env_using_source(self.env, policy_info['wrap_env_source_code']),
             'policy_info': policy_info,
         }
+
+    def save_policy(self, policy: BasePolicy, policy_info: PolicyInfo):
+        self.policy_db.save_model_state_dict(
+            model=policy,
+            model_id=policy_info['policy_id'],
+            parent_model_id=policy_info['parent_policy_id'],
+            model_info=policy_info
+        )

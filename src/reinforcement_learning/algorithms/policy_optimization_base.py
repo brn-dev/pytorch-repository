@@ -4,6 +4,7 @@ from typing import Callable, TypeVar
 
 import gymnasium
 import numpy as np
+import torch
 from torch import optim
 
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
@@ -11,6 +12,7 @@ from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
+from src.torch_device import TorchDevice
 
 
 @dataclass
@@ -39,7 +41,8 @@ class PolicyOptimizationBase(abc.ABC):
             gae_lambda: float,
             reset_env_between_rollouts: bool,
             callback: Callback,
-            logging_config: LogConf
+            logging_config: LogConf,
+            torch_device: TorchDevice,
     ):
         self.env, self.num_envs = as_vec_env(env)
 
@@ -59,6 +62,8 @@ class PolicyOptimizationBase(abc.ABC):
         self.callback = callback
         self.logging_config = logging_config
 
+        self.torch_device = torch_device
+
     @abc.abstractmethod
     def optimize(
             self,
@@ -69,7 +74,7 @@ class PolicyOptimizationBase(abc.ABC):
         raise NotImplemented
 
     def rollout_step(self, obs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
-        action_selector, extra_predictions = self.policy.process_obs(obs)
+        action_selector, extra_predictions = self.policy.process_obs(torch.tensor(obs, device=self.torch_device))
         actions = action_selector.get_actions()
 
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())

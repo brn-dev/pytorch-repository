@@ -1,6 +1,5 @@
 import multiprocessing as mp
 import multiprocessing.connection as mpc
-import select
 import time
 
 from src.stopwatch import Stopwatch
@@ -56,11 +55,13 @@ def main():
                 else:
                     r.send(False)
                     parent_pipes.remove(r)
+                    r.close()
     finally:
 
         for parent_pipe, process in zip(parent_pipes, processes):
             parent_pipe.close()
             process.close()
+
 
 
 if __name__ == '__main__':

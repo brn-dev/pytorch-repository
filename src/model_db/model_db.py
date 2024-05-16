@@ -1,8 +1,7 @@
 import abc
-from typing import Any, Callable, TypedDict, Optional, TypeVar, Generic
+from typing import Any, TypedDict, Optional, TypeVar, Generic
 
 from torch import nn
-
 
 ModelInfoType = TypeVar('ModelInfoType', bound=dict[str, Any])
 
@@ -20,7 +19,7 @@ class ModelEntry(TypedDict, Generic[ModelInfoType]):
 class ModelDB(abc.ABC, Generic[ModelInfoType]):
 
     def __enter__(self):
-        pass
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -34,6 +33,15 @@ class ModelDB(abc.ABC, Generic[ModelInfoType]):
         raise NotImplemented
 
     @abc.abstractmethod
+    def save_state_dict(
+            self,
+            state_dict: dict[str, Any],
+            model_id: str,
+            parent_model_id: str,
+            model_info: ModelInfoType
+    ) -> ModelEntry[ModelInfoType]:
+        raise NotImplemented
+
     def save_model_state_dict(
             self,
             model: nn.Module,
@@ -41,11 +49,16 @@ class ModelDB(abc.ABC, Generic[ModelInfoType]):
             parent_model_id: str,
             model_info: ModelInfoType,
     ) -> ModelEntry[ModelInfoType]:
-        raise NotImplemented
+        return self.save_state_dict(model.state_dict(), model_id, parent_model_id, model_info)
 
     @abc.abstractmethod
-    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry[ModelInfoType]:
+    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
         raise NotImplemented
+
+    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry[ModelInfoType]:
+        state_dict, model_entry = self.load_state_dict(model_id)
+        model.load_state_dict(state_dict)
+        return model_entry
 
     @abc.abstractmethod
     def all_entries(self) -> list[ModelEntry[ModelInfoType]]:

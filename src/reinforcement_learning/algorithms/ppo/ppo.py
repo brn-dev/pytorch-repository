@@ -19,6 +19,7 @@ from src.reinforcement_learning.algorithms.policy_optimization_base import Polic
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
+from src.torch_device import TorchDevice
 
 
 @dataclass
@@ -71,6 +72,7 @@ class PPO(PolicyOptimizationBase):
             reset_env_between_rollouts: bool = False,
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
+            torch_device: TorchDevice = 'cpu',
     ):
         env, num_envs = as_vec_env(env)
 
@@ -83,7 +85,8 @@ class PPO(PolicyOptimizationBase):
             gae_lambda=gae_lambda,
             reset_env_between_rollouts=reset_env_between_rollouts,
             callback=callback or Callback(),
-            logging_config=logging_config or PPOLoggingConfig()
+            logging_config=logging_config or PPOLoggingConfig(),
+            torch_device=torch_device,
         )
 
         self.normalize_rewards = normalize_rewards
@@ -115,7 +118,6 @@ class PPO(PolicyOptimizationBase):
         with torch.no_grad():
             return super().perform_rollout(max_steps, obs, info)
 
-
     @override
     def optimize(
             self,
@@ -123,7 +125,7 @@ class PPO(PolicyOptimizationBase):
             last_dones: np.ndarray,
             info: InfoDict
     ) -> None:
-        last_values = self.policy.predict_values(last_obs)
+        last_values = self.policy.predict_values(torch.tensor(last_obs, device=self.torch_device))
 
         advantages, returns = self.buffer.compute_gae_and_returns(
             last_values=last_values,
@@ -139,10 +141,10 @@ class PPO(PolicyOptimizationBase):
         if self.logging_config.log_returns:
             info['returns'] = returns
 
-        advantages = torch.tensor(advantages, dtype=torch.float32)
-        returns = torch.tensor(returns, dtype=torch.float32)
+        advantages = torch.tensor(advantages, dtype=torch.float32, device=self.torch_device)
+        returns = torch.tensor(returns, dtype=torch.float32, device=self.torch_device)
 
-        observations = torch.tensor(self.buffer.observations, dtype=torch.float32)
+        observations = torch.tensor(self.buffer.observations, dtype=torch.float32, device=self.torch_device)
 
         old_actions = torch.stack(self.buffer.actions).detach()
         old_action_log_probs = torch.stack(self.buffer.action_log_probs).detach()
@@ -209,7 +211,6 @@ class PPO(PolicyOptimizationBase):
 
         info['nr_ppo_epochs'] = i_epoch + 1
         info['nr_ppo_updates'] = nr_updates
-
 
     def compute_ppo_objectives(
             self,
