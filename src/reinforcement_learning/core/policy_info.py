@@ -6,7 +6,10 @@ class PolicyInfo(TypedDict):
     parent_policy_id: str | None
 
     score: float
+
     steps_trained: int
+    env_steps_trained: int
+
     init_policy_source_code: str
     wrap_env_source_code: str
 

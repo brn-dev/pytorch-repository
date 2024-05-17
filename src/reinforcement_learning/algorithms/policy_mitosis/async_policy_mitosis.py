@@ -84,7 +84,8 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
                 success, policy_state_dict, policy_info = ready_pipe.recv()
 
                 if success:
-                    print(f'Finished training iteration for policy: {policy_info["policy_id"]}')
+                    print(f'Finished training iteration for policy: {policy_info["policy_id"]}'
+                          f', score = {policy_info["score"]}')
 
                     self.policy_db.save_state_dict(
                         state_dict=policy_state_dict,
@@ -156,7 +157,7 @@ def _worker(
 
             PolicyMitosisBase.train_policy_iteration(train_policy_function, policy_with_env_and_info)
 
-            pipe.send((True, policy.state_dict(), policy_info))
+            pipe.send((True, policy.cpu().state_dict(), policy_info))
     except (KeyboardInterrupt, Exception):
         error_queue.put((index,) + sys.exc_info()[:])
         pipe.send((False, None, None))

@@ -69,6 +69,13 @@ class PolicyMitosisBase(abc.ABC):
         policy_info['steps_trained'] += steps_trained
         policy_info['score'] = score
 
+        try:
+            num_envs = policy_with_env_and_info['env'].get_wrapper_attr("num_envs")
+        except AttributeError:
+            num_envs = 1
+
+        policy_info['env_steps_trained'] += steps_trained * num_envs
+
     def pick_policy_info(self) -> PolicyInfo:
         nr_policies = len(self.policy_db)
         sufficient_base_ancestors = self.eval_sufficient_base_ancestors()
@@ -85,6 +92,7 @@ class PolicyMitosisBase(abc.ABC):
             'parent_policy_id': None,
             'score': -1e6,
             'steps_trained': 0,
+            'env_steps_trained': 0,
             'init_policy_source_code': self.new_init_policy_source_code,
             'wrap_env_source_code': self.new_wrap_env_source_code,
         }
