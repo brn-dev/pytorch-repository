@@ -64,7 +64,7 @@ class PPO(PolicyOptimizationBase):
             reduce_actor_objective: TorchReductionFunction = torch.mean,
             weigh_actor_objective: TorchTensorTransformation = lambda obj: obj,
             reduce_negentropy_objective: TorchReductionFunction = torch.mean,
-            weigh_negentropy_objective: TorchTensorTransformation = lambda obj: 0 * obj,
+            weigh_negentropy_objective: TorchTensorTransformation = lambda obj: 0.0 * obj,
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             reduce_critic_objective: TorchReductionFunction = torch.mean,
             weigh_critic_objective: TorchTensorTransformation = lambda obj: obj,

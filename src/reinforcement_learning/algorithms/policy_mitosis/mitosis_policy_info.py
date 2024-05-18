@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class PolicyInfo(TypedDict):
+class MitosisPolicyInfo(TypedDict):
     policy_id: str
     parent_policy_id: str | None
 

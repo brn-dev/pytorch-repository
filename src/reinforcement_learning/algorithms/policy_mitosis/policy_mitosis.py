@@ -9,7 +9,7 @@ from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base im
     PolicyWithEnvAndInfo, TrainPolicyFunction
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
-from src.reinforcement_learning.core.policy_info import PolicyInfo
+from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
 from src.reinforcement_learning.gym.envs.env_wrapping import wrap_env_using_source
 
 
@@ -17,12 +17,12 @@ class PolicyMitosis(PolicyMitosisBase):
 
     def __init__(
             self,
-            policy_db: ModelDB[PolicyInfo],
+            policy_db: ModelDB[MitosisPolicyInfo],
             train_policy_function: TrainPolicyFunction,
             env: Env | Callable[[], Env],
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
-            select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
+            select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_base_ancestors: int,
             rng_seed: int | None,
     ):
@@ -64,7 +64,7 @@ class PolicyMitosis(PolicyMitosisBase):
 
             policy_id = policy_info['policy_id']
 
-    def create_policy_with_env_and_info(self, policy_info: PolicyInfo) -> PolicyWithEnvAndInfo:
+    def create_policy_with_env_and_info(self, policy_info: MitosisPolicyInfo) -> PolicyWithEnvAndInfo:
         policy = init_policy_using_source(policy_info['init_policy_source_code'])
 
         if policy_info['parent_policy_id'] is not None:
@@ -76,7 +76,7 @@ class PolicyMitosis(PolicyMitosisBase):
             'policy_info': policy_info,
         }
 
-    def save_policy(self, policy: BasePolicy, policy_info: PolicyInfo):
+    def save_policy(self, policy: BasePolicy, policy_info: MitosisPolicyInfo):
         self.policy_db.save_model_state_dict(
             model=policy,
             model_id=policy_info['policy_id'],

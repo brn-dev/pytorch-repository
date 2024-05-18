@@ -13,7 +13,7 @@ from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base im
     TrainPolicyFunction, PolicyWithEnvAndInfo
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
-from src.reinforcement_learning.core.policy_info import PolicyInfo
+from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
 from src.reinforcement_learning.gym.envs.env_wrapping import wrap_env_using_source
 
 
@@ -22,12 +22,12 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
     def __init__(
             self,
             num_workers: int,
-            policy_db: ModelDB[PolicyInfo],
+            policy_db: ModelDB[MitosisPolicyInfo],
             train_policy_function: TrainPolicyFunction,
             create_env: Callable[[], Env],
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
-            select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
+            select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_base_ancestors: int,
             rng_seed: int | None,
     ):
@@ -79,7 +79,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             for ready_pipe in mp_conn.wait(parent_pipes):
                 success: bool
                 policy_state_dict: dict[str, Any]
-                policy_info: PolicyInfo
+                policy_info: MitosisPolicyInfo
 
                 success, policy_state_dict, policy_info = ready_pipe.recv()
 
@@ -138,7 +138,7 @@ def _worker(
         while True:
             _continue: bool
             policy_state_dict: dict[str, Any] | None
-            policy_info: PolicyInfo
+            policy_info: MitosisPolicyInfo
 
             _continue, policy_state_dict, policy_info = pipe.recv()
 

@@ -1,6 +1,6 @@
 import abc
 import inspect
-from typing import Any, Callable, TypedDict, Iterable
+from typing import Callable, TypedDict, Iterable
 
 import numpy as np
 from gymnasium import Env
@@ -9,9 +9,7 @@ from gymnasium.vector import VectorEnv
 from src.datetime import get_current_timestamp
 from src.model_db.model_db import ModelDB, ModelEntry
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
-from src.reinforcement_learning.core.policy_info import PolicyInfo
-from src.reinforcement_learning.gym.envs.env_wrapping import wrap_env_using_source
+from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
 
 ALPHANUMERIC_ALPHABET = list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
@@ -19,7 +17,7 @@ ALPHANUMERIC_ALPHABET = list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX
 class PolicyWithEnvAndInfo(TypedDict):
     policy: BasePolicy
     env: Env
-    policy_info: PolicyInfo
+    policy_info: MitosisPolicyInfo
 
 
 TrainPolicyFunction = Callable[[PolicyWithEnvAndInfo], tuple[int, float]]
@@ -29,11 +27,11 @@ class PolicyMitosisBase(abc.ABC):
 
     def __init__(
             self,
-            policy_db: ModelDB[PolicyInfo],
+            policy_db: ModelDB[MitosisPolicyInfo],
             train_policy_function: TrainPolicyFunction,
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
-            select_policy_selection_probs: Callable[[Iterable[PolicyInfo]], np.ndarray],
+            select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_base_ancestors: int,
             rng_seed: int | None,
     ):
@@ -76,7 +74,7 @@ class PolicyMitosisBase(abc.ABC):
 
         policy_info['env_steps_trained'] += steps_trained * num_envs
 
-    def pick_policy_info(self) -> PolicyInfo:
+    def pick_policy_info(self) -> MitosisPolicyInfo:
         nr_policies = len(self.policy_db)
         sufficient_base_ancestors = self.eval_sufficient_base_ancestors()
 
@@ -86,7 +84,7 @@ class PolicyMitosisBase(abc.ABC):
             selected_parent_policy_info = self.select_parent_policy_info()
             return self.create_child_policy_info(selected_parent_policy_info)
 
-    def create_new_policy_info(self) -> PolicyInfo:
+    def create_new_policy_info(self) -> MitosisPolicyInfo:
         return {
             'policy_id': self.create_policy_id(),
             'parent_policy_id': None,
@@ -97,7 +95,7 @@ class PolicyMitosisBase(abc.ABC):
             'wrap_env_source_code': self.new_wrap_env_source_code,
         }
 
-    def select_parent_policy_info(self) -> PolicyInfo:
+    def select_parent_policy_info(self) -> MitosisPolicyInfo:
         policy_entries = self.policy_db.all_entries()
         nr_policies = len(policy_entries)
 
@@ -112,11 +110,11 @@ class PolicyMitosisBase(abc.ABC):
         ))
 
         selected_parent_policy_index = self.rng.choice(range(nr_policies), p=policy_probs)
-        selected_parent_policy: ModelEntry[PolicyInfo] = policy_entries[selected_parent_policy_index]
+        selected_parent_policy: ModelEntry[MitosisPolicyInfo] = policy_entries[selected_parent_policy_index]
         return selected_parent_policy['model_info']
 
-    def create_child_policy_info(self, parent_policy_info: PolicyInfo) -> PolicyInfo:
-        policy_info: PolicyInfo = parent_policy_info.copy()
+    def create_child_policy_info(self, parent_policy_info: MitosisPolicyInfo) -> MitosisPolicyInfo:
+        policy_info: MitosisPolicyInfo = parent_policy_info.copy()
 
         policy_info['parent_policy_id'] = policy_info['policy_id']
         policy_info['policy_id'] = self.create_policy_id()
