@@ -32,11 +32,14 @@ class PPOLoggingConfig(LoggingConfig):
     log_actor_kl_divergence: bool = False
 
     actor_objective: ObjectiveLoggingConfig = None
+    negentropy_objective: ObjectiveLoggingConfig = None
     critic_objective: ObjectiveLoggingConfig = None
 
     def __post_init__(self):
         if self.actor_objective is None:
             self.actor_objective = ObjectiveLoggingConfig()
+        if self.negentropy_objective is None:
+            self.negentropy_objective = ObjectiveLoggingConfig()
         if self.critic_objective is None:
             self.critic_objective = ObjectiveLoggingConfig()
 
@@ -60,6 +63,8 @@ class PPO(PolicyOptimizationBase):
             normalize_advantages: NormalizationType | None = None,
             reduce_actor_objective: TorchReductionFunction = torch.mean,
             weigh_actor_objective: TorchTensorTransformation = lambda obj: obj,
+            reduce_negentropy_objective: TorchReductionFunction = torch.mean,
+            weigh_negentropy_objective: TorchTensorTransformation = lambda obj: 0 * obj,
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             reduce_critic_objective: TorchReductionFunction = torch.mean,
             weigh_critic_objective: TorchTensorTransformation = lambda obj: obj,
@@ -94,6 +99,9 @@ class PPO(PolicyOptimizationBase):
 
         self.reduce_actor_objective = reduce_actor_objective
         self.weigh_actor_objective = weigh_actor_objective
+
+        self.reduce_negentropy_objective = reduce_negentropy_objective
+        self.weigh_negentropy_objective = weigh_negentropy_objective
 
         self.critic_loss_fn = critic_loss_fn
         self.reduce_critic_objective = reduce_critic_objective
@@ -227,7 +235,7 @@ class PPO(PolicyOptimizationBase):
 
         value_estimates = value_estimates.squeeze(dim=-1)
 
-        actor_objective = self.compute_ppo_actor_objective(
+        actor_objective, negentropy_objective = self.compute_ppo_actor_objectives(
             new_action_selector=new_action_selector,
             advantages=advantages,
             old_actions=old_actions,
@@ -245,16 +253,16 @@ class PPO(PolicyOptimizationBase):
             info=info,
         )
 
-        return [actor_objective, critic_objective]
+        return [actor_objective, negentropy_objective, critic_objective]
 
-    def compute_ppo_actor_objective(
+    def compute_ppo_actor_objectives(
             self,
             new_action_selector: ActionSelector,
             advantages: torch.Tensor,
             old_actions: torch.Tensor,
             old_action_log_probs: torch.Tensor,
             info: InfoDict,
-    ) -> Optional[torch.Tensor]:
+    ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         new_action_log_probs = new_action_selector.log_prob(old_actions)
 
         if self.ppo_kl_target is not None or self.logging_config.log_actor_kl_divergence:
@@ -267,7 +275,7 @@ class PPO(PolicyOptimizationBase):
                 info['actor_kl_divergence'] = approx_kl_div
 
             if self.ppo_kl_target is not None and approx_kl_div > 1.5 * self.ppo_kl_target:
-                return None
+                return None, None
 
         action_log_probs_ratios = torch.exp(new_action_log_probs - old_action_log_probs)
 
@@ -291,7 +299,23 @@ class PPO(PolicyOptimizationBase):
             logging_config=self.logging_config.actor_objective,
         )
 
-        return actor_objective
+        entropy = new_action_selector.entropy()
+        if entropy is None:
+            # Approximate entropy when no analytical form
+            negative_entropy = new_action_log_probs
+        else:
+            negative_entropy = -entropy
+
+        negentropy_objective = reduce_and_weigh_objective(
+            raw_objective=negative_entropy,
+            reduce_objective=self.reduce_negentropy_objective,
+            weigh_objective=self.weigh_negentropy_objective,
+            info=info,
+            objective_name='negentropy_objective',
+            logging_config=self.logging_config.negentropy_objective
+        )
+
+        return actor_objective, negentropy_objective
 
     def compute_ppo_critic_objective(
             self,
