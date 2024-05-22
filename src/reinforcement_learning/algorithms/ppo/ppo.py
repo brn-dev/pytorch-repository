@@ -15,7 +15,8 @@ from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import 
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.objectives import reduce_and_weigh_objective, ObjectiveLoggingConfig
-from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, LoggingConfig
+from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, LoggingConfig, \
+    PolicyProvider, Policy
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
@@ -32,14 +33,14 @@ class PPOLoggingConfig(LoggingConfig):
     log_actor_kl_divergence: bool = False
 
     actor_objective: ObjectiveLoggingConfig = None
-    negentropy_objective: ObjectiveLoggingConfig = None
+    entropy_objective: ObjectiveLoggingConfig = None
     critic_objective: ObjectiveLoggingConfig = None
 
     def __post_init__(self):
         if self.actor_objective is None:
             self.actor_objective = ObjectiveLoggingConfig()
-        if self.negentropy_objective is None:
-            self.negentropy_objective = ObjectiveLoggingConfig()
+        if self.entropy_objective is None:
+            self.entropy_objective = ObjectiveLoggingConfig()
         if self.critic_objective is None:
             self.critic_objective = ObjectiveLoggingConfig()
 
@@ -53,7 +54,7 @@ class PPO(PolicyOptimizationBase):
     def __init__(
             self,
             env: gymnasium.Env,
-            policy: Callable[[], ActorCriticPolicy],
+            policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
             buffer_size: int,
             buffer_type=ActorCriticRolloutBuffer,
@@ -63,8 +64,8 @@ class PPO(PolicyOptimizationBase):
             normalize_advantages: NormalizationType | None = None,
             reduce_actor_objective: TorchReductionFunction = torch.mean,
             weigh_actor_objective: TorchTensorTransformation = lambda obj: obj,
-            reduce_negentropy_objective: TorchReductionFunction = torch.mean,
-            weigh_negentropy_objective: TorchTensorTransformation = lambda obj: 0.0 * obj,
+            reduce_entropy_objective: TorchReductionFunction = torch.mean,
+            weigh_entropy_objective: TorchTensorTransformation | None = None,
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
             reduce_critic_objective: TorchReductionFunction = torch.mean,
             weigh_critic_objective: TorchTensorTransformation = lambda obj: obj,
@@ -74,6 +75,7 @@ class PPO(PolicyOptimizationBase):
             action_ratio_clip_range: float = 0.2,
             value_function_clip_range_factor: float | None = None,
             grad_norm_clip_value: float | None = None,
+            sde_noise_sample_freq: int | None = None,
             reset_env_between_rollouts: bool = False,
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
@@ -88,6 +90,7 @@ class PPO(PolicyOptimizationBase):
             buffer=buffer_type(buffer_size, num_envs, env.observation_space.shape),
             gamma=gamma,
             gae_lambda=gae_lambda,
+            sde_noise_sample_freq=sde_noise_sample_freq,
             reset_env_between_rollouts=reset_env_between_rollouts,
             callback=callback or Callback(),
             logging_config=logging_config or PPOLoggingConfig(),
@@ -100,8 +103,8 @@ class PPO(PolicyOptimizationBase):
         self.reduce_actor_objective = reduce_actor_objective
         self.weigh_actor_objective = weigh_actor_objective
 
-        self.reduce_negentropy_objective = reduce_negentropy_objective
-        self.weigh_negentropy_objective = weigh_negentropy_objective
+        self.reduce_entropy_objective = reduce_entropy_objective
+        self.weigh_entropy_objective = weigh_entropy_objective
 
         self.critic_loss_fn = critic_loss_fn
         self.reduce_critic_objective = reduce_critic_objective
@@ -171,6 +174,7 @@ class PPO(PolicyOptimizationBase):
                     old_actions, old_action_log_probs, old_value_estimates
             ):
                 batch_info: InfoDict = {}
+
                 objectives = self.compute_ppo_objectives(
                     observations=batched_tensors[0],
                     advantages=batched_tensors[1],
@@ -235,7 +239,7 @@ class PPO(PolicyOptimizationBase):
 
         value_estimates = value_estimates.squeeze(dim=-1)
 
-        actor_objective, negentropy_objective = self.compute_ppo_actor_objectives(
+        actor_objective, entropy_objective = self.compute_ppo_actor_objectives(
             new_action_selector=new_action_selector,
             advantages=advantages,
             old_actions=old_actions,
@@ -253,7 +257,7 @@ class PPO(PolicyOptimizationBase):
             info=info,
         )
 
-        return [actor_objective, negentropy_objective, critic_objective]
+        return [actor_objective, entropy_objective, critic_objective]
 
     def compute_ppo_actor_objectives(
             self,
@@ -299,23 +303,26 @@ class PPO(PolicyOptimizationBase):
             logging_config=self.logging_config.actor_objective,
         )
 
-        entropy = new_action_selector.entropy()
-        if entropy is None:
-            # Approximate entropy when no analytical form
-            negative_entropy = new_action_log_probs
+        if self.weigh_entropy_objective is not None:
+            entropy = new_action_selector.entropy()
+            if entropy is None:
+                # Approximate entropy when no analytical form
+                negative_entropy = new_action_log_probs
+            else:
+                negative_entropy = -entropy
+
+            entropy_objective = reduce_and_weigh_objective(
+                raw_objective=negative_entropy,
+                reduce_objective=self.reduce_entropy_objective,
+                weigh_objective=self.weigh_entropy_objective,
+                info=info,
+                objective_name='entropy_objective',
+                logging_config=self.logging_config.entropy_objective
+            )
         else:
-            negative_entropy = -entropy
+            entropy_objective = torch.zeros_like(actor_objective)
 
-        negentropy_objective = reduce_and_weigh_objective(
-            raw_objective=negative_entropy,
-            reduce_objective=self.reduce_negentropy_objective,
-            weigh_objective=self.weigh_negentropy_objective,
-            info=info,
-            objective_name='negentropy_objective',
-            logging_config=self.logging_config.negentropy_objective
-        )
-
-        return actor_objective, negentropy_objective
+        return actor_objective, entropy_objective
 
     def compute_ppo_critic_objective(
             self,

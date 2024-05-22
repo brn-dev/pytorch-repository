@@ -39,6 +39,7 @@ class PolicyOptimizationBase(abc.ABC):
             buffer: Buffer,
             gamma: float,
             gae_lambda: float,
+            sde_noise_sample_freq: int | None,
             reset_env_between_rollouts: bool,
             callback: Callback,
             logging_config: LogConf,
@@ -56,6 +57,12 @@ class PolicyOptimizationBase(abc.ABC):
 
         self.gamma = gamma
         self.gae_lambda = gae_lambda
+
+        if not policy.uses_sde and sde_noise_sample_freq is not None:
+            print(f'=================================== Warning ==================================='
+                  f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE'
+                  f'===============================================================================')
+        self.sde_noise_sample_freq = sde_noise_sample_freq
 
         self.reset_env_between_rollouts = reset_env_between_rollouts
 
@@ -76,7 +83,6 @@ class PolicyOptimizationBase(abc.ABC):
     def rollout_step(self, obs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
         action_selector, extra_predictions = self.policy.process_obs(torch.tensor(obs, device=self.torch_device))
         actions = action_selector.get_actions()
-
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
         self.buffer.add(
@@ -97,14 +103,17 @@ class PolicyOptimizationBase(abc.ABC):
             obs: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
-        num_envs = self.env.get_wrapper_attr('num_envs')
-
-        terminated = np.empty((num_envs,), dtype=bool)
-        truncated = np.empty((num_envs,), dtype=bool)
+        terminated = np.empty((self.num_envs,), dtype=bool)
+        truncated = np.empty((self.num_envs,), dtype=bool)
         step = 0
+
+        self.policy.reset_sde_noise(self.num_envs)
 
         infos: list[InfoDict] = []
         for step in range(min(self.buffer.buffer_size, max_steps)):
+            if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
+                self.policy.reset_sde_noise(self.num_envs)
+
             obs, rewards, terminated, truncated, step_info = self.rollout_step(obs)
             infos.append(step_info)
 

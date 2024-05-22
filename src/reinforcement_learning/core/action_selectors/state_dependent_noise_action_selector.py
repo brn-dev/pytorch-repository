@@ -15,7 +15,6 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
 
     output_bijector: Optional[TanhBijector]
     noise_weights_dist: torchdist.Normal
-    exploration_noise_mat: torch.Tensor
     exploration_noise_matrices: torch.Tensor
 
     def __init__(
@@ -65,7 +64,14 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             latent_pi: torch.Tensor
     ) -> Self:
         self.latent_pi = latent_pi
-        variance = torch.mm(self.latent_pi ** 2, self.get_stds(self.log_stds) ** 2)
+        if self.latent_pi.dim() == 2:
+            variance = torch.mm(self.latent_pi ** 2, self.get_stds(self.log_stds) ** 2)
+        else:
+            batch_shape = self.latent_pi.shape[:-1]
+            flat_latent_pi = torch.flatten(latent_pi, end_dim=-2)
+            variance = torch.mm(flat_latent_pi ** 2, self.get_stds(self.log_stds) ** 2)
+            variance = variance.reshape(batch_shape + (self.action_dim,))
+            print(torch.sqrt(variance + self.epsilon).mean())
         self.distribution = torchdist.Normal(mean_actions, torch.sqrt(variance + self.epsilon))
         return self
 
@@ -93,7 +99,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         log_prob = self.sum_action_dim(log_prob)
 
         if self.output_bijector is not None:
-            log_prob -= torch.sum(self.output_bijector.log_prob_correction(unsquashed_actions), dim=1)
+            log_prob -= self.sum_action_dim(self.output_bijector.log_prob_correction(unsquashed_actions))
         return log_prob
 
     @override
@@ -139,20 +145,26 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
     def sample_noise_weights(self, batch_size: int = 1):
         stds = self.get_stds(self.log_stds)
         self.noise_weights_dist = torchdist.Normal(loc=torch.zeros_like(stds), scale=stds)
-        self.exploration_noise_mat = self.noise_weights_dist.rsample()
         self.exploration_noise_matrices = self.noise_weights_dist.rsample(torch.Size((batch_size,)))
 
-    def get_noise(self, latent_pi: torch.Tensor):
+    def get_noise(self, latent_pi: torch.Tensor) -> torch.Tensor:
         latent_pi = latent_pi if self.learn_sde_features else latent_pi.detach()
 
-        if len(latent_pi) == 1:  # or len(latent_pi) != len(self.exploration_noise_matrices): # TODO: is this necessary?
-            return torch.mm(latent_pi, self.exploration_noise_mat)
+        batch_shape = latent_pi.shape[:-1]
 
-        latent_pi = latent_pi.unsqueeze(dim=1)
-        print(f'{latent_pi.shape = }')
-        print(f'{self.exploration_noise_matrices.shape = }')
+
+        latent_pi = torch.flatten(latent_pi, end_dim=-2).unsqueeze(dim=1)
+
+
         noise = torch.bmm(latent_pi, self.exploration_noise_matrices)
-        return noise.squeeze(dim=1)
+        noise = noise.reshape(batch_shape + (self.action_dim,))
+        if self.exploration_noise_matrices.shape[0] > 4:
+            print(batch_shape)
+        if len(batch_shape) > 1:
+            print(f'{latent_pi.shape = }')
+            print(f'{self.exploration_noise_matrices.shape = }')
+            print(noise.shape)
+        return noise
 
     @override
     def set_log_stds_as_parameter(self, initial_log_std: float) -> None:
@@ -161,5 +173,5 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         else:
             log_stds = torch.ones((self.latent_dim, 1))
 
-        self.log_stds = nn.Parameter(log_stds, requires_grad=self.std_learnable)
+        self.log_stds = nn.Parameter(log_stds * initial_log_std, requires_grad=self.std_learnable)
         self.sample_noise_weights()

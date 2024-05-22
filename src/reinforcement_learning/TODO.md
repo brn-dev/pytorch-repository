@@ -1,5 +1,6 @@
 
-entropy objective
+
+log exploration/optimization stds
 
 sde
 
