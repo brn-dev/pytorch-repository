@@ -1,18 +1,27 @@
-from typing import Optional, Self
+from typing import Optional, Self, Callable
 
 import torch
 import torch.distributions as torchdist
+from torch import nn
 
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.discrete_action_selector import DiscreteActionSelector
 
 
 class BernoulliActionSelector(DiscreteActionSelector):
 
-    def __init__(self, latent_dim: int, action_dim: int):
+    def __init__(
+            self,
+            latent_dim: int,
+            action_dim: int,
+            action_net_initialization: ActionNetInitialization | None,
+    ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
+            action_net_initialization=action_net_initialization,
         )
+
         self.distribution: Optional[torchdist.Bernoulli] = None
 
     def update_distribution_params(self, action_logits: torch.Tensor) -> Self:

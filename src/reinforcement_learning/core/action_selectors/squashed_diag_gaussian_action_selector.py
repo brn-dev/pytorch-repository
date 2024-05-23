@@ -1,8 +1,10 @@
-from typing import Optional, Self
+from typing import Optional, Self, Callable
 
 import torch
 from overrides import override
+from torch import nn
 
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.diag_gaussian_action_selector import DiagGaussianActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
 
@@ -19,13 +21,15 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
             std_learnable: bool,
             epsilon: float = 1e-6,
             sum_action_dim: bool = False,
+            action_net_initialization: ActionNetInitialization | None = None,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
             std=std,
             std_learnable=std_learnable,
-            sum_action_dim=sum_action_dim
+            sum_action_dim=sum_action_dim,
+            action_net_initialization=action_net_initialization,
         )
 
         self.epsilon = epsilon

@@ -1,8 +1,10 @@
-from typing import Optional, Self
+from typing import Optional, Self, Callable
 
 import torch
 import torch.distributions as torchdist
+from torch import nn
 
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 
 
@@ -17,13 +19,15 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
             std: float,
             std_learnable: bool,
             sum_action_dim: bool = False,
+            action_net_initialization: ActionNetInitialization | None = None,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
             std=std,
             std_learnable=std_learnable,
-            sum_action_dim=sum_action_dim
+            sum_action_dim=sum_action_dim,
+            action_net_initialization=action_net_initialization,
         )
 
         self.distribution: Optional[torchdist.Normal] = None

@@ -1,16 +1,24 @@
 import abc
 import math
-from typing import TypeVar
+from typing import TypeVar, Callable, Optional
 
 import torch
+import torch.distributions as torchdist
 from torch import nn
 
 SelfActionDistribution = TypeVar('SelfActionDistribution', bound='ActionDistribution')
 
+ActionNetInitialization = Callable[[nn.Linear], None]
+
 
 class ActionSelector(nn.Module, abc.ABC):
 
-    def __init__(self, latent_dim: int, action_dim: int):
+    def __init__(
+            self,
+            latent_dim: int,
+            action_dim: int,
+            action_net_initialization: ActionNetInitialization | None,
+    ):
         super().__init__()
         self.latent_dim = latent_dim
         self.action_dim = action_dim
@@ -19,6 +27,11 @@ class ActionSelector(nn.Module, abc.ABC):
             self.action_net = nn.Identity()
         else:
             self.action_net = nn.Linear(latent_dim, action_dim)
+
+            if action_net_initialization is not None:
+                action_net_initialization(self.action_net)
+
+        self.distribution: Optional[torchdist.Distribution] = None
 
     @abc.abstractmethod
     def update_latent_features(self: SelfActionDistribution, latent_pi: torch.Tensor) -> SelfActionDistribution:

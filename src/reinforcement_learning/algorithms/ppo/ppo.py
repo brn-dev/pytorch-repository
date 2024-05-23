@@ -31,6 +31,7 @@ class PPOLoggingConfig(LoggingConfig):
     log_ppo_objective: bool = False
     log_grad_norm: bool = False
     log_actor_kl_divergence: bool = False
+    log_optimization_action_stds: bool = False
 
     actor_objective: ObjectiveLoggingConfig = None
     entropy_objective: ObjectiveLoggingConfig = None
@@ -236,6 +237,9 @@ class PPO(PolicyOptimizationBase):
     ) -> Optional[list[torch.Tensor]]:
         latent_pi, value_estimates = self.policy.predict_latent_pi_and_values(observations)
         new_action_selector = self.policy.action_selector.update_latent_features(latent_pi)
+
+        if self.logging_config.log_optimization_action_stds:
+            info['action_stds'] = new_action_selector.distribution.stddev
 
         value_estimates = value_estimates.squeeze(dim=-1)
 

@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from torch import optim
 
+from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
@@ -20,6 +21,12 @@ class LoggingConfig:
     log_rollout_infos: bool = False
     log_reset_info: bool = False
 
+    log_rollout_action_stds: bool = False
+
+    def __post_init__(self):
+        assert not self.log_rollout_action_stds or self.log_rollout_infos, \
+            'log_rollout_infos has to be enabled for log_rollout_stds'
+
 
 LogConf = TypeVar('LogConf', bound=LoggingConfig)
 Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
@@ -29,7 +36,6 @@ PolicyProvider = Callable[[], Policy]
 
 
 class PolicyOptimizationBase(abc.ABC):
-
 
     def __init__(
             self,
@@ -59,15 +65,18 @@ class PolicyOptimizationBase(abc.ABC):
         self.gae_lambda = gae_lambda
 
         if not policy.uses_sde and sde_noise_sample_freq is not None:
-            print(f'=================================== Warning ==================================='
-                  f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE'
-                  f'===============================================================================')
+            print(f'=================================== Warning =================================== \n'
+                  f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n'
+                  f'=============================================================================== \n')
         self.sde_noise_sample_freq = sde_noise_sample_freq
 
         self.reset_env_between_rollouts = reset_env_between_rollouts
 
         self.callback = callback
         self.logging_config = logging_config
+        if (self.logging_config.log_rollout_action_stds
+                and not isinstance(policy.action_selector, ContinuousActionSelector)):
+            raise ValueError('Cannot log action distribution stds with non continuous action selector')
 
         self.torch_device = torch_device
 
@@ -85,6 +94,9 @@ class PolicyOptimizationBase(abc.ABC):
         actions = action_selector.get_actions()
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
+        if self.logging_config.log_rollout_action_stds:
+            info['action_stds'] = action_selector.distribution.stddev
+
         self.buffer.add(
             observations=obs,
             rewards=rewards,
@@ -95,7 +107,6 @@ class PolicyOptimizationBase(abc.ABC):
         )
 
         return next_obs, rewards, terminated, truncated, info
-
 
     def perform_rollout(
             self,
@@ -121,7 +132,6 @@ class PolicyOptimizationBase(abc.ABC):
             info['rollout'] = stack_infos(infos)
 
         return step + 1, obs, terminated, truncated
-
 
     def train(self, num_steps: int):
         obs: np.ndarray = np.empty(())

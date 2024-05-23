@@ -3,7 +3,7 @@ from typing import Callable
 import torch.nn as nn
 
 from src.networks.forward_net import SeqNet
-from src.networks.init import lecun_initialization
+from src.weight_initialization import lecun_initialization
 from src.networks.core.net import Net
 
 

@@ -1,8 +1,7 @@
 
+weight initialization
 
-log exploration/optimization stds
-
-sde
+save optimizer state with model
 
 When negative advantage has been observed, lower learning rate for critic. This keeps the expectation higher.
 or

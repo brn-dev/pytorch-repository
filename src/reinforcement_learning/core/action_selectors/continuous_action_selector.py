@@ -1,12 +1,12 @@
 import abc
 import math
-from typing import Optional, Self
+from typing import Optional, Self, Callable
 
 import torch
 import torch.distributions as torchdist
 from torch import nn
 
-from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector, ActionNetInitialization
 
 
 class ContinuousActionSelector(ActionSelector, abc.ABC):
@@ -20,10 +20,12 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
             std: float,
             std_learnable: bool,
             sum_action_dim: bool,
+            action_net_initialization: ActionNetInitialization | None,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
+            action_net_initialization=action_net_initialization,
         )
 
         self.distribution: Optional[torchdist.Distribution] = None
@@ -32,7 +34,6 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
         self.set_log_stds_as_parameter(math.log(std))
 
         self._sum_action_dim = sum_action_dim
-
 
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         action_means = self.action_net(latent_pi)
