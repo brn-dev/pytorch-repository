@@ -62,7 +62,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         else:
             log_stds = torch.ones((self.latent_dim, 1))
 
-        self.log_stds = nn.Parameter(log_stds * initial_log_std, requires_grad=self.std_learnable)
+        self.log_stds = nn.Parameter(log_stds * initial_log_std, requires_grad=True)
         self.sample_noise_weights()
 
     @override

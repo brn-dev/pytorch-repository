@@ -222,7 +222,7 @@ class PPO(PolicyOptimizationBase):
         for info_key, info_value in concat_infos(optimization_infos).items():
             info[info_key] = info_value
 
-        info['nr_ppo_epochs'] = i_epoch + 1
+        info['nr_ppo_epochs'] = i_epoch
         info['nr_ppo_updates'] = nr_updates
 
     def compute_ppo_objectives(
