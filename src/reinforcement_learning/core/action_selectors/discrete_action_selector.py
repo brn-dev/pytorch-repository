@@ -1,11 +1,9 @@
 import abc
-from typing import Optional, Self, Callable
+from typing import Self
 
 import torch
-import torch.distributions as torchdist
-from torch import nn
 
-from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector, ActionNetInitialization
 
 
 class DiscreteActionSelector(ActionSelector, abc.ABC):
@@ -38,6 +36,3 @@ class DiscreteActionSelector(ActionSelector, abc.ABC):
         actions = self.actions_from_distribution_params(action_logits)
         log_prob = self.log_prob(actions)
         return actions, log_prob
-
-    def set_log_std(self, log_std: float) -> None:
-        print('Warning: trying to set std on a categorical action distribution')

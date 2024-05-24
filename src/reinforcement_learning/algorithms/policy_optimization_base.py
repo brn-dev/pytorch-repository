@@ -65,9 +65,13 @@ class PolicyOptimizationBase(abc.ABC):
         self.gae_lambda = gae_lambda
 
         if not policy.uses_sde and sde_noise_sample_freq is not None:
-            print(f'=================================== Warning =================================== \n'
+            print(f'================================= Warning ================================= \n'
                   f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n'
-                  f'=============================================================================== \n')
+                  f'=========================================================================== \n\n\n')
+        if policy.uses_sde and sde_noise_sample_freq is None:
+            print(f'======================== Warning ======================== \n'
+                  f' SDE noise sample freq is set to None despite using SDE \n'
+                  f'========================================================= \n\n\n')
         self.sde_noise_sample_freq = sde_noise_sample_freq
 
         self.reset_env_between_rollouts = reset_env_between_rollouts

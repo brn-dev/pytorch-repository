@@ -1,3 +1,4 @@
+import math
 from typing import Optional, Self, Callable
 
 import torch
@@ -32,8 +33,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
-            std=initial_std,
-            std_learnable=True,
             sum_action_dim=sum_action_dim,
             action_net_initialization=action_net_initialization,
         )
@@ -43,6 +42,8 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             log_std_net_initialization(self.log_std_net)
         self.log_std_activation = log_std_activation
 
+        self.initial_log_std = math.log(initial_std)
+
         if squash_output:
             self.output_bijector = TanhBijector(epsilon)
         else:
@@ -50,10 +51,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
 
         self.epsilon = epsilon
         self.distribution: Optional[torchdist.Normal] = None
-
-    @override
-    def set_log_stds_as_parameter(self, initial_log_std: float) -> None:
-        self.initial_log_std = initial_log_std
 
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:

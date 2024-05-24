@@ -1,3 +1,4 @@
+import math
 from typing import Optional, Self, Callable
 
 import torch
@@ -24,10 +25,13 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
-            std=std,
-            std_learnable=std_learnable,
             sum_action_dim=sum_action_dim,
             action_net_initialization=action_net_initialization,
+        )
+
+        self.log_stds = nn.Parameter(
+            torch.ones((self.action_dim,)) * math.log(std),
+            requires_grad=std_learnable
         )
 
         self.distribution: Optional[torchdist.Normal] = None

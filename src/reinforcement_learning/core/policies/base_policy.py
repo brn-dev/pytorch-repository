@@ -30,4 +30,5 @@ class BasePolicy(nn.Module, abc.ABC):
 
     def reset_sde_noise(self, batch_size: int):
         if self.uses_sde:
-            self.action_selector.sample_noise_weights(batch_size)
+            self.action_selector: StateDependentNoiseActionSelector
+            self.action_selector.sample_exploration_noise(batch_size)

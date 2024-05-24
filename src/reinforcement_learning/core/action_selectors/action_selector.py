@@ -65,13 +65,6 @@ class ActionSelector(nn.Module, abc.ABC):
     def log_prob_from_distribution_params(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
         raise NotImplemented
 
-    @abc.abstractmethod
-    def set_log_std(self, log_std: float):
-        raise NotImplemented
-
-    def set_std(self, std: float) -> None:
-        self.set_log_std(math.log(std))
-
     def get_actions(self, deterministic: bool = False) -> torch.Tensor:
         if deterministic:
             return self.mode()
