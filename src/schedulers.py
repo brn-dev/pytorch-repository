@@ -2,7 +2,7 @@ from typing import Generic, TypeVar
 
 T = TypeVar('T')
 
-class ValueScheduler(Generic[T]):
+class FixedValueScheduler(Generic[T]):
 
     def __init__(self, schedule: dict[int, T], keep_last_value: bool):
         assert all(k >= 0 for k in schedule.keys())
