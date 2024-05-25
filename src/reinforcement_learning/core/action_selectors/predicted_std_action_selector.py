@@ -16,13 +16,13 @@ LogStdNetInitialization = ActionNetInitialization
 class PredictedStdActionSelector(ContinuousActionSelector):
 
     output_bijector: Optional[TanhBijector]
-    initial_log_std: float
+    base_log_std: float
 
     def __init__(
             self,
             latent_dim: int,
             action_dim: int,
-            initial_std: float,
+            base_std: float,
             squash_output: bool = False,
             epsilon: float = 1e-6,
             sum_action_dim: bool = False,
@@ -42,7 +42,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             log_std_net_initialization(self.log_std_net)
         self.log_std_activation = log_std_activation
 
-        self.initial_log_std = math.log(initial_std)
+        self.base_log_std = math.log(base_std)
 
         if squash_output:
             self.output_bijector = TanhBijector(epsilon)
@@ -55,7 +55,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         mean_actions = self.action_net(latent_pi)
-        log_stds = self.log_std_net(latent_pi) + self.initial_log_std
+        log_stds = self.log_std_net(latent_pi) + self.base_log_std
         return self.update_distribution_params(mean_actions, log_stds)
 
     def update_distribution_params(
@@ -115,3 +115,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         actions = self.actions_from_distribution_params(mean_actions, log_stds)
         log_prob = self.log_prob(actions)
         return actions, log_prob
+
+    def set_base_std(self, std: float):
+        self.base_log_std = math.log(std)

@@ -69,9 +69,8 @@ class PolicyOptimizationBase(abc.ABC):
                   f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n'
                   f'=========================================================================== \n\n\n')
         if policy.uses_sde and sde_noise_sample_freq is None:
-            print(f'======================== Warning ======================== \n'
-                  f' SDE noise sample freq is set to None despite using SDE \n'
-                  f'========================================================= \n\n\n')
+            raise ValueError(f'SDE noise sample freq is set to None despite using SDE')
+        
         self.sde_noise_sample_freq = sde_noise_sample_freq
 
         self.reset_env_between_rollouts = reset_env_between_rollouts
