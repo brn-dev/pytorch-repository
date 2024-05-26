@@ -19,7 +19,7 @@ from src.reinforcement_learning.algorithms.policy_optimization_base import Polic
     PolicyProvider, Policy
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
-from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
+from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 
 

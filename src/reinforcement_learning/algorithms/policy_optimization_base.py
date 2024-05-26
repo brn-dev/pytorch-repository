@@ -12,7 +12,7 @@ from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRo
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.gym.envs.singleton_vector_env import as_vec_env
+from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 
 

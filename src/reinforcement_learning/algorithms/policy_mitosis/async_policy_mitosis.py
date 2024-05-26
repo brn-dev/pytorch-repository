@@ -14,7 +14,7 @@ from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base im
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
 from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
-from src.reinforcement_learning.gym.envs.env_wrapping import wrap_env_using_source
+from src.reinforcement_learning.gym.env_wrapping import wrap_env_using_source
 
 
 class AsyncPolicyMitosis(PolicyMitosisBase):
