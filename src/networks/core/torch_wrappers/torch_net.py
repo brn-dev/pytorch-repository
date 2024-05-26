@@ -18,10 +18,7 @@ class TorchNet(Net):
             out_shape=out_shape
         )
         self.torch_module = module
-
-
-    def forward(self, *args, **kwargs):
-        return self.torch_module(*args, **kwargs)
+        self.forward = self.torch_module.forward
 
 
     @staticmethod

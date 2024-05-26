@@ -91,3 +91,43 @@ class DenseSkipNet(LayeredNet):
             layers_cum_in_out_sizes.append((in_size_sum, layers_in_out_sizes[i][-1]))
 
         return layers_cum_in_out_sizes
+
+
+class FullyConnectedDenseSkipNet(DenseSkipNet):
+
+    def __init__(self, layers: NetListLike):
+        super().__init__(
+            layers=layers,
+            layer_connections='full',
+        )
+
+    def forward(self, x, *args, **kwargs) -> torch.Tensor:
+        dense_tensor = x
+
+        for i, layer in enumerate(self.layers):
+            layer_out = layer(dense_tensor, *args, **kwargs)
+            dense_tensor = torch.cat((dense_tensor, layer_out), dim=-1)
+
+        return dense_tensor
+
+    @classmethod
+    def fully_connected_from_layer_provider(
+            cls,
+            layer_provider: LayerProvider,
+            layers_sizes: list[int] = None,
+            in_size: int = None,
+            out_sizes: list[int] = None,
+            num_layers: int = None,
+            num_features: int = None,
+            layer_connections: LayerConnections.LayerConnectionsLike = 'full',
+    ) -> 'FullyConnectedDenseSkipNet':
+        return FullyConnectedDenseSkipNet(
+            layers=cls.provide_layers(layer_provider, cls.compute_layers_cum_in_out_sizes(
+                layer_connections=layer_connections,
+                layers_sizes=layers_sizes,
+                in_size=in_size,
+                out_sizes=out_sizes,
+                num_layers=num_layers,
+                num_features=num_features,
+            )),
+        )
