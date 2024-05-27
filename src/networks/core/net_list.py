@@ -12,6 +12,7 @@ class NetList(nn.ModuleList):
     _modules: Dict[str, Net]
 
     def __init__(self, layers: Iterable[Net]):
+        assert all(isinstance(l, Net) for l in layers)
         super().__init__(modules=layers)
 
     def __getitem__(self, idx: int | slice) -> Union[Net, 'NetList']:

@@ -58,10 +58,9 @@ class MultiAgentCartPole3D(gym.Env):
         self.render_height = render_height
 
         self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(self.nr_carts, 2))
-        obs_range = np.array([
-            [self.slide_range] * 2 + [self.hinge_range] * 2,
-            [1.0e20] * 2 + [1.0e20] * 2
-        ])[np.newaxis, :, :].repeat(self.nr_carts, axis=0)
+        obs_range = np.array(
+            [self.slide_range] * 2 + [self.hinge_range] * 2 + [1.0e20] * 2 + [1.0e20] * 2
+        )[np.newaxis, :].repeat(self.nr_carts, axis=0)
         self.observation_space = gym.spaces.Box(low=-obs_range, high=obs_range)
 
         self.physics = self.create_physics()
@@ -98,12 +97,12 @@ class MultiAgentCartPole3D(gym.Env):
 
         return observations, reward, terminated, truncated, info
 
-    def render(self, camera_id=-1) -> np.ndarray | None:
+    def render(self, camera_id=1) -> np.ndarray | None:
         if self.render_mode == 'human':
             return PIL.Image.fromarray(
                 self.physics.render(width=self.render_width, height=self.render_height, camera_id=camera_id)
             )
-        if self.render_mode == 'numpy':
+        if self.render_mode == 'rgb_array':
             return self.physics.render(width=self.render_width, height=self.render_height, camera_id=camera_id)
         if self.render_mode is None:
             return None
@@ -141,7 +140,7 @@ class MultiAgentCartPole3D(gym.Env):
 
         return self.get_observations(), dict()
 
-    def get_observations(self):
+    def get_observations(self) -> np.ndarray:
         return np.concatenate([
             self.physics.data.qpos.reshape((self.nr_carts, -1)),
             self.physics.data.qvel.reshape((self.nr_carts, -1))

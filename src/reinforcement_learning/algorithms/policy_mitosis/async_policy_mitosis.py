@@ -1,6 +1,9 @@
 import multiprocessing as mp
 import multiprocessing.connection as mp_conn
 import sys
+import threading
+import time
+import traceback
 from typing import Callable, Iterable, Any
 
 import numpy as np
@@ -30,6 +33,8 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_base_ancestors: int,
             rng_seed: int | None,
+            initialization_delay: float = 0.0,
+            delay_between_workers: float = 0.0,
     ):
         super().__init__(
             policy_db=policy_db,
@@ -42,6 +47,8 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
         )
         self.num_workers = num_workers
         self.create_env = create_env
+        self.initialization_delay = initialization_delay
+        self.delay_between_workers = delay_between_workers
 
     def train_with_mitosis(self, nr_iterations: int):
 
@@ -70,10 +77,21 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             process.start()
             child_pipe.close()
 
+        if self.initialization_delay > 0:
+            time.sleep(self.initialization_delay)
+
         iterations_started = 0
-        for pipe in parent_pipes:
-            self.start_iteration(pipe)
+        for i, pipe in enumerate(parent_pipes):
             iterations_started += 1
+
+            if self.delay_between_workers <= 0:
+                self.start_iteration(pipe)
+            else:
+                delay = self.delay_between_workers * i
+                print(f'Starting worker {i} with {delay = }')
+                self.start_iteration(pipe)
+                time.sleep(self.delay_between_workers)
+
 
         while parent_pipes:
             for ready_pipe in mp_conn.wait(parent_pipes):
@@ -159,7 +177,7 @@ def _worker(
 
             pipe.send((True, policy.cpu().state_dict(), policy_info))
     except (KeyboardInterrupt, Exception):
-        error_queue.put((index,) + sys.exc_info()[:])
+        error_queue.put((index,) + sys.exc_info()[:-1] + (traceback.format_exc(),))
         pipe.send((False, None, None))
     finally:
         env.close()

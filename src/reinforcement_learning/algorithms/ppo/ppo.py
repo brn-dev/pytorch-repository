@@ -165,7 +165,7 @@ class PPO(PolicyOptimizationBase):
         optimization_infos: list[InfoDict] = []
         continue_training = True
         nr_updates = 0
-        i_epoch = 0
+        epochs_done = 0
         for i_epoch in range(self.ppo_max_epochs):
             epoch_infos: list[InfoDict] = []
 
@@ -216,13 +216,15 @@ class PPO(PolicyOptimizationBase):
 
             optimization_infos.append(concat_infos(epoch_infos))
 
-            if not continue_training:
+            if continue_training:
+                epochs_done += 1
+            else:
                 break
 
         for info_key, info_value in concat_infos(optimization_infos).items():
             info[info_key] = info_value
 
-        info['nr_ppo_epochs'] = i_epoch + 1
+        info['nr_ppo_epochs'] = epochs_done
         info['nr_ppo_updates'] = nr_updates
 
     def compute_ppo_objectives(

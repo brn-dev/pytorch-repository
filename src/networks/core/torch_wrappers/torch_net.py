@@ -1,3 +1,5 @@
+from typing import TypeVar, Generic
+
 import torch
 from torch import nn
 
@@ -10,9 +12,12 @@ from src.torch_nn_modules import is_nn_activation_module, is_nn_dropout_module, 
     is_nn_linear_module, is_nn_identity_module
 
 
-class TorchNet(Net):
+ModuleType = TypeVar('ModuleType', bound=nn.Module)
 
-    def __init__(self, module: nn.Module, in_shape: TensorShape, out_shape=TensorShape):
+
+class TorchNet(Net, Generic[ModuleType]):
+
+    def __init__(self, module: ModuleType, in_shape: TensorShape, out_shape=TensorShape):
         super().__init__(
             in_shape=in_shape,
             out_shape=out_shape
@@ -22,7 +27,7 @@ class TorchNet(Net):
 
 
     @staticmethod
-    def wrap(module: nn.Module) -> Net:
+    def wrap(module: ModuleType) -> 'TorchNet[ModuleType]':
         in_shape, out_shape = TorchNet.detect_in_out_shapes(module)
         return TorchNet(
             module=module,
@@ -31,7 +36,7 @@ class TorchNet(Net):
         )
 
     @staticmethod
-    def detect_in_out_shapes(module: nn.Module):
+    def detect_in_out_shapes(module: ModuleType):
         if (is_nn_activation_module(module) or is_nn_dropout_module(module)
                 or is_nn_pooling_module(module) or is_nn_padding_module(module)
                 or is_nn_identity_module(module)):
@@ -60,6 +65,11 @@ class TorchNet(Net):
 
         elif isinstance(module, nn.Sequential):
             in_shape, out_shape = find_seq_in_out_shapes(module)
+
+        elif isinstance(module, nn.MultiheadAttention):
+            shape = TensorShape(features=module.embed_dim)
+            shape.create_structural_dimension()
+            in_shape, out_shape = shape, shape.copy()
 
         else:
             raise ValueError(f'Unknown module type {type(module)}')

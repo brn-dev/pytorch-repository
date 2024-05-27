@@ -31,13 +31,6 @@ class MultiheadSelfAttention(Net):
         self.mha = nn.MultiheadAttention(embed_dim, num_heads, dropout, bias, add_bias_kv, add_zero_attn, kdim, vdim,
                                          batch_first, device, dtype)
 
-    @override
-    def check_in_shape(self, in_shape: TensorShape):
-        super().check_in_shape(in_shape)
-        if len(in_shape.dimension_names) != 3:
-            raise TensorShapeError(f'MultiheadSelfAttention requires exactly 3 input '
-                                   f'dimensions (S, B, F), got {in_shape}')
-
     def forward(
             self,
             x: torch.Tensor,

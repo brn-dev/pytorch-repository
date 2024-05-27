@@ -23,7 +23,7 @@ class Net(nn.Module, abc.ABC):
         self.allow_extra_dimensions = allow_extra_dimensions
 
     def check_in_shape(self, in_shape: TensorShape):
-        if not self.allow_extra_dimensions and self.in_shape.dimension_names != in_shape.dimension_names:
+        if not self.allow_extra_dimensions and self.in_shape.dimension_names < in_shape.dimension_names:
             raise TensorShapeError(f'This net only accepts tensors with the following dimensions: '
                                    f'{self.in_shape.dimension_names}, got {in_shape.dimension_names}',
                                    self_in_shape=self.in_shape, in_shape=in_shape)
@@ -62,10 +62,14 @@ class Net(nn.Module, abc.ABC):
         return get_gradients_per_parameter(self, param_type)
 
     @staticmethod
-    def as_net(module: Union['Net', nn.Module]) -> 'Net':
+    def as_net(module: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
         if isinstance(module, Net):
             return module
         if isinstance(module, nn.Module):
             from src.networks.core.torch_wrappers.torch_net import TorchNet
             return TorchNet.wrap(module)
         raise ValueError(f'Invalid type for {module = }')
+
+    @staticmethod
+    def sequential_net(*modules: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
+        return Net.as_net(nn.Sequential(*modules))
