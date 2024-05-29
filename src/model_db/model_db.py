@@ -98,17 +98,14 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
     def copy_from(
             self,
             other_db: 'ModelDB[OtherModelInfo]',
-            filter_: Callable[[ModelEntry[OtherModelInfo]], bool] = lambda entry: True,
-            map_: Callable[[ModelEntry[OtherModelInfo], StateDict], tuple[ModelEntry[ModelInfo], StateDict]] =
+            entry_filter: Callable[[ModelEntry[OtherModelInfo]], bool] = lambda entry: True,
+            entry_map: Callable[[ModelEntry[OtherModelInfo], StateDict], tuple[ModelEntry[ModelInfo], StateDict]] =
                     lambda entry, state_dict: (entry, state_dict)
     ):
-        for other_entry in other_db.all_entries():
-            if not filter_(other_entry):
-                continue
-
+        for other_entry in other_db.filtered_entries(entry_filter):
             state_dict, _ = other_db.load_state_dict(other_entry['model_id'])
 
-            entry, state_dict = map_(other_entry, state_dict)
+            entry, state_dict = entry_map(other_entry, state_dict)
 
             self.save_state_dict(
                 state_dict=state_dict,
