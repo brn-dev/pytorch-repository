@@ -37,7 +37,7 @@ class PolicyMitosisBase(abc.ABC):
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
-            min_base_ancestors: int,
+            min_primordial_ancestors: int,
             rng_seed: int | None,
     ):
         self.policy_db = policy_db
@@ -50,12 +50,12 @@ class PolicyMitosisBase(abc.ABC):
         self.new_wrap_env_source_code = inspect.getsource(new_wrap_env_function)
 
         self.select_policy_selection_probs = select_policy_selection_probs
-        self.min_base_ancestors = min_base_ancestors
+        self.min_primordial_ancestors = min_primordial_ancestors
 
         self.rng = np.random.default_rng(rng_seed)
 
         self.policy_id_random_alphanumeric_length = 6
-        self.sufficient_base_ancestors = False
+        self.sufficient_primordial_ancestors = False
 
     @abc.abstractmethod
     def train_with_mitosis(self, nr_iterations: int):
@@ -84,9 +84,9 @@ class PolicyMitosisBase(abc.ABC):
 
     def pick_policy_info(self) -> MitosisPolicyInfo:
         nr_policies = len(self.policy_db)
-        sufficient_base_ancestors = self.eval_sufficient_base_ancestors()
+        sufficient_primordial_ancestors = self.eval_sufficient_primordial_ancestors()
 
-        if not sufficient_base_ancestors or self.rng.random() < 1.0 / (nr_policies + 1):
+        if not sufficient_primordial_ancestors or self.rng.random() < 1.0 / (nr_policies + 1):
             return self.create_new_policy_info()
         else:
             selected_parent_policy_info = self.select_parent_policy_info()
@@ -137,16 +137,16 @@ class PolicyMitosisBase(abc.ABC):
         ))
         return f'{get_current_timestamp()}~{random_alphanumeric}'
 
-    def eval_sufficient_base_ancestors(self):
-        if self.sufficient_base_ancestors:
+    def eval_sufficient_primordial_ancestors(self):
+        if self.sufficient_primordial_ancestors:
             return True
 
-        self.sufficient_base_ancestors = len([
+        self.sufficient_primordial_ancestors = len([
             policy_entry
             for policy_entry
             in self.policy_db.all_entries()
             if policy_entry['parent_model_id'] is None
-        ]) >= self.min_base_ancestors
+        ]) >= self.min_primordial_ancestors
 
-        return self.sufficient_base_ancestors
+        return self.sufficient_primordial_ancestors
 

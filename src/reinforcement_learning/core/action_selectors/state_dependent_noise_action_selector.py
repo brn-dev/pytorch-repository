@@ -24,7 +24,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             latent_dim: int,
             action_dim: int,
             initial_std: float,
-            use_full_stds: bool = True,
+            use_individual_action_stds: bool = True,
             use_stds_expln: bool = False,
             squash_output: bool = False,
             learn_sde_features: bool = True,
@@ -39,13 +39,13 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             action_net_initialization=action_net_initialization,
         )
 
-        self.use_full_stds = use_full_stds
-        self.use_stds_expln = use_stds_expln
-        if self.use_full_stds:
+        self.use_individual_action_stds = use_individual_action_stds
+        if self.use_individual_action_stds:
             log_stds = torch.ones((self.latent_dim, self.action_dim))
         else:
             log_stds = torch.ones((self.latent_dim, 1))
         self.log_stds = nn.Parameter(log_stds * math.log(initial_std), requires_grad=True)
+        self.use_stds_expln = use_stds_expln
         self.sample_exploration_noise()
 
         self.distribution: Optional[torchdist.Normal] = None
@@ -144,7 +144,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         else:
             stds = torch.exp(log_stds)
 
-        if self.use_full_stds:
+        if self.use_individual_action_stds:
             return stds
 
         return torch.ones((self.latent_dim, self.action_dim)).to(log_stds.device) * stds

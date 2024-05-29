@@ -31,7 +31,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
-            min_base_ancestors: int,
+            min_primordial_ancestors: int,
             rng_seed: int | None,
             initialization_delay: float = 0.0,
             delay_between_workers: float = 0.0,
@@ -42,7 +42,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             new_init_policy_function=new_init_policy_function,
             new_wrap_env_function=new_wrap_env_function,
             select_policy_selection_probs=select_policy_selection_probs,
-            min_base_ancestors=min_base_ancestors,
+            min_primordial_ancestors=min_primordial_ancestors,
             rng_seed=rng_seed,
         )
         self.num_workers = num_workers

@@ -1,9 +1,9 @@
 from typing import Any
 
-from src.model_db.model_db import ModelDB, ModelEntry, ModelInfoType
+from src.model_db.model_db import ModelDB, ModelEntry, ModelInfo
 
 
-class DummyModelDB(ModelDB[ModelInfoType]):
+class DummyModelDB(ModelDB[ModelInfo]):
 
     def __enter__(self):
         pass
@@ -25,18 +25,21 @@ class DummyModelDB(ModelDB[ModelInfoType]):
             state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
-            model_info: ModelInfoType,
-    ) -> ModelEntry[ModelInfoType]:
+            model_info: ModelInfo,
+    ) -> ModelEntry[ModelInfo]:
         pass
 
-    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
+    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfo]]:
         raise NotImplementedError('Dummy ModelDB can not load models')
 
-    def all_entries(self) -> list[ModelEntry[ModelInfoType]]:
+    def all_entries(self) -> list[ModelEntry[ModelInfo]]:
         raise NotImplementedError('Dummy ModelDB fetch entries')
 
-    def fetch_entry(self, model_id: str) -> ModelEntry[ModelInfoType]:
+    def fetch_entry(self, model_id: str) -> ModelEntry[ModelInfo]:
         raise NotImplementedError('Dummy ModelDB fetch entries')
 
     def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
+        pass
+
+    def _save_entry(self, entry: ModelEntry[ModelInfo]):
         pass
