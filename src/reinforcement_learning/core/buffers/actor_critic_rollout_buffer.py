@@ -9,8 +9,8 @@ from src.reinforcement_learning.core.normalization import NormalizationType, nor
 
 
 class ActorCriticRolloutBuffer(BasicRolloutBuffer):
-    def __init__(self, buffer_size: int, num_envs: int, obs_shape: tuple[int, ...], detach_actions: bool = True):
-        super().__init__(buffer_size, num_envs, obs_shape, detach_actions)
+    def __init__(self, buffer_size: int, num_envs: int, obs_shape: tuple[int, ...]):
+        super().__init__(buffer_size, num_envs, obs_shape)
 
         self.value_estimates: list[torch.Tensor] = []
 

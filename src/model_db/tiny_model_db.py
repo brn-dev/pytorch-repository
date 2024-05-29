@@ -53,15 +53,12 @@ class TinyModelDB(ModelDB[ModelInfoType]):
         entry: ModelEntry[ModelInfoType] = {
             'model_id': model_id,
             'parent_model_id': parent_model_id,
-            'state_dict_path': '',
             'model_info': model_info,
             'last_update_time': str(datetime.datetime.now())
         }
 
-        state_dict_path = os.path.join(self.base_path, f'{model_id}--state_dict.pth')
-        entry['state_dict_path'] = state_dict_path
-
-        torch.save(state_dict, state_dict_path)
+        state_dict_file_path = self.get_state_dict_file_path(entry)
+        torch.save(state_dict, state_dict_file_path)
 
         self.db.upsert(entry, cond=self.create_model_id_query(model_id))
 
@@ -69,7 +66,7 @@ class TinyModelDB(ModelDB[ModelInfoType]):
 
     def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfoType]]:
         entry: ModelEntry[ModelInfoType] = self.fetch_entry(model_id)
-        state_dict = torch.load(entry['state_dict_path'])
+        state_dict = torch.load(self.get_state_dict_file_path(entry))
 
         return state_dict, entry
 
@@ -87,11 +84,15 @@ class TinyModelDB(ModelDB[ModelInfoType]):
     def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
         if delete_state_dict:
             entry = self.fetch_entry(model_id)
-            os.remove(entry['state_dict_path'])
+            os.remove(self.get_state_dict_file_path(entry))
 
         self.db.remove(cond=self.create_model_id_query(model_id))
+
+    def get_state_dict_file_path(self, model_entry: ModelEntry[ModelInfoType]):
+        return os.path.join(self.base_path, f'{model_entry["model_id"]}--state_dict.pth')
 
     @staticmethod
     def create_model_id_query(model_id: str) -> QueryLike:
         entry_query = Query()
         return entry_query.model_id == model_id
+

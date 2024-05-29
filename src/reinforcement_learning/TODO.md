@@ -1,5 +1,7 @@
 
-weight initialization
+log action magnitude
+
+cartpole: pretrain to action 0
 
 save optimizer state with model
 

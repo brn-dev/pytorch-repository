@@ -19,8 +19,13 @@ class PolicyWithEnvAndInfo(TypedDict):
     env: Env
     policy_info: MitosisPolicyInfo
 
+class TrainInfo(TypedDict):
+    steps_trained: int
+    optimizations_done: int
+    score: float
 
-TrainPolicyFunction = Callable[[PolicyWithEnvAndInfo], tuple[int, float]]
+
+TrainPolicyFunction = Callable[[PolicyWithEnvAndInfo], TrainInfo]
 
 
 class PolicyMitosisBase(abc.ABC):
@@ -61,11 +66,14 @@ class PolicyMitosisBase(abc.ABC):
             train_policy_function: TrainPolicyFunction,
             policy_with_env_and_info: PolicyWithEnvAndInfo
     ):
-        steps_trained, score = train_policy_function(policy_with_env_and_info)
+        train_info = train_policy_function(policy_with_env_and_info)
+        steps_trained = train_info['steps_trained']
 
         policy_info = policy_with_env_and_info['policy_info']
+
         policy_info['steps_trained'] += steps_trained
-        policy_info['score'] = score
+        policy_info['optimizations_done'] += train_info['optimizations_done']
+        policy_info['score'] = train_info['score']
 
         try:
             num_envs = policy_with_env_and_info['env'].get_wrapper_attr("num_envs")
@@ -91,6 +99,7 @@ class PolicyMitosisBase(abc.ABC):
             'score': -1e6,
             'steps_trained': 0,
             'env_steps_trained': 0,
+            'optimizations_done': 0,
             'init_policy_source_code': self.new_init_policy_source_code,
             'wrap_env_source_code': self.new_wrap_env_source_code,
         }

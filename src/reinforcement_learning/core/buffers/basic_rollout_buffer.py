@@ -3,7 +3,7 @@ import torch
 
 
 class BasicRolloutBuffer:
-    def __init__(self, buffer_size: int, num_envs: int, obs_shape: tuple[int, ...], detach_actions: bool = True):
+    def __init__(self, buffer_size: int, num_envs: int, obs_shape: tuple[int, ...]):
         self.buffer_size = buffer_size
         self.num_envs = num_envs
         self.obs_shape = obs_shape
@@ -14,8 +14,6 @@ class BasicRolloutBuffer:
 
         self.actions: list[torch.Tensor] = []
         self.action_log_probs: list[torch.Tensor] = []
-
-        self.detach_actions = detach_actions
 
         self.pos = 0
 
@@ -49,7 +47,7 @@ class BasicRolloutBuffer:
         self.rewards[self.pos] = rewards
         self.episode_starts[self.pos] = episode_starts
 
-        self.actions.append(actions.detach() if self.detach_actions else actions)
+        self.actions.append(actions)
         self.action_log_probs.append(action_log_probs)
 
         self.pos += 1

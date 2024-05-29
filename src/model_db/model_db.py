@@ -9,7 +9,6 @@ ModelInfoType = TypeVar('ModelInfoType', bound=dict[str, Any])
 class ModelEntry(TypedDict, Generic[ModelInfoType]):
     model_id: str
     parent_model_id: Optional[str]
-    state_dict_path: str
 
     model_info: ModelInfoType
 
