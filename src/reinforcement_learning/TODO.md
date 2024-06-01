@@ -1,9 +1,5 @@
 
-log action magnitude
-
-cartpole: pretrain to action 0
-
-save optimizer state with model
+save optimizer state with model <- maybe manage it via model db instead
 
 When negative advantage has been observed, lower learning rate for critic. This keeps the expectation higher.
 or

@@ -40,6 +40,7 @@ class PolicyMitosisBase(abc.ABC):
             min_primordial_ancestors: int,
             rng_seed: int | None,
     ):
+
         self.policy_db = policy_db
         self.train_policy_function = train_policy_function
 
@@ -86,6 +87,7 @@ class PolicyMitosisBase(abc.ABC):
         nr_policies = len(self.policy_db)
         sufficient_primordial_ancestors = self.eval_sufficient_primordial_ancestors()
 
+        # TODO: use parameters for prob
         if not sufficient_primordial_ancestors or self.rng.random() < 1.0 / (nr_policies + 1):
             return self.create_new_policy_info()
         else:
@@ -109,14 +111,6 @@ class PolicyMitosisBase(abc.ABC):
         nr_policies = len(policy_entries)
 
         policy_probs = self.select_policy_selection_probs(entry['model_info'] for entry in policy_entries)
-
-        print('policy selection probs = \n\t' + '\n\t'.join(
-            f'{policy_entries[i]["model_id"]}: {p = :8.6f}, '
-            f'scores = {policy_entries[i]["model_info"]["score"]:7.3f}, '
-            f'steps = {policy_entries[i]["model_info"]["steps_trained"]}'
-            for i, p
-            in enumerate(policy_probs)
-        ))
 
         selected_parent_policy_index = self.rng.choice(range(nr_policies), p=policy_probs)
         selected_parent_policy: ModelEntry[MitosisPolicyInfo] = policy_entries[selected_parent_policy_index]

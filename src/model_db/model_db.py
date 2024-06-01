@@ -1,4 +1,6 @@
 import abc
+from dataclasses import dataclass
+from queue import Queue
 from typing import Any, TypedDict, Optional, TypeVar, Generic, Callable
 
 from torch import nn
@@ -19,6 +21,17 @@ class ModelEntry(TypedDict, Generic[ModelInfo]):
 
 ModelEntryFilter = Callable[[ModelEntry[ModelInfo]], bool]
 ModelEntryMap = Callable[[ModelEntry[ModelInfo]], ModelEntry[ModelInfo]]
+
+@dataclass
+class ModelNode(Generic[ModelInfo]):
+    model_id: str
+
+    parent: Optional['ModelNode[ModelInfo]']
+    children: set['ModelNode[ModelInfo]']
+
+    model_info: ModelInfo
+    last_update_time: str
+
 
 class ModelDB(abc.ABC, Generic[ModelInfo]):
 
@@ -113,4 +126,36 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
                 parent_model_id=entry['parent_model_id'],
                 model_info=entry['model_info'],
             )
+
+    def get_forest(self) -> set[ModelNode[ModelInfo]]:
+        all_entries = self.all_entries()
+
+        all_nodes: dict[str, ModelNode[ModelInfo]] = {
+            entry['model_id']: ModelNode(
+                model_id=entry['model_id'],
+                parent=None,
+                children=set(),
+                model_info=entry['model_info'],
+                last_update_time=entry['last_update_time'],
+            )
+            for entry
+            in all_entries
+        }
+
+        root_nodes: set[ModelNode[ModelInfo]] = set()
+        for entry in all_entries:
+            model_id = entry['model_id']
+            parent_model_id = entry['parent_model_id']
+
+            node = all_nodes[model_id]
+            if parent_model_id is not None:
+                parent_node = all_nodes[parent_model_id]
+
+                node.parent = parent_node
+                parent_node.children.add(node)
+            else:
+                root_nodes.add(node)
+
+        return root_nodes
+
 

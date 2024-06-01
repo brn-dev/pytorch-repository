@@ -6,7 +6,7 @@ import torch
 from overrides import override
 from torch import nn, optim
 
-from src.function_types import TorchReductionFunction, TorchLossFunction
+from src.function_types import TorchLossFunction
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict

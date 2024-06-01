@@ -4,7 +4,6 @@ import torch
 
 
 TorchTensorTransformation = Callable[[torch.Tensor], torch.Tensor]
-TorchReductionFunction = TorchTensorTransformation
 
 
 class TorchLossFunction(Protocol):

@@ -24,7 +24,7 @@ class SimpleMovingAverage(MovingAverage):
         self.n_samples = n_samples
         self.buffer = np.zeros((n_samples,))
         self.pos = 0
-        self.sma = 0
+        self.sma = 0.0
 
     def update(self, value: float) -> float:
         oldest_value = self.buffer[self.pos]
@@ -43,7 +43,7 @@ class SimpleMovingAverage(MovingAverage):
 class ExponentialMovingAverage(MovingAverage):
 
     def __init__(self, alpha: float):
-        self.ema: int | None = None
+        self.ema: float | None = None
         self.alpha = alpha
 
     def update(self, value: float) -> float:
@@ -51,6 +51,26 @@ class ExponentialMovingAverage(MovingAverage):
             self.ema = value
         else:
             self.ema = self.alpha * value + (1 - self.alpha) * self.ema
+        return self.ema
+
+    def get(self) -> float:
+        return self.ema
+
+
+class AsymmetricExponentialMovingAverage(MovingAverage):
+
+    def __init__(self, up_alpha: float, down_alpha: float):
+        self.ema: float | None = None
+        self.up_alpha = up_alpha
+        self.down_alpha = down_alpha
+
+    def update(self, value: float) -> float:
+        if self.ema is None:
+            self.ema = value
+        else:
+            alpha = self.up_alpha if value > self.ema else self.down_alpha
+            self.ema = alpha * value + (1 - alpha) * self.ema
+
         return self.ema
 
     def get(self) -> float:

@@ -7,7 +7,6 @@ import torch
 from overrides import override
 from torch import optim
 
-from src.function_types import TorchTensorTransformation, TorchReductionFunction
 from src.reinforcement_learning.algorithms.policy_optimization_base import Policy, \
     PolicyProvider, LoggingConfig, PolicyOptimizationBase
 from src.reinforcement_learning.algorithms.supervised_pre_training.supervised_pre_training import SupervisedPreTraining

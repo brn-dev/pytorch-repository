@@ -7,14 +7,14 @@ import torch
 from overrides import override
 from torch import nn, optim
 
-from src.function_types import TorchReductionFunction, TorchLossFunction, TorchTensorTransformation
+from src.function_types import TorchLossFunction, TorchTensorTransformation
 from src.module_analysis import calculate_grad_norm
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.batching import batched
 from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
-from src.reinforcement_learning.core.objectives import reduce_and_weigh_objective, ObjectiveLoggingConfig
+from src.reinforcement_learning.core.objectives import weigh_and_reduce_objective, ObjectiveLoggingConfig
 from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, LoggingConfig, \
     PolicyProvider, Policy
 from src.reinforcement_learning.core.normalization import NormalizationType
@@ -63,13 +63,10 @@ class PPO(PolicyOptimizationBase):
             gae_lambda: float = 1.0,
             normalize_rewards: NormalizationType | None = None,
             normalize_advantages: NormalizationType | None = None,
-            reduce_actor_objective: TorchReductionFunction = torch.mean,
-            weigh_actor_objective: TorchTensorTransformation = lambda obj: obj,
-            reduce_entropy_objective: TorchReductionFunction = torch.mean,
-            weigh_entropy_objective: TorchTensorTransformation | None = None,
+            weigh_and_reduce_actor_objective: TorchTensorTransformation = torch.mean,
+            weigh_and_reduce_entropy_objective: TorchTensorTransformation | None = None,
             critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
-            reduce_critic_objective: TorchReductionFunction = torch.mean,
-            weigh_critic_objective: TorchTensorTransformation = lambda obj: obj,
+            weigh_and_reduce_critic_objective: TorchTensorTransformation = torch.mean,
             ppo_max_epochs: int = 5,
             ppo_kl_target: float | None = None,
             ppo_batch_size: int | None = None,
@@ -101,15 +98,11 @@ class PPO(PolicyOptimizationBase):
         self.normalize_rewards = normalize_rewards
         self.normalize_advantages = normalize_advantages
 
-        self.reduce_actor_objective = reduce_actor_objective
-        self.weigh_actor_objective = weigh_actor_objective
-
-        self.reduce_entropy_objective = reduce_entropy_objective
-        self.weigh_entropy_objective = weigh_entropy_objective
+        self.weigh_and_reduce_actor_objective = weigh_and_reduce_actor_objective
+        self.weigh_and_reduce_entropy_objective = weigh_and_reduce_entropy_objective
 
         self.critic_loss_fn = critic_loss_fn
-        self.reduce_critic_objective = reduce_critic_objective
-        self.weigh_critic_objective = weigh_critic_objective
+        self.weigh_and_reduce_critic_objective = weigh_and_reduce_critic_objective
 
         self.ppo_max_epochs = ppo_max_epochs
         self.ppo_kl_target = ppo_kl_target
@@ -300,16 +293,15 @@ class PPO(PolicyOptimizationBase):
         )
         raw_actor_objective = -torch.min(unclipped_actor_objective, clipped_actor_objective)
 
-        actor_objective = reduce_and_weigh_objective(
+        actor_objective = weigh_and_reduce_objective(
             raw_objective=raw_actor_objective,
-            reduce_objective=self.reduce_actor_objective,
-            weigh_objective=self.weigh_actor_objective,
+            weigh_and_reduce_function=self.weigh_and_reduce_actor_objective,
             info=info,
             objective_name='actor_objective',
             logging_config=self.logging_config.actor_objective,
         )
 
-        if self.weigh_entropy_objective is not None:
+        if self.weigh_and_reduce_entropy_objective is not None:
             entropy = new_action_selector.entropy()
             if entropy is None:
                 # Approximate entropy when no analytical form
@@ -317,10 +309,9 @@ class PPO(PolicyOptimizationBase):
             else:
                 negative_entropy = -entropy
 
-            entropy_objective = reduce_and_weigh_objective(
+            entropy_objective = weigh_and_reduce_objective(
                 raw_objective=negative_entropy,
-                reduce_objective=self.reduce_entropy_objective,
-                weigh_objective=self.weigh_entropy_objective,
+                weigh_and_reduce_function=self.weigh_and_reduce_entropy_objective,
                 info=info,
                 objective_name='entropy_objective',
                 logging_config=self.logging_config.entropy_objective
@@ -349,10 +340,9 @@ class PPO(PolicyOptimizationBase):
 
         raw_critic_objective = self.critic_loss_fn(value_estimates, returns, reduction='none')
 
-        critic_objective = reduce_and_weigh_objective(
+        critic_objective = weigh_and_reduce_objective(
             raw_objective=raw_critic_objective,
-            reduce_objective=self.reduce_critic_objective,
-            weigh_objective=self.weigh_critic_objective,
+            weigh_and_reduce_function=self.weigh_and_reduce_critic_objective,
             info=info,
             objective_name='critic_objective',
             logging_config=self.logging_config.critic_objective
