@@ -106,7 +106,7 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
 
     def delete_entries(self, entry_filter: ModelEntryFilter, delete_state_dict: bool):
         for entry in self.filtered_entries(entry_filter):
-            self.delete_entry(entry['model_info'], delete_state_dict=delete_state_dict)
+            self.delete_entry(entry['model_id'], delete_state_dict=delete_state_dict)
 
     def copy_from(
             self,

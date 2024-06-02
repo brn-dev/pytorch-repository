@@ -36,6 +36,7 @@ class PolicyMitosisBase(abc.ABC):
             train_policy_function: TrainPolicyFunction,
             new_init_policy_function: Callable[[], BasePolicy],
             new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
+            new_policy_prob_function: Callable[[int, int], float],
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_primordial_ancestors: int,
             rng_seed: int | None,
@@ -46,6 +47,7 @@ class PolicyMitosisBase(abc.ABC):
 
         self.new_init_policy_function = new_init_policy_function
         self.new_init_policy_source_code = inspect.getsource(new_init_policy_function)
+        self.new_policy_prob_function = new_policy_prob_function
 
         self.new_wrap_env_function = new_wrap_env_function
         self.new_wrap_env_source_code = inspect.getsource(new_wrap_env_function)
@@ -85,10 +87,17 @@ class PolicyMitosisBase(abc.ABC):
 
     def pick_policy_info(self) -> MitosisPolicyInfo:
         nr_policies = len(self.policy_db)
-        sufficient_primordial_ancestors = self.eval_sufficient_primordial_ancestors()
+        nr_primordial_ancestors = len([
+            policy_entry
+            for policy_entry
+            in self.policy_db.all_entries()
+            if policy_entry['parent_model_id'] is None
+        ])
 
-        # TODO: use parameters for prob
-        if not sufficient_primordial_ancestors or self.rng.random() < 1.0 / (nr_policies + 1):
+        sufficient_primordial_ancestors = nr_primordial_ancestors >= self.min_primordial_ancestors
+        new_policy_prob = self.new_policy_prob_function(nr_policies, nr_primordial_ancestors)
+
+        if not sufficient_primordial_ancestors or self.rng.random() < new_policy_prob:
             return self.create_new_policy_info()
         else:
             selected_parent_policy_info = self.select_parent_policy_info()
@@ -130,17 +139,4 @@ class PolicyMitosisBase(abc.ABC):
             self.policy_id_random_alphanumeric_length
         ))
         return f'{get_current_timestamp()}~{random_alphanumeric}'
-
-    def eval_sufficient_primordial_ancestors(self):
-        if self.sufficient_primordial_ancestors:
-            return True
-
-        self.sufficient_primordial_ancestors = len([
-            policy_entry
-            for policy_entry
-            in self.policy_db.all_entries()
-            if policy_entry['parent_model_id'] is None
-        ]) >= self.min_primordial_ancestors
-
-        return self.sufficient_primordial_ancestors
 
