@@ -2,15 +2,14 @@ from typing import Callable, Iterable
 
 import numpy as np
 from gymnasium import Env
-from gymnasium.vector import VectorEnv
+from torch import optim
 
 from src.model_db.model_db import ModelDB
-from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base import PolicyMitosisBase, \
-    PolicyWithEnvAndInfo, TrainPolicyFunction
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.core.policies.policy_initialization import init_policy_using_source
 from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
-from src.reinforcement_learning.gym.env_wrapping import wrap_env_using_source
+from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base import PolicyMitosisBase, \
+    TrainInfo, TrainPolicyFunction
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.core.policy_construction import PolicyConstruction, PolicyInitializationInfo
 
 
 class PolicyMitosis(PolicyMitosisBase):
@@ -20,21 +19,23 @@ class PolicyMitosis(PolicyMitosisBase):
             policy_db: ModelDB[MitosisPolicyInfo],
             train_policy_function: TrainPolicyFunction,
             env: Env | Callable[[], Env],
-            new_init_policy_function: Callable[[], BasePolicy],
-            new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
+            new_policy_initialization_info: PolicyInitializationInfo,
             new_policy_prob_function: Callable[[int, int], float],
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_primordial_ancestors: int,
+            save_optimizer_state_dicts: bool,
+            load_optimizer_state_dicts: bool,
             rng_seed: int | None,
     ):
         super().__init__(
             policy_db=policy_db,
             train_policy_function=train_policy_function,
-            new_init_policy_function=new_init_policy_function,
-            new_wrap_env_function=new_wrap_env_function,
+            new_policy_initialization_info=new_policy_initialization_info,
             new_policy_prob_function=new_policy_prob_function,
             select_policy_selection_probs=select_policy_selection_probs,
             min_primordial_ancestors=min_primordial_ancestors,
+            save_optimizer_state_dicts=save_optimizer_state_dicts,
+            load_optimizer_state_dicts=load_optimizer_state_dicts,
             rng_seed=rng_seed,
         )
 
@@ -47,11 +48,11 @@ class PolicyMitosis(PolicyMitosisBase):
         for i_iteration in range(nr_iterations):
             policy_info = self.pick_policy_info()
 
-            policy_with_env_and_info = self.create_policy_with_env_and_info(policy_info)
+            train_info = self.create_train_info(policy_info)
 
-            PolicyMitosisBase.train_policy_iteration(self.train_policy_function, policy_with_env_and_info)
+            PolicyMitosisBase.train_policy_iteration(self.train_policy_function, train_info)
 
-            self.save_policy(policy_with_env_and_info['policy'], policy_with_env_and_info['policy_info'])
+            self.save_policy(train_info['policy'], train_info['policy_info'])
 
     def train_lineage(self, start_policy_policy_id: str, nr_iterations: int):
         policy_id = start_policy_policy_id
@@ -59,29 +60,35 @@ class PolicyMitosis(PolicyMitosisBase):
             parent_policy_info = self.policy_db.fetch_entry(policy_id)['model_info']
             policy_info = self.create_child_policy_info(parent_policy_info)
 
-            policy_with_env_and_info = self.create_policy_with_env_and_info(policy_info)
+            train_info = self.create_train_info(policy_info)
 
-            PolicyMitosisBase.train_policy_iteration(self.train_policy_function, policy_with_env_and_info)
-            self.save_policy(policy_with_env_and_info['policy'], policy_with_env_and_info['policy_info'])
+            PolicyMitosisBase.train_policy_iteration(self.train_policy_function, train_info)
+            self.save_policy(train_info['policy'], train_info['optimizer'], train_info['policy_info'])
 
             policy_id = policy_info['policy_id']
 
-    def create_policy_with_env_and_info(self, policy_info: MitosisPolicyInfo) -> PolicyWithEnvAndInfo:
-        policy = init_policy_using_source(policy_info['init_policy_source_code'])
+    def create_train_info(self, policy_info: MitosisPolicyInfo) -> TrainInfo:
+        policy, optimizer, env = PolicyConstruction.init_from_info(policy_info['initialization_info'], self.env)
 
         if policy_info['parent_policy_id'] is not None:
-            self.policy_db.load_model_state_dict(policy, policy_info['parent_policy_id'])
+            self.policy_db.load_model_state_dict(
+                policy_info['parent_policy_id'],
+                policy,
+                optimizer if self.load_optimizer_state_dicts else None
+            )
 
         return {
             'policy': policy,
-            'env': wrap_env_using_source(self.env, policy_info['wrap_env_source_code']),
+            'optimizer': optimizer,
+            'env': env,
             'policy_info': policy_info,
         }
 
-    def save_policy(self, policy: BasePolicy, policy_info: MitosisPolicyInfo):
+    def save_policy(self, policy: BasePolicy, optimizer: optim.Optimizer, policy_info: MitosisPolicyInfo):
         self.policy_db.save_model_state_dict(
-            model=policy,
             model_id=policy_info['policy_id'],
             parent_model_id=policy_info['parent_policy_id'],
-            model_info=policy_info
+            model_info=policy_info,
+            model=policy,
+            optimizer=optimizer if self.save_optimizer_state_dicts else None,
         )

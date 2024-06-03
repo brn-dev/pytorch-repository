@@ -1,31 +1,33 @@
 import abc
-import inspect
 from typing import Callable, TypedDict, Iterable
 
 import numpy as np
 from gymnasium import Env
-from gymnasium.vector import VectorEnv
+from torch import optim
 
 from src.datetime import get_current_timestamp
 from src.model_db.model_db import ModelDB, ModelEntry
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.core.policy_construction import PolicyInitializationInfo, PolicyConstructionOverride
 
 ALPHANUMERIC_ALPHABET = list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
 
-class PolicyWithEnvAndInfo(TypedDict):
+class TrainInfo(TypedDict):
     policy: BasePolicy
+    optimizer: optim.Optimizer
     env: Env
     policy_info: MitosisPolicyInfo
 
-class TrainInfo(TypedDict):
+
+class TrainResultInfo(TypedDict):
     steps_trained: int
     optimizations_done: int
     score: float
 
 
-TrainPolicyFunction = Callable[[PolicyWithEnvAndInfo], TrainInfo]
+TrainPolicyFunction = Callable[[TrainInfo], TrainResultInfo]
 
 
 class PolicyMitosisBase(abc.ABC):
@@ -34,26 +36,28 @@ class PolicyMitosisBase(abc.ABC):
             self,
             policy_db: ModelDB[MitosisPolicyInfo],
             train_policy_function: TrainPolicyFunction,
-            new_init_policy_function: Callable[[], BasePolicy],
-            new_wrap_env_function: Callable[[Env | VectorEnv], Env | VectorEnv],
+            new_policy_initialization_info: PolicyInitializationInfo,
             new_policy_prob_function: Callable[[int, int], float],
+            policy_construction_override: PolicyConstructionOverride,
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_primordial_ancestors: int,
+            save_optimizer_state_dicts: bool,
+            load_optimizer_state_dicts: bool,
             rng_seed: int | None,
     ):
-
         self.policy_db = policy_db
         self.train_policy_function = train_policy_function
 
-        self.new_init_policy_function = new_init_policy_function
-        self.new_init_policy_source_code = inspect.getsource(new_init_policy_function)
+        self.new_policy_initialization_info = new_policy_initialization_info
         self.new_policy_prob_function = new_policy_prob_function
 
-        self.new_wrap_env_function = new_wrap_env_function
-        self.new_wrap_env_source_code = inspect.getsource(new_wrap_env_function)
+        self.policy_construction_override = policy_construction_override
 
         self.select_policy_selection_probs = select_policy_selection_probs
         self.min_primordial_ancestors = min_primordial_ancestors
+
+        self.save_optimizer_state_dicts = save_optimizer_state_dicts
+        self.load_optimizer_state_dicts = load_optimizer_state_dicts
 
         self.rng = np.random.default_rng(rng_seed)
 
@@ -67,19 +71,19 @@ class PolicyMitosisBase(abc.ABC):
     @staticmethod
     def train_policy_iteration(
             train_policy_function: TrainPolicyFunction,
-            policy_with_env_and_info: PolicyWithEnvAndInfo
+            train_info: TrainInfo
     ):
-        train_info = train_policy_function(policy_with_env_and_info)
-        steps_trained = train_info['steps_trained']
+        train_result = train_policy_function(train_info)
+        steps_trained = train_result['steps_trained']
 
-        policy_info = policy_with_env_and_info['policy_info']
+        policy_info = train_info['policy_info']
 
         policy_info['steps_trained'] += steps_trained
-        policy_info['optimizations_done'] += train_info['optimizations_done']
-        policy_info['score'] = train_info['score']
+        policy_info['optimizations_done'] += train_result['optimizations_done']
+        policy_info['score'] = train_result['score']
 
         try:
-            num_envs = policy_with_env_and_info['env'].get_wrapper_attr("num_envs")
+            num_envs = train_info['env'].get_wrapper_attr("num_envs")
         except AttributeError:
             num_envs = 1
 
@@ -111,8 +115,7 @@ class PolicyMitosisBase(abc.ABC):
             'steps_trained': 0,
             'env_steps_trained': 0,
             'optimizations_done': 0,
-            'init_policy_source_code': self.new_init_policy_source_code,
-            'wrap_env_source_code': self.new_wrap_env_source_code,
+            'initialization_info': self.new_policy_initialization_info,
         }
 
     def select_parent_policy_info(self) -> MitosisPolicyInfo:
@@ -130,6 +133,8 @@ class PolicyMitosisBase(abc.ABC):
 
         policy_info['parent_policy_id'] = policy_info['policy_id']
         policy_info['policy_id'] = self.create_policy_id()
+
+        self.policy_construction_override.override_initialization_info(policy_info['initialization_info'])
 
         return policy_info
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from queue import Queue
 from typing import Any, TypedDict, Optional, TypeVar, Generic, Callable
 
-from torch import nn
+from torch import nn, optim
 
 ModelInfo = TypeVar('ModelInfo', bound=dict[str, Any])
 OtherModelInfo = TypeVar('OtherModelInfo', bound=dict[str, Any])
@@ -19,18 +19,9 @@ class ModelEntry(TypedDict, Generic[ModelInfo]):
 
     last_update_time: str
 
+
 ModelEntryFilter = Callable[[ModelEntry[ModelInfo]], bool]
 ModelEntryMap = Callable[[ModelEntry[ModelInfo]], ModelEntry[ModelInfo]]
-
-@dataclass
-class ModelNode(Generic[ModelInfo]):
-    model_id: str
-
-    parent: Optional['ModelNode[ModelInfo]']
-    children: set['ModelNode[ModelInfo]']
-
-    model_info: ModelInfo
-    last_update_time: str
 
 
 class ModelDB(abc.ABC, Generic[ModelInfo]):
@@ -52,30 +43,53 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
     @abc.abstractmethod
     def save_state_dict(
             self,
-            state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
-            model_info: ModelInfo
+            model_info: ModelInfo,
+            model_state_dict: StateDict,
+            optimizer_state_dict: Optional[StateDict],
     ) -> ModelEntry[ModelInfo]:
         raise NotImplemented
 
     def save_model_state_dict(
             self,
-            model: nn.Module,
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfo,
+            model: nn.Module,
+            optimizer: Optional[optim.Optimizer],
     ) -> ModelEntry[ModelInfo]:
-        return self.save_state_dict(model.state_dict(), model_id, parent_model_id, model_info)
+        return self.save_state_dict(
+            model_id=model_id,
+            parent_model_id=parent_model_id,
+            model_info=model_info,
+            model_state_dict=model.state_dict(),
+            optimizer_state_dict=optimizer.state_dict() if optimizer is not None else None,
+        )
 
     @abc.abstractmethod
-    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfo]]:
+    def load_state_dict(
+            self,
+            model_id: str,
+            load_optimizer: bool = True
+    ) -> tuple[StateDict, Optional[StateDict]]:
         raise NotImplemented
 
-    def load_model_state_dict(self, model: nn.Module, model_id: str) -> ModelEntry[ModelInfo]:
-        state_dict, model_entry = self.load_state_dict(model_id)
-        model.load_state_dict(state_dict)
-        return model_entry
+    def load_model_state_dict(
+            self,
+            model_id: str,
+            model: nn.Module,
+            optimizer: Optional[optim.Optimizer] = None,
+    ) -> None:
+        model_state_dict, optimizer_state_dict = self.load_state_dict(
+            model_id,
+            load_optimizer=optimizer is not None
+        )
+
+        model.load_state_dict(model_state_dict)
+
+        if optimizer is not None and optimizer_state_dict is not None:
+            optimizer.load_state_dict(optimizer_state_dict)
 
     @abc.abstractmethod
     def all_entries(self) -> list[ModelEntry[ModelInfo]]:
@@ -112,50 +126,24 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
             self,
             other_db: 'ModelDB[OtherModelInfo]',
             entry_filter: Callable[[ModelEntry[OtherModelInfo]], bool] = lambda entry: True,
-            entry_map: Callable[[ModelEntry[OtherModelInfo], StateDict], tuple[ModelEntry[ModelInfo], StateDict]] =
-                    lambda entry, state_dict: (entry, state_dict)
+            entry_map: Callable[
+                    [ModelEntry[OtherModelInfo], StateDict, StateDict],
+                    tuple[ModelEntry[ModelInfo], StateDict, StateDict]
+                ] = lambda entry, state_dict: (entry, state_dict)
     ):
         for other_entry in other_db.filtered_entries(entry_filter):
-            state_dict, _ = other_db.load_state_dict(other_entry['model_id'])
+            model_state_dict, optim_state_dict = other_db.load_state_dict(
+                other_entry['model_id'], load_optimizer=True
+            )
 
-            entry, state_dict = entry_map(other_entry, state_dict)
+            entry, model_state_dict, optim_state_dict = entry_map(other_entry, model_state_dict, optim_state_dict)
 
             self.save_state_dict(
-                state_dict=state_dict,
                 model_id=entry['model_id'],
                 parent_model_id=entry['parent_model_id'],
                 model_info=entry['model_info'],
+                model_state_dict=model_state_dict,
+                optimizer_state_dict=optim_state_dict,
             )
-
-    def get_forest(self) -> set[ModelNode[ModelInfo]]:
-        all_entries = self.all_entries()
-
-        all_nodes: dict[str, ModelNode[ModelInfo]] = {
-            entry['model_id']: ModelNode(
-                model_id=entry['model_id'],
-                parent=None,
-                children=set(),
-                model_info=entry['model_info'],
-                last_update_time=entry['last_update_time'],
-            )
-            for entry
-            in all_entries
-        }
-
-        root_nodes: set[ModelNode[ModelInfo]] = set()
-        for entry in all_entries:
-            model_id = entry['model_id']
-            parent_model_id = entry['parent_model_id']
-
-            node = all_nodes[model_id]
-            if parent_model_id is not None:
-                parent_node = all_nodes[parent_model_id]
-
-                node.parent = parent_node
-                parent_node.children.add(node)
-            else:
-                root_nodes.add(node)
-
-        return root_nodes
 
 
