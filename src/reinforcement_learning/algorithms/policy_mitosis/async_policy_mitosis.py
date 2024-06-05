@@ -15,6 +15,7 @@ from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base im
     TrainPolicyFunction, TrainInfo
 from src.reinforcement_learning.core.policy_construction import PolicyInitializationInfo, PolicyConstruction, \
     ApplyPolicyStateDictFunction, ApplyOptimizerStateDictFunction, PolicyConstructionOverride
+from src.torch_device import optimizer_to_device
 
 
 class AsyncPolicyMitosis(PolicyMitosisBase):
@@ -61,6 +62,10 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
 
         for i in range(self.num_workers):
             parent_pipe, child_pipe = mp.Pipe()
+
+            apply_policy_state_dict = self.policy_construction_override.apply_policy_state_dict
+            apply_optimizer_state_dict = self.policy_construction_override.apply_optimizer_state_dict
+
             process = mp.Process(
                 target=_worker,
                 name=f'MitosisWorker-{i}',
@@ -69,8 +74,8 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
                     child_pipe,
                     parent_pipe,
                     CloudpickleFunctionWrapper(self.create_env),
-                    CloudpickleFunctionWrapper(self.policy_construction_override.apply_policy_state_dict),
-                    CloudpickleFunctionWrapper(self.policy_construction_override.apply_optimizer_state_dict),
+                    CloudpickleFunctionWrapper(apply_policy_state_dict) if apply_policy_state_dict else None,
+                    CloudpickleFunctionWrapper(apply_optimizer_state_dict) if apply_policy_state_dict else None,
                     CloudpickleFunctionWrapper(self.train_policy_function),
                     error_queue,
                     self.save_optimizer_state_dicts,
@@ -119,7 +124,9 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
                         optimizer_state_dict=optimizer_state_dict if self.save_optimizer_state_dicts else None
                     )
                 else:
-                    print(error_queue.get())
+                    error_items = error_queue.get()
+                    print(error_items[:-1])
+                    print(error_items[-1])
 
                 if iterations_started < nr_iterations:
                     self.start_iteration(ready_pipe)
@@ -196,7 +203,7 @@ def _worker(
 
             optimizer_state_dict: Optional[dict[str, Any]] = None
             if send_optimizer_state_dict:
-                optimizer_state_dict = optimizer.state_dict()
+                optimizer_state_dict = optimizer_to_device(optimizer, 'cpu').state_dict()
 
             pipe.send((True, policy.cpu().state_dict(), optimizer_state_dict, policy_info))
     except (KeyboardInterrupt, Exception):

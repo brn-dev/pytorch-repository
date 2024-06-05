@@ -28,7 +28,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             sum_action_dim: bool = False,
             action_net_initialization: ActionNetInitialization | None = None,
             log_std_net_initialization: LogStdNetInitialization | None = None,
-            log_std_activation: TorchTensorTransformation = lambda x: x,
     ):
         super().__init__(
             latent_dim=latent_dim,
@@ -40,7 +39,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         self.log_std_net = nn.Linear(latent_dim, action_dim)
         if log_std_net_initialization is not None:
             log_std_net_initialization(self.log_std_net)
-        self.log_std_activation = log_std_activation
 
         self.base_log_std = math.log(base_std)
 

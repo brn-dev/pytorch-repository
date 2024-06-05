@@ -64,7 +64,7 @@ class TinyModelDB(ModelDB[ModelInfo]):
 
         if optimizer_state_dict is not None:
             optimizer_state_dict_file_path = self.get_optimizer_state_dict_file_path(model_id)
-            torch.save(model_state_dict, optimizer_state_dict_file_path)
+            torch.save(optimizer_state_dict, optimizer_state_dict_file_path)
 
         self._save_entry(entry)
 

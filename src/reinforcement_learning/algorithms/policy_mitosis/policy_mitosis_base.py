@@ -71,7 +71,7 @@ class PolicyMitosisBase(abc.ABC):
     @staticmethod
     def train_policy_iteration(
             train_policy_function: TrainPolicyFunction,
-            train_info: TrainInfo
+            train_info: TrainInfo,
     ):
         train_result = train_policy_function(train_info)
         steps_trained = train_result['steps_trained']

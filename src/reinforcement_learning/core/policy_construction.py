@@ -69,11 +69,12 @@ def override_initialization_function(info: PolicyInitializationInfo, key: str, f
 def get_initialization_function(info: PolicyInitializationInfo, key: str) -> SomeFunction:
     fun_source_code: str = info[key]  # type: ignore
 
-    locals_globals = {}
-    exec(fun_source_code, locals_globals)
+    globals_ = {}
+    locals_ = {}
+    exec(fun_source_code, globals_, locals_)
 
-    assert len(locals_globals) == 1
-    return list(locals_globals.values())[0]
+    assert len(locals_) == 1, list(locals_.keys())
+    return list(locals_.values())[0]
 
 
 OverrideConditionFunction = Callable[[PolicyInitializationInfo], bool]
