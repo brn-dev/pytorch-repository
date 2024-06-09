@@ -62,7 +62,7 @@ class Net(nn.Module, abc.ABC):
         return get_gradients_per_parameter(self, param_type)
 
     @staticmethod
-    def as_net(module: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
+    def as_net(module: Union['Net', nn.Module]) -> 'Net':  # This has to be Union, string type and | does not work
         if isinstance(module, Net):
             return module
         if isinstance(module, nn.Module):
@@ -71,5 +71,5 @@ class Net(nn.Module, abc.ABC):
         raise ValueError(f'Invalid type for {module = }')
 
     @staticmethod
-    def sequential_net(*modules: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
+    def seq_as_net(*modules: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
         return Net.as_net(nn.Sequential(*modules))

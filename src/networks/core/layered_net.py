@@ -198,7 +198,7 @@ class LayeredNet(Net, abc.ABC):
     def provide_layers(
             cls,
             layer_provider: LayerProvider,
-            in_out_features: list[tuple[int, int]] = None,
+            in_out_features: list[tuple[int, int]],
     ) -> NetList:
         layers: list[Net] = []
 

@@ -49,7 +49,7 @@ class TensorShape:
         for dim_key, dim_value in auxiliary_dimensions.items():
             self[dim_key] = dim_value
 
-    def __getitem__(self, dim_key: DimKeyType) -> sp.core.Expr:
+    def __getitem__(self, dim_key: DimKeyType) -> sp.Expr:
         dim_key = TensorShape._to_key(dim_key)
         return self.dimensions[dim_key].size
 
@@ -245,5 +245,5 @@ class TensorShape:
             in self.dimensions.items()
         })
 
-    def get_definite_features(self):
+    def get_definite_features(self) -> int:
         return self.get_definite_size(self.FEATURES_KEY)
