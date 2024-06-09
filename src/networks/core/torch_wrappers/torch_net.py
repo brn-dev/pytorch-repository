@@ -46,7 +46,7 @@ class TorchNet(Net, Generic[ModuleType]):
         elif isinstance(module, nn.Sequential):
             in_shape, out_shape = find_seq_in_out_shapes(module)
 
-        elif is_nn_convolutional_module(module) or is_nn_pooling_module(compute_conv_in_out_shapes(module)):
+        elif is_nn_convolutional_module(module) or is_nn_pooling_module(module):
             # noinspection PyTypeChecker
             in_shape, out_shape = compute_conv_in_out_shapes(module)
 
