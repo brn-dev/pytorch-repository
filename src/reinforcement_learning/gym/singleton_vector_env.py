@@ -5,10 +5,10 @@ from gymnasium.core import RenderFrame, Env
 from gymnasium.vector import VectorEnv
 
 
-def as_vec_env(env: Env):
+def as_vec_env(env: Env) -> tuple[VectorEnv, int]:
     try:
         num_envs = env.get_wrapper_attr('num_envs')
-        return env, num_envs
+        return env, num_envs  # type: ignore
     except AttributeError:
         return SingletonVectorEnv(env), 1
 
@@ -22,6 +22,7 @@ class SingletonVectorEnv(VectorEnv):
             action_space=env.action_space
         )
         self.env = env
+        self.render_mode = env.render_mode
 
         self._actions: np.ndarray = np.empty((0,))
 

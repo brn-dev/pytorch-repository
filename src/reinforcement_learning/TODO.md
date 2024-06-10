@@ -1,5 +1,5 @@
 
-save optimizer state with model <- maybe manage it via model db instead
+Do another buffer cycle to evaluate the policy, so that the steps_trained is accurate
 
 When negative advantage has been observed, lower learning rate for critic. This keeps the expectation higher.
 or

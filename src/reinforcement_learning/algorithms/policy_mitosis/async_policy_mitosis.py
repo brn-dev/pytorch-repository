@@ -206,8 +206,10 @@ def _worker(
                 optimizer_state_dict = optimizer_to_device(optimizer, 'cpu').state_dict()
 
             pipe.send((True, policy.cpu().state_dict(), optimizer_state_dict, policy_info))
-    except (KeyboardInterrupt, Exception):
+    except (KeyboardInterrupt, Exception) as exc:
         error_queue.put((index,) + sys.exc_info()[:-1] + (traceback.format_exc(),))
+        sys.stderr.write(exc)
+        sys.stdout.flush()
         pipe.send((False, None, None, None))
     finally:
         env.close()

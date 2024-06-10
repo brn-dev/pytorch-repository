@@ -35,7 +35,10 @@ class InitActionSelectorFunction(Protocol):
 
 InitPolicyFunction = Callable[[InitActionSelectorFunction, InitializationHyperParameters], BasePolicy]
 InitOptimizerFunction = Callable[[BasePolicy, InitializationHyperParameters], optim.Optimizer]
-WrapEnvFunction = Callable[[gymnasium.Env, InitializationHyperParameters], gymnasium.Env]
+
+InVecEnv = TypeVar('InVecEnv', bound=gymnasium.vector.VectorEnv)
+OutEnv = TypeVar('OutEnv', bound=gymnasium.Env)
+WrapEnvFunction = Callable[[InVecEnv, InitializationHyperParameters], OutEnv]
 
 StateDict = dict[str, Any]
 ApplyPolicyStateDictFunction = Callable[[BasePolicy, StateDict], None]

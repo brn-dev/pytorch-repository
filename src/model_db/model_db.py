@@ -81,6 +81,7 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
             model: nn.Module,
             optimizer: Optional[optim.Optimizer] = None,
     ) -> None:
+        print(model_id)
         model_state_dict, optimizer_state_dict = self.load_state_dict(
             model_id,
             load_optimizer=optimizer is not None
