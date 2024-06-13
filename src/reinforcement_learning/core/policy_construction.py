@@ -41,8 +41,6 @@ OutEnv = TypeVar('OutEnv', bound=gymnasium.Env)
 WrapEnvFunction = Callable[[InVecEnv, InitializationHyperParameters], OutEnv]
 
 StateDict = dict[str, Any]
-ApplyPolicyStateDictFunction = Callable[[BasePolicy, StateDict], None]
-ApplyOptimizerStateDictFunction = Callable[[optim.Optimizer, StateDict], None]
 
 
 def create_policy_initialization_info(
@@ -92,20 +90,14 @@ class PolicyConstructionOverride:
 
     change_hyper_parameters: Optional[ChangeHyperParametersFunction] = None
 
-    apply_policy_state_dict: Optional[ApplyPolicyStateDictFunction] = None
-    apply_optimizer_state_dict: Optional[ApplyOptimizerStateDictFunction] = None
-
-    override_condition: Optional[OverrideConditionFunction] = None
-
     def override_initialization_info(self, info: PolicyInitializationInfo):
-        if self.override_condition is None or self.override_condition(info):
-            override_initialization_function(info, 'init_action_selector_source_code', self.init_action_selector)
-            override_initialization_function(info, 'init_policy_source_code', self.init_policy)
-            override_initialization_function(info, 'init_optimizer_source_code', self.init_optimizer)
-            override_initialization_function(info, 'wrap_env_source_code', self.wrap_env)
+        override_initialization_function(info, 'init_action_selector_source_code', self.init_action_selector)
+        override_initialization_function(info, 'init_policy_source_code', self.init_policy)
+        override_initialization_function(info, 'init_optimizer_source_code', self.init_optimizer)
+        override_initialization_function(info, 'wrap_env_source_code', self.wrap_env)
 
-            if self.change_hyper_parameters is not None:
-                self.change_hyper_parameters(info['hyper_parameters'])
+        if self.change_hyper_parameters is not None:
+            self.change_hyper_parameters(info['hyper_parameters'])
 
         return info
 
@@ -137,20 +129,12 @@ class PolicyConstruction:
             policy_state_dict: Optional[StateDict],
             optimizer: optim.Optimizer,
             optimizer_state_dict: Optional[StateDict],
-            apply_policy_state_dict: Optional[ApplyPolicyStateDictFunction] = None,
-            apply_optimizer_state_dict: Optional[ApplyOptimizerStateDictFunction] = None,
     ) -> None:
         if policy_state_dict is not None:
-            if apply_policy_state_dict is not None:
-                apply_policy_state_dict(policy, policy_state_dict)
-            else:
-                policy.load_state_dict(policy_state_dict)
+            policy.load_state_dict(policy_state_dict)
 
         if optimizer_state_dict is not None:
-            if apply_optimizer_state_dict is not None:
-                apply_optimizer_state_dict(optimizer, optimizer_state_dict)
-            else:
-                optimizer.load_state_dict(optimizer_state_dict)
+            optimizer.load_state_dict(optimizer_state_dict)
 
     @staticmethod
     def init_and_apply_state_dicts(
@@ -158,8 +142,6 @@ class PolicyConstruction:
             env: gymnasium.Env,
             policy_state_dict: Optional[StateDict],
             optimizer_state_dict: Optional[StateDict],
-            apply_policy_state_dict: Optional[ApplyPolicyStateDictFunction] = None,
-            apply_optimizer_state_dict: Optional[ApplyOptimizerStateDictFunction] = None,
     ) -> tuple[BasePolicy, Optimizer, gymnasium.Env]:
         policy, optimizer, env = PolicyConstruction.init_from_info(info, env)
 
@@ -168,8 +150,6 @@ class PolicyConstruction:
             policy_state_dict=policy_state_dict,
             optimizer=optimizer,
             optimizer_state_dict=optimizer_state_dict,
-            apply_policy_state_dict=apply_policy_state_dict,
-            apply_optimizer_state_dict=apply_optimizer_state_dict,
         )
 
         return policy, optimizer, env

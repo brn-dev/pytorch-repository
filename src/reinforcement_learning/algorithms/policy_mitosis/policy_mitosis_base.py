@@ -38,7 +38,6 @@ class PolicyMitosisBase(abc.ABC):
             train_policy_function: TrainPolicyFunction,
             new_policy_initialization_info: PolicyInitializationInfo,
             new_policy_prob_function: Callable[[int, int], float],
-            policy_construction_override: PolicyConstructionOverride,
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_primordial_ancestors: int,
             save_optimizer_state_dicts: bool,
@@ -50,8 +49,6 @@ class PolicyMitosisBase(abc.ABC):
 
         self.new_policy_initialization_info = new_policy_initialization_info
         self.new_policy_prob_function = new_policy_prob_function
-
-        self.policy_construction_override = policy_construction_override
 
         self.select_policy_selection_probs = select_policy_selection_probs
         self.min_primordial_ancestors = min_primordial_ancestors
@@ -133,8 +130,6 @@ class PolicyMitosisBase(abc.ABC):
 
         policy_info['parent_policy_id'] = policy_info['policy_id']
         policy_info['policy_id'] = self.create_policy_id()
-
-        self.policy_construction_override.override_initialization_info(policy_info['initialization_info'])
 
         return policy_info
 

@@ -13,9 +13,12 @@ from src.multiprocessing_utils import CloudpickleFunctionWrapper
 from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
 from src.reinforcement_learning.algorithms.policy_mitosis.policy_mitosis_base import PolicyMitosisBase, \
     TrainPolicyFunction, TrainInfo
-from src.reinforcement_learning.core.policy_construction import PolicyInitializationInfo, PolicyConstruction, \
-    ApplyPolicyStateDictFunction, ApplyOptimizerStateDictFunction, PolicyConstructionOverride
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.core.policy_construction import PolicyInitializationInfo, PolicyConstruction
 from src.torch_device import optimizer_to_device
+
+
+ModifyPolicyFunction = Callable[[BasePolicy, MitosisPolicyInfo], tuple[BasePolicy, MitosisPolicyInfo]]
 
 
 class AsyncPolicyMitosis(PolicyMitosisBase):
@@ -28,7 +31,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             create_env: Callable[[], Env],
             new_policy_initialization_info: PolicyInitializationInfo,
             new_policy_prob_function: Callable[[int, int], float],
-            policy_construction_override: PolicyConstructionOverride,
+            modify_policy: ModifyPolicyFunction | None,
             select_policy_selection_probs: Callable[[Iterable[MitosisPolicyInfo]], np.ndarray],
             min_primordial_ancestors: int,
             save_optimizer_state_dicts: bool,
@@ -42,7 +45,6 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
             train_policy_function=train_policy_function,
             new_policy_initialization_info=new_policy_initialization_info,
             new_policy_prob_function=new_policy_prob_function,
-            policy_construction_override=policy_construction_override,
             select_policy_selection_probs=select_policy_selection_probs,
             min_primordial_ancestors=min_primordial_ancestors,
             save_optimizer_state_dicts=save_optimizer_state_dicts,
@@ -51,6 +53,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
         )
         self.num_workers = num_workers
         self.create_env = create_env
+        self.modify_policy = modify_policy
         self.initialization_delay = initialization_delay
         self.delay_between_workers = delay_between_workers
 
@@ -63,9 +66,6 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
         for i in range(self.num_workers):
             parent_pipe, child_pipe = mp.Pipe()
 
-            apply_policy_state_dict = self.policy_construction_override.apply_policy_state_dict
-            apply_optimizer_state_dict = self.policy_construction_override.apply_optimizer_state_dict
-
             process = mp.Process(
                 target=_worker,
                 name=f'MitosisWorker-{i}',
@@ -74,8 +74,7 @@ class AsyncPolicyMitosis(PolicyMitosisBase):
                     child_pipe,
                     parent_pipe,
                     CloudpickleFunctionWrapper(self.create_env),
-                    CloudpickleFunctionWrapper(apply_policy_state_dict) if apply_policy_state_dict else None,
-                    CloudpickleFunctionWrapper(apply_optimizer_state_dict) if apply_policy_state_dict else None,
+                    CloudpickleFunctionWrapper(self.modify_policy) if self.modify_policy is not None else None,
                     CloudpickleFunctionWrapper(self.train_policy_function),
                     error_queue,
                     self.save_optimizer_state_dicts,
@@ -162,8 +161,7 @@ def _worker(
         pipe: mp_conn.Connection,
         parent_pipe: mp_conn.Connection,
         create_env: Callable[[], Env],
-        apply_policy_state_dict: Optional[ApplyPolicyStateDictFunction],
-        apply_optimizer_state_dict: Optional[ApplyOptimizerStateDictFunction],
+        modify_policy: ModifyPolicyFunction | None,
         train_policy_function: TrainPolicyFunction,
         error_queue: mp.Queue,
         send_optimizer_state_dict: bool
@@ -188,9 +186,9 @@ def _worker(
                 env=env,
                 policy_state_dict=policy_state_dict,
                 optimizer_state_dict=optimizer_state_dict,
-                apply_policy_state_dict=apply_policy_state_dict,
-                apply_optimizer_state_dict=apply_optimizer_state_dict,
             )
+
+            policy, policy_info = modify_policy(policy, policy_info)
 
             train_info: TrainInfo = {
                 'policy': policy,
