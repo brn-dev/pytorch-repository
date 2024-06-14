@@ -4,8 +4,9 @@ import gymnasium
 import numpy as np
 from gymnasium.vector import VectorEnv
 
+from src.reinforcement_learning.gym.wrappers.reward_wrapper import RewardWrapper
 
-class TransformRewardWrapper(gymnasium.core.Wrapper):
+class TransformRewardWrapper(RewardWrapper):
 
     env: VectorEnv
 
@@ -20,8 +21,8 @@ class TransformRewardWrapper(gymnasium.core.Wrapper):
     def step(self, action):
         observations, rewards, terminated, truncated, infos = self.env.step(action)
 
-        if 'raw_rewards' not in infos:
-            infos['raw_rewards'] = rewards
+        if self.RAW_REWARDS_KEY not in infos:
+            infos[self.RAW_REWARDS_KEY] = rewards
 
         rewards = self.transform_reward(rewards)
 

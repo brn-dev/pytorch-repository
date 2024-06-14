@@ -10,7 +10,7 @@ class BasicRolloutBuffer:
 
         self.observations = np.zeros((buffer_size,) + obs_shape, dtype=np.float32)
         self.rewards = np.zeros((buffer_size, num_envs), dtype=np.float32)
-        self.episode_starts = np.zeros((buffer_size, num_envs)).astype(bool)
+        self.episode_starts = np.zeros((buffer_size, num_envs), dtype=bool)
 
         self.actions: list[torch.Tensor] = []
         self.action_log_probs: list[torch.Tensor] = []

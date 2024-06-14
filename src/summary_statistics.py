@@ -8,8 +8,9 @@ def format_summary_statics(
         arr: TensorOrNpArray,
         mean_format: str | None = '.2f',
         std_format: str | None = '.2f',
-        min_value_format: str | None = '.2f',
-        max_value_format: str | None = '.2f',
+        min_value_format: str | None = None,
+        max_value_format: str | None = None,
+        n_format: str | None = None
 ):
     mean, std, min_value, max_value = compute_summary_statistics(arr)
 
@@ -27,6 +28,9 @@ def format_summary_statics(
         representation += f' ≥ {min_value.__format__(min_value_format)}'
     elif max_value_format:
         representation += f' ≤ {max_value.__format__(max_value_format)}'
+
+    if n_format:
+        representation += f' (n={len(arr).__format__(n_format)})'
 
     return representation
 

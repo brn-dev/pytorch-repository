@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Optional
 
-from src.model_db.model_db import ModelDB, ModelEntry, ModelInfo
+from src.model_db.model_db import ModelDB, ModelEntry, ModelInfo, StateDict
 
 
 class DummyModelDB(ModelDB[ModelInfo]):
@@ -22,14 +22,19 @@ class DummyModelDB(ModelDB[ModelInfo]):
 
     def save_state_dict(
             self,
-            state_dict: dict[str, Any],
             model_id: str,
             parent_model_id: str,
             model_info: ModelInfo,
+            model_state_dict: StateDict,
+            optimizer_state_dict: Optional[StateDict],
     ) -> ModelEntry[ModelInfo]:
         pass
 
-    def load_state_dict(self, model_id: str) -> tuple[dict[str, Any], ModelEntry[ModelInfo]]:
+    def load_state_dict(
+            self,
+            model_id: str,
+            load_optimizer: bool = True
+    ) -> tuple[StateDict, Optional[StateDict]]:
         raise NotImplementedError('Dummy ModelDB can not load models')
 
     def all_entries(self) -> list[ModelEntry[ModelInfo]]:

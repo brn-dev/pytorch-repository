@@ -2,6 +2,8 @@ import numpy as np
 
 import gymnasium
 
+from src.reinforcement_learning.gym.wrappers.reward_wrapper import RewardWrapper
+
 """
 
         Adapted from https://gymnasium.farama.org/_modules/gymnasium/wrappers/normalize/#NormalizeReward
@@ -106,7 +108,7 @@ def update_mean_var_count_from_moments(
 #         return (obs - self.obs_rms.mean) / np.sqrt(self.obs_rms.var + self.epsilon)
 
 
-class NormalizeRewardWrapper(gymnasium.core.Wrapper, gymnasium.utils.RecordConstructorArgs):
+class NormalizeRewardWrapper(RewardWrapper, gymnasium.utils.RecordConstructorArgs):
     r"""This wrapper will normalize immediate rewards s.t. their exponential moving average has a fixed variance.
 
     The exponential moving average will have variance :math:`(1 - \gamma)^2`.
@@ -148,8 +150,8 @@ class NormalizeRewardWrapper(gymnasium.core.Wrapper, gymnasium.utils.RecordConst
         """Steps through the environment, normalizing the rewards returned."""
         observations, rewards, terminated, truncated, infos = self.env.step(action)
 
-        if 'raw_rewards' not in infos:
-            infos['raw_rewards'] = rewards
+        if self.RAW_REWARDS_KEY not in infos:
+            infos[self.RAW_REWARDS_KEY] = rewards
 
         if not self.is_vector_env:
             rewards = np.array([rewards])

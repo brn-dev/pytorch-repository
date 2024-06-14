@@ -118,23 +118,24 @@ class PPO(PolicyOptimizationBase):
             self,
             max_steps: int,
             obs: np.ndarray,
+            episode_starts: np.ndarray,
             info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[int, np.ndarray, np.ndarray]:
         with torch.no_grad():
-            return super().perform_rollout(max_steps, obs, info)
+            return super().perform_rollout(max_steps, obs, episode_starts, info)
 
     @override
     def optimize(
             self,
             last_obs: np.ndarray,
-            last_dones: np.ndarray,
+            last_episode_starts: np.ndarray,
             info: InfoDict
     ) -> None:
         last_values = self.policy.predict_values(torch.tensor(last_obs, device=self.torch_device))
 
         advantages, returns = self.buffer.compute_gae_and_returns(
             last_values=last_values,
-            last_dones=last_dones,
+            last_episode_starts=last_episode_starts,
             gamma=self.gamma,
             gae_lambda=self.gae_lambda,
             normalize_rewards=self.normalize_rewards,

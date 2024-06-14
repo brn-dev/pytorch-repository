@@ -57,11 +57,11 @@ class SupervisedPreTraining(PolicyOptimizationBase):
     def optimize(
             self,
             last_obs: np.ndarray,
-            last_dones: np.ndarray,
+            last_episode_starts: np.ndarray,
             info: InfoDict,
     ) -> None:
         self.policy_optimizer.zero_grad()
-        objective = self.compute_supervised_objective(self.buffer, last_obs, last_dones, info)
+        objective = self.compute_supervised_objective(self.buffer, last_obs, last_episode_starts, info)
         objective.backward()
         self.policy_optimizer.step()
 

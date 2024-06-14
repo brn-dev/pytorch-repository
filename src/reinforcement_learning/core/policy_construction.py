@@ -43,22 +43,6 @@ WrapEnvFunction = Callable[[InVecEnv, InitializationHyperParameters], OutEnv]
 StateDict = dict[str, Any]
 
 
-def create_policy_initialization_info(
-    init_action_selector: InitActionSelectorFunction,
-    init_policy: InitPolicyFunction,
-    init_optimizer: InitOptimizerFunction,
-    wrap_env: WrapEnvFunction,
-    hyper_parameters: Optional[InitializationHyperParameters] = None,
-) -> PolicyInitializationInfo:
-    return {
-        'init_action_selector_source_code': inspect.getsource(init_action_selector),
-        'init_policy_source_code': inspect.getsource(init_policy),
-        'init_optimizer_source_code': inspect.getsource(init_optimizer),
-        'wrap_env_source_code': inspect.getsource(wrap_env),
-        'hyper_parameters': hyper_parameters or {},  # type: ignore
-    }
-
-
 SomeFunction = TypeVar('SomeFunction', bound=Callable)
 
 
@@ -103,6 +87,22 @@ class PolicyConstructionOverride:
 
 
 class PolicyConstruction:
+
+    @staticmethod
+    def create_policy_initialization_info(
+        init_action_selector: InitActionSelectorFunction,
+        init_policy: InitPolicyFunction,
+        init_optimizer: InitOptimizerFunction,
+        wrap_env: WrapEnvFunction,
+        hyper_parameters: Optional[InitializationHyperParameters] = None,
+    ) -> PolicyInitializationInfo:
+        return {
+            'init_action_selector_source_code': inspect.getsource(init_action_selector),
+            'init_policy_source_code': inspect.getsource(init_policy),
+            'init_optimizer_source_code': inspect.getsource(init_optimizer),
+            'wrap_env_source_code': inspect.getsource(wrap_env),
+            'hyper_parameters': hyper_parameters or {},  # type: ignore
+        }
 
     @staticmethod
     def init_from_info(
@@ -154,4 +154,6 @@ class PolicyConstruction:
 
         return policy, optimizer, env
 
+# alias
+PolicyInitialization = PolicyConstruction
 

@@ -68,10 +68,11 @@ class ZeroActionPreTraining(SupervisedPreTraining):
             self,
             max_steps: int,
             obs: np.ndarray,
+            episode_starts: np.ndarray,
             info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[int, np.ndarray, np.ndarray]:
         with torch.no_grad():
-            return super().perform_rollout(max_steps, obs, info)
+            return super().perform_rollout(max_steps, obs, episode_starts, info)
 
     def compute_zero_action_objective(
             self,

@@ -72,7 +72,7 @@ def init_policy(
                 layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:
                     AdditiveSkipConnection(Net.seq_as_net(
                         nn.Linear(in_features, out_features),
-                        nn.Identity() if is_last_layer else hidden_activation_function()
+                        hidden_activation_function()
                     )),
                 num_features=critic_features,
                 num_layers=critic_layers,
@@ -99,7 +99,7 @@ def init_optimizer(policy: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 
     return torch.optim.AdamW(policy.parameters(), lr=1e-5)
 
 def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':
-    from src.reinforcement_learning.gym.transform_reward_wrapper import TransformRewardWrapper
+    from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper
     from gymnasium.wrappers import RescaleAction
 
     env_ = TransformRewardWrapper(env_, lambda _reward: 0.01 * _reward)

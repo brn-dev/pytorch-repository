@@ -46,7 +46,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
     def compute_gae_and_returns(
             self,
             last_values: torch.Tensor,
-            last_dones: np.ndarray,
+            last_episode_starts: np.ndarray,
             gamma: float,
             gae_lambda: float,
             normalize_rewards: NormalizationType | None,
@@ -60,7 +60,7 @@ class ActorCriticRolloutBuffer(BasicRolloutBuffer):
             rewards=self.rewards[:self.pos],
             episode_starts=self.episode_starts[:self.pos],
             last_values=last_values,
-            last_dones=last_dones,
+            last_episode_starts=last_episode_starts,
             gamma=gamma,
             gae_lambda=gae_lambda,
             normalize_rewards=normalize_rewards,
