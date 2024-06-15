@@ -149,9 +149,10 @@ class PolicyRollout:
         obs, _ = self.env.reset()
         episode_starts = np.ones(self.num_envs, dtype=bool)
 
-        for step in range(num_steps):
-            obs, _, episode_starts, info = self.rollout_step(obs, episode_starts, buffer)
-            infos.append(info)
+        with torch.no_grad():
+            for step in range(num_steps):
+                obs, _, episode_starts, info = self.rollout_step(obs, episode_starts, buffer)
+                infos.append(info)
 
         combined_info = stack_infos(infos)
 
