@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, TypedDict, Iterable
+from typing import Callable, TypedDict, Iterable, Any
 
 import numpy as np
 from gymnasium import Env
@@ -25,6 +25,7 @@ class TrainResultInfo(TypedDict):
     steps_trained: int
     optimizations_done: int
     score: float
+    extra_infos: dict[str, Any]
 
 
 TrainPolicyFunction = Callable[[TrainInfo], TrainResultInfo]
@@ -78,6 +79,7 @@ class PolicyMitosisBase(abc.ABC):
         policy_info['steps_trained'] += steps_trained
         policy_info['optimizations_done'] += train_result['optimizations_done']
         policy_info['score'] = train_result['score']
+        policy_info['extra_infos'].update(train_result['extra_infos'])
 
         try:
             num_envs = train_info['env'].get_wrapper_attr("num_envs")
@@ -112,6 +114,7 @@ class PolicyMitosisBase(abc.ABC):
             'steps_trained': 0,
             'env_steps_trained': 0,
             'optimizations_done': 0,
+            'extra_infos': {},
             'initialization_info': self.new_policy_initialization_info,
         }
 

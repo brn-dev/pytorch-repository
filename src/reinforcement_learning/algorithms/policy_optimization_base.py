@@ -84,7 +84,6 @@ class PolicyRollout:
             self,
             obs: np.ndarray,
             episode_starts: np.ndarray,
-            buffer: Buffer,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
         action_selector, extra_predictions = self.policy.process_obs(torch.tensor(obs, device=self.torch_device))
         actions = action_selector.get_actions()
@@ -93,7 +92,7 @@ class PolicyRollout:
         if self.logging_config.log_rollout_action_stds:
             info['action_stds'] = action_selector.distribution.stddev
 
-        buffer.add(
+        self.buffer.add(
             observations=obs,
             rewards=rewards,
             episode_starts=episode_starts,
@@ -120,7 +119,7 @@ class PolicyRollout:
             if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
                 self.policy.reset_sde_noise(self.num_envs)
 
-            obs, rewards, episode_starts, step_info = self.rollout_step(obs, episode_starts, self.buffer)
+            obs, rewards, episode_starts, step_info = self.rollout_step(obs, episode_starts)
             infos.append(step_info)
 
         if self.logging_config.log_rollout_infos:
@@ -131,46 +130,6 @@ class PolicyRollout:
             info['last_episode_starts'] = episode_starts
 
         return step + 1, obs, episode_starts
-
-    def evaluate(
-            self,
-            num_steps: int,
-            gamma: float | None = None,
-            gae_lambda: float | None = None,
-            remove_unfinished_episodes: bool = True,
-    ) -> tuple[BasicRolloutBuffer, InfoDict, np.ndarray, np.ndarray]:
-        infos: list[InfoDict] = []
-        buffer = BasicRolloutBuffer(
-            buffer_size=num_steps,
-            num_envs=self.num_envs,
-            obs_shape=self.env.observation_space.shape
-        )
-
-        obs, _ = self.env.reset()
-        episode_starts = np.ones(self.num_envs, dtype=bool)
-
-        with torch.no_grad():
-            for step in range(num_steps):
-                obs, _, episode_starts, info = self.rollout_step(obs, episode_starts, buffer)
-                infos.append(info)
-
-        combined_info = stack_infos(infos)
-
-        rewards = buffer.rewards
-        if RewardWrapper.RAW_REWARDS_KEY in combined_info:
-            rewards = combined_info[RewardWrapper.RAW_REWARDS_KEY]
-
-        episode_returns = compute_episode_returns(
-            rewards=rewards,
-            episode_starts=buffer.episode_starts,
-            last_episode_starts=episode_starts,
-            gamma=gamma if gamma is not None else self.gamma,
-            gae_lambda=gae_lambda if gae_lambda is not None else self.gae_lambda,
-            normalize_rewards=None,
-            remove_unfinished_episodes=remove_unfinished_episodes,
-        )
-
-        return buffer, combined_info, rewards, episode_returns
 
 
 class PolicyOptimizationBase(PolicyRollout, abc.ABC):
@@ -217,6 +176,8 @@ class PolicyOptimizationBase(PolicyRollout, abc.ABC):
         raise NotImplemented
 
     def train(self, num_steps: int):
+        self.policy.train()
+
         obs: np.ndarray = np.empty(())
         episode_starts: np.ndarray = np.empty(())
 

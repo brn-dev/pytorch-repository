@@ -7,6 +7,7 @@ from src.reinforcement_learning.core.action_selectors.action_selector import Act
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction
 
+
 # Type hinting as string, so they don't cause an error when evaluating them outside this context
 def init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':
     from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \
@@ -21,6 +22,7 @@ def init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dic
         action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),
         log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),
     )
+
 
 def init_policy(
         init_action_selector_: 'InitActionSelectorFunction',
@@ -94,9 +96,11 @@ def init_policy(
         )
     )
 
+
 def init_optimizer(policy: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':
     import torch.optim
     return torch.optim.AdamW(policy.parameters(), lr=1e-5)
+
 
 def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':
     from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper

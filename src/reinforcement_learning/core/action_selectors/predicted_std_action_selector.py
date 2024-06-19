@@ -1,17 +1,17 @@
 import math
-from typing import Optional, Self, Callable
+from typing import Optional, Self
 
 import torch
 import torch.distributions as torchdist
 from overrides import override
 from torch import nn
 
-from src.function_types import TorchTensorTransformation
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
 
 LogStdNetInitialization = ActionNetInitialization
+
 
 class PredictedStdActionSelector(ContinuousActionSelector):
 
@@ -47,7 +47,6 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         else:
             self.output_bijector = None
 
-        self.epsilon = epsilon
         self.distribution: Optional[torchdist.Normal] = None
 
     @override

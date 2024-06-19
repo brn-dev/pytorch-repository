@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Any
 
 from src.reinforcement_learning.core.policy_construction import PolicyInitializationInfo
 
@@ -13,6 +13,9 @@ class MitosisPolicyInfo(TypedDict):
     env_steps_trained: int
     optimizations_done: int
 
+    extra_infos: dict[str, Any]
+
     initialization_info: PolicyInitializationInfo
+
 
 

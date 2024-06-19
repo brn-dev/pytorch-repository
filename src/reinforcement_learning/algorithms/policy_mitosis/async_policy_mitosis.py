@@ -188,7 +188,8 @@ def _worker(
                 optimizer_state_dict=optimizer_state_dict,
             )
 
-            policy, policy_info = modify_policy(policy, policy_info)
+            if modify_policy is not None:
+                policy, policy_info = modify_policy(policy, policy_info)
 
             train_info: TrainInfo = {
                 'policy': policy,
@@ -206,7 +207,7 @@ def _worker(
             pipe.send((True, policy.cpu().state_dict(), optimizer_state_dict, policy_info))
     except (KeyboardInterrupt, Exception) as exc:
         error_queue.put((index,) + sys.exc_info()[:-1] + (traceback.format_exc(),))
-        sys.stderr.write(exc)
+        sys.stderr.write(str(exc))
         sys.stdout.flush()
         pipe.send((False, None, None, None))
     finally:

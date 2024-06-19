@@ -70,10 +70,10 @@ def compute_episode_returns(
         rewards: np.ndarray,
         episode_starts: np.ndarray,
         last_episode_starts: np.ndarray,
-        gamma: float,
-        gae_lambda: float,
-        normalize_rewards: NormalizationType | None,
-        remove_unfinished_episodes: bool
+        gamma: float = 1.0,
+        gae_lambda: float = 1.0,
+        normalize_rewards: NormalizationType | None = None,
+        remove_unfinished_episodes: bool = True,
 ) -> np.ndarray:
     returns = compute_returns(
         rewards=rewards,

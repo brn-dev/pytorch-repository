@@ -70,6 +70,7 @@ class PPO(PolicyOptimizationBase):
             ppo_max_epochs: int = 5,
             ppo_kl_target: float | None = None,
             ppo_batch_size: int | None = None,
+            shuffle_batches: bool = False,
             action_ratio_clip_range: float = 0.2,
             value_function_clip_range_factor: float | None = None,
             grad_norm_clip_value: float | None = None,
@@ -107,6 +108,7 @@ class PPO(PolicyOptimizationBase):
         self.ppo_max_epochs = ppo_max_epochs
         self.ppo_kl_target = ppo_kl_target
         self.ppo_batch_size = ppo_batch_size if ppo_batch_size is not None else self.buffer.buffer_size
+        self.shuffle_batches = shuffle_batches
 
         self.action_ratio_clip_range = action_ratio_clip_range
         self.value_function_clip_range_factor = value_function_clip_range_factor
@@ -147,10 +149,12 @@ class PPO(PolicyOptimizationBase):
         if self.logging_config.log_returns:
             info['returns'] = returns
 
-        advantages = torch.tensor(advantages, dtype=torch.float32, device=self.torch_device)
-        returns = torch.tensor(returns, dtype=torch.float32, device=self.torch_device)
+        advantages = torch.tensor(advantages[:self.buffer.pos], dtype=torch.float32, device=self.torch_device)
+        returns = torch.tensor(returns[:self.buffer.pos], dtype=torch.float32, device=self.torch_device)
 
-        observations = torch.tensor(self.buffer.observations, dtype=torch.float32, device=self.torch_device)
+        observations = torch.tensor(
+            self.buffer.observations[:self.buffer.pos], dtype=torch.float32, device=self.torch_device
+        )
 
         old_actions = torch.stack(self.buffer.actions).detach()
         old_action_log_probs = torch.stack(self.buffer.action_log_probs).detach()
@@ -163,20 +167,20 @@ class PPO(PolicyOptimizationBase):
         for i_epoch in range(self.ppo_max_epochs):
             epoch_infos: list[InfoDict] = []
 
-            for batched_tensors in batched(
+            for obs, adv, ret, old_a, old_p, old_v in batched(
                     self.ppo_batch_size,
-                    observations[:self.buffer.pos], advantages[:self.buffer.pos], returns[:self.buffer.pos],
-                    old_actions, old_action_log_probs, old_value_estimates
+                    observations, advantages, returns, old_actions, old_action_log_probs, old_value_estimates,
+                    shuffle=self.shuffle_batches
             ):
                 batch_info: InfoDict = {}
 
                 objectives = self.compute_ppo_objectives(
-                    observations=batched_tensors[0],
-                    advantages=batched_tensors[1],
-                    returns=batched_tensors[2],
-                    old_actions=batched_tensors[3],
-                    old_action_log_probs=batched_tensors[4],
-                    old_value_estimates=batched_tensors[5],
+                    observations=obs,
+                    advantages=adv,
+                    returns=ret,
+                    old_actions=old_a,
+                    old_action_log_probs=old_p,
+                    old_value_estimates=old_v,
                     info=batch_info,
                 )
 
