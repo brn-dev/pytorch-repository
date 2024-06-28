@@ -29,7 +29,7 @@ class AdditiveSkipNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections=layer_connections,
-            combination_method='additive',
+            feature_combination_method='additive',
             require_definite_dimensions=['features'],
         )
         self.num_features = self.in_shape.get_definite_size('features')
@@ -122,7 +122,7 @@ class FullyConnectedAdditiveSkipNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections='full',
-            combination_method='additive',
+            feature_combination_method='additive',
             require_definite_dimensions=['features'],
         )
         self.num_features = self.in_shape.get_definite_size('features')
@@ -195,7 +195,7 @@ class FullyConnectedUnweightedAdditiveSkipNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections='full',
-            combination_method='additive',
+            feature_combination_method='additive',
             require_definite_dimensions=['features'],
         )
         self.num_features = self.in_shape.get_definite_size('features')

@@ -11,7 +11,7 @@ from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 LayerProvider = Callable[[int, bool, int, int], Net | nn.Module]
 
-ShapeCombinationMethod = Literal['additive', 'dense', None]
+FeatureCombinationMethod = Literal['additive', 'dense', None]
 
 
 class LayeredNet(Net, abc.ABC):
@@ -22,7 +22,7 @@ class LayeredNet(Net, abc.ABC):
             self,
             layers: NetListLike,
             layer_connections: LayerConnections.LayerConnectionsLike,
-            combination_method: ShapeCombinationMethod,
+            feature_combination_method: FeatureCombinationMethod,
             require_definite_dimensions: Iterable[str] = (),
             connection_modulators: list[list[Net | None]] = None,
     ):
@@ -38,7 +38,6 @@ class LayeredNet(Net, abc.ABC):
                     raise TensorShapeError(f'Dimension {dim} of out_shape of layer {i} ({layer}) is indefinite but '
                                            f'required to be definite')
 
-
         if connection_modulators is not None:
             LayeredNet.check_connection_modulators_structure(
                 connection_modulators,
@@ -49,7 +48,7 @@ class LayeredNet(Net, abc.ABC):
         in_shape, out_shape = LayeredNet.find_in_out_shapes(
             layers,
             layer_connections,
-            combination_method,
+            feature_combination_method,
             connection_modulators,
         )
 
@@ -110,7 +109,7 @@ class LayeredNet(Net, abc.ABC):
     def find_in_out_shapes(
             layers: NetList,
             layer_connections: np.ndarray,
-            combination_method: ShapeCombinationMethod,
+            combination_method: FeatureCombinationMethod,
             connection_modulators: list[list[Net | None]] | None,
     ) -> tuple[TensorShape, TensorShape]:
         layer_shapes = [layers[0].in_shape]
@@ -157,7 +156,7 @@ class LayeredNet(Net, abc.ABC):
     @staticmethod
     def combine_shapes(
             shapes: list[TensorShape],
-            combination_method: ShapeCombinationMethod
+            combination_method: FeatureCombinationMethod
     ) -> TensorShape:
         combined_shape = shapes[0].copy()
 

@@ -2,7 +2,7 @@ import numpy as np
 from overrides import override
 
 from src.networks.core.layer_connections import LayerConnections
-from src.networks.core.layered_net import LayeredNet, LayerProvider, ShapeCombinationMethod
+from src.networks.core.layered_net import LayeredNet, LayerProvider, FeatureCombinationMethod
 from src.networks.core.net_list import NetList, NetListLike
 from src.networks.core.seq_shape import find_seq_in_out_shapes
 from src.networks.core.tensor_shape import TensorShape
@@ -15,7 +15,7 @@ class SeqNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections=LayerConnections.by_name('sequential', len(layers)),
-            combination_method=None,
+            feature_combination_method=None,
         )
 
     def forward(self, x):

@@ -20,7 +20,7 @@ class DenseSkipNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections=layer_connections,
-            combination_method='dense',
+            feature_combination_method='dense',
             require_definite_dimensions=['features'],
         )
 

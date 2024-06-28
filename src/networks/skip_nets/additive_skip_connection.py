@@ -12,7 +12,7 @@ class AdditiveSkipConnection(LayeredNet):
         super().__init__(
             layers=[layer],
             layer_connections=LayerConnections.by_name('full', 1),
-            combination_method='additive',
+            feature_combination_method='additive',
             require_definite_dimensions=['features'],
         )
 
@@ -45,6 +45,7 @@ class AdditiveSkipConnection(LayeredNet):
                 out_features=num_features,
             ),
         )
+
 
 class WeightedAdditiveSkipConnection(AdditiveSkipConnection):
 

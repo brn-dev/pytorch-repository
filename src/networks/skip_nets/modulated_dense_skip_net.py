@@ -27,7 +27,7 @@ class ModulatedDenseSkipNet(LayeredNet):
                 for from_idx in range(to_idx + 1)
                 if connection_modulators[to_idx][from_idx] is not None
             ],
-            combination_method='dense',
+            feature_combination_method='dense',
             require_definite_dimensions=['features'],
             connection_modulators=connection_modulators,
         )

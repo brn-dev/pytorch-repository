@@ -16,7 +16,7 @@ class DenseSkipConnection(LayeredNet):
         super().__init__(
             layers=[layer],
             layer_connections=LayerConnections.by_name('full', 1),
-            combination_method='dense'
+            feature_combination_method='dense'
         )
 
         self.layer = layer

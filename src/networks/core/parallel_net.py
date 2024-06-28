@@ -12,7 +12,7 @@ class ParallelNet(LayeredNet):
         super().__init__(
             layers=layers,
             layer_connections=LayerConnections.by_name('parallel', len(layers)),
-            combination_method='dense',
+            feature_combination_method='dense',
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
