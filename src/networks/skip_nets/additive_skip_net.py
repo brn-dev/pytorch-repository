@@ -105,7 +105,7 @@ class AdditiveSkipNet(LayeredNet):
         )
 
 
-class FullyConnectedAdditiveSkipNet(LayeredNet):
+class FullyConnectedWeightedAdditiveSkipNet1(LayeredNet):
 
     def __init__(
             self,
@@ -174,8 +174,8 @@ class FullyConnectedAdditiveSkipNet(LayeredNet):
             initial_skip_connection_weight: float = 1.0,
 
             return_dense: bool = False,
-    ) -> 'FullyConnectedAdditiveSkipNet':
-        return FullyConnectedAdditiveSkipNet(
+    ) -> 'FullyConnectedWeightedAdditiveSkipNet1':
+        return FullyConnectedWeightedAdditiveSkipNet1(
             layers=cls.provide_layers(
                 layer_provider=layer_provider,
                 in_out_features=[(num_features, num_features) for _ in range(num_layers)]
@@ -186,7 +186,7 @@ class FullyConnectedAdditiveSkipNet(LayeredNet):
             return_dense=return_dense,
         )
 
-class FullyConnectedUnweightedAdditiveSkipNet(LayeredNet):
+class FullyConnectedAdditiveSkipNet(LayeredNet):
 
     def __init__(
             self,
@@ -217,8 +217,8 @@ class FullyConnectedUnweightedAdditiveSkipNet(LayeredNet):
             layer_provider: LayerProvider,
             num_layers: int,
             num_features: int,
-    ) -> 'FullyConnectedUnweightedAdditiveSkipNet':
-        return FullyConnectedUnweightedAdditiveSkipNet(
+    ) -> 'FullyConnectedAdditiveSkipNet':
+        return FullyConnectedAdditiveSkipNet(
             layers=cls.provide_layers(
                 layer_provider=layer_provider,
                 in_out_features=[(num_features, num_features) for _ in range(num_layers)]

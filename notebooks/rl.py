@@ -34,7 +34,7 @@ def init_policy(
     from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
     from src.networks.core.net import Net
     from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection
-    from src.networks.skip_nets.additive_skip_net import AdditiveSkipNet, FullyConnectedAdditiveSkipNet, \
+    from src.networks.skip_nets.additive_skip_net import AdditiveSkipNet, FullyConnectedWeightedAdditiveSkipNet1, \
         FullyConnectedUnweightedAdditiveSkipNet
     from src.weight_initialization import orthogonal_initialization
 
