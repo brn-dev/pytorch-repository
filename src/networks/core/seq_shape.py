@@ -26,5 +26,7 @@ def find_seq_in_out_shapes(layers: Iterable[nn.Module]):
                 in_shape[dim] = layer.in_shape[dim]
 
         current_shape = layer.forward_shape(current_shape)
+        if len(list(layers)) == 9:
+            print(current_shape.evaluate_forward(TensorShape(features=3, s_0=224, s_1=224)))
 
     return in_shape, current_shape

@@ -27,7 +27,7 @@ class BasePolicy(nn.Module, abc.ABC):
     def process_obs(self, obs: torch.Tensor) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
         raise NotImplemented
 
-    def forward(self, obs: torch.Tensor):
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
         return self.network(obs)
 
     def replace_action_selector(self, new_action_selector: ActionSelector, copy_action_net_weights: bool) -> None:

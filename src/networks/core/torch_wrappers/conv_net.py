@@ -21,6 +21,15 @@ _size_3_t = _scalar_or_tuple_3_t[int]
 _int_size = Union[Tuple[int, ...], int]
 
 
+def find_nr_dims(conv: nn.Conv1d | nn.Conv2d | nn.Conv3d | Any):
+    if isinstance(conv, (nn.Conv1d, nn.MaxPool1d, nn.AvgPool1d)):
+        return 1
+    if isinstance(conv, (nn.Conv2d, nn.MaxPool2d, nn.AvgPool2d)):
+        return 2
+    if isinstance(conv, (nn.Conv3d, nn.MaxPool3d, nn.AvgPool3d)):
+        return 3
+    raise NotImplemented(f'Unknown module type {type(conv)} for finding nr dims')
+
 def to_tuple(value: _int_size, length: int):
     if isinstance(value, tuple):
         return value
@@ -40,13 +49,13 @@ def compute_conv_in_out_shapes(
         raise ValueError(f'Unknown type of conv argument ({type(conv)}')
 
     return _compute_conv_in_out_shapes(
-        nr_dims=len(conv.kernel_size),
+        nr_dims=find_nr_dims(conv),
         in_channels=in_channels,
         out_channels=out_channels,
         kernel_size=conv.kernel_size,
         stride=conv.stride,
         padding=conv.padding,
-        dilation=conv.dilation,
+        dilation=conv.dilation if hasattr(conv, 'dilation') else 1,
     )
 
 

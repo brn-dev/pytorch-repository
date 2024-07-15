@@ -41,6 +41,8 @@ class FlattenDimensions(Net):
 
             previous_index = index
 
+            out_shape[dim_key] = TensorShape.REMOVED_DIM_VALUE
+
         self.nr_in_dimensions = len(dim_order)
         self.permutation = find_permutation(dim_order, permutation)
         self.nr_out_dimensions = self.nr_in_dimensions - len(self.dim_keys_to_flatten)
@@ -51,17 +53,6 @@ class FlattenDimensions(Net):
         if not set(in_shape.dimension_names).issuperset(self.dim_keys_to_flatten):
             raise TensorShapeError(f'in_shape ({in_shape}) does not contain all the dimensions to be flattened '
                                    f'({self.dim_keys_to_flatten})', self_in_shape=self.in_shape, in_shape=in_shape)
-
-    @override
-    def forward_shape(self, in_shape: TensorShape) -> TensorShape:
-        self.check_in_shape(in_shape)
-
-        out_shape = self.out_shape.evaluate_forward(in_shape)
-
-        for flattened_dim_key in self.dim_keys_to_flatten:
-            del out_shape[flattened_dim_key]
-
-        return out_shape
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.permute(x, self.permutation)

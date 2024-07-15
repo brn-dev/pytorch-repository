@@ -1,5 +1,5 @@
 import abc
-from typing import Union, Literal
+from typing import Union, Literal, Callable
 
 from torch import nn
 
@@ -73,3 +73,26 @@ class Net(nn.Module, abc.ABC):
     @staticmethod
     def seq_as_net(*modules: Union['Net', nn.Module]):  # This has to be Union, string type and | does not work
         return Net.as_net(nn.Sequential(*modules))
+
+    @staticmethod
+    def provider_seq_as_net(
+            in_features: int,
+            *providers: Callable[[int], Union['Net', nn.Module]]
+    ) -> 'Net':
+        current_shape = TensorShape(features=in_features)
+
+        nets = []
+
+        for i, provider in enumerate(providers):
+            try:
+                net = provider(current_shape.get_definite_features())
+                nets.append(net)
+                current_shape = Net.as_net(net).forward_shape(current_shape)
+            except TensorShapeError as tse:
+                raise TensorShapeError(
+                    f'TensorShapeError occurred while forwarding shape through layer {i}',
+                    parent_error=tse
+                )
+
+        return Net.seq_as_net(*nets)
+

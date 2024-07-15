@@ -12,6 +12,7 @@ class DenseSkipConnection(LayeredNet):
     def __init__(
             self,
             layer: Net,
+            feature_dim_index: int = -1,
     ):
         super().__init__(
             layers=[layer],
@@ -20,12 +21,13 @@ class DenseSkipConnection(LayeredNet):
         )
 
         self.layer = layer
+        self.feature_dim_index = feature_dim_index
 
     def forward(self, x, *args, **kwargs):
         layer_out = self.layer(x, *args, **kwargs)
         return torch.cat(
             (layer_out, x),
-            dim=-1
+            dim=self.feature_dim_index
         )
 
     @classmethod
