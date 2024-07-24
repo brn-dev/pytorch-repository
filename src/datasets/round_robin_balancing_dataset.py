@@ -1,6 +1,6 @@
 from typing import Callable, TypeVar
 
-from torch.utils.data import Dataset, WeightedRandomSampler
+from torch.utils.data import Dataset
 
 SampleType = TypeVar('SampleType')
 
