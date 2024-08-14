@@ -11,11 +11,11 @@ from src.function_types import TorchLossFunction, TorchTensorTransformation
 from src.module_analysis import calculate_grad_norm
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.batching import batched
-from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.objectives import weigh_and_reduce_objective, ObjectiveLoggingConfig
-from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, LoggingConfig, \
+from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, LoggingConfig, \
     PolicyProvider, Policy
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
@@ -46,7 +46,7 @@ class PPOLoggingConfig(LoggingConfig):
             self.critic_objective = ObjectiveLoggingConfig()
 
 
-class PPO(PolicyOptimizationBase):
+class PPO(OnPolicyAlgorithm):
 
     policy: ActorCriticPolicy
     buffer: ActorCriticRolloutBuffer

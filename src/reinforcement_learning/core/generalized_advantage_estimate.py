@@ -1,6 +1,5 @@
 import numpy as np
 
-from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.normalization import normalize_np_array, NormalizationType
 
 

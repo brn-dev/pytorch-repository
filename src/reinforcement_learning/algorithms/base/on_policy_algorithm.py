@@ -1,5 +1,4 @@
 import abc
-from dataclasses import dataclass
 from typing import Callable, TypeVar
 
 import gymnasium
@@ -7,53 +6,37 @@ import numpy as np
 import torch
 from torch import optim
 
+from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
-from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.generalized_advantage_estimate import compute_episode_returns
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
-from src.reinforcement_learning.gym.wrappers.reward_wrapper import RewardWrapper
 from src.torch_device import TorchDevice, optimizer_to_device
 
-
-@dataclass
-class RolloutLoggingConfig:
-    log_rollout_infos: bool = False
-    log_rollout_action_stds: bool = False
-    log_last_obs: bool = False
-
-    def __post_init__(self):
-        assert not self.log_rollout_action_stds or self.log_rollout_infos, \
-            'log_rollout_infos has to be enabled for log_rollout_stds'
-
-
-@dataclass
-class LoggingConfig(RolloutLoggingConfig):
-    log_reset_info: bool = False
-
-
 LogConf = TypeVar('LogConf', bound=LoggingConfig)
-RolloutLogConf = TypeVar('RolloutLogConf', bound=RolloutLoggingConfig)
 
-Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
+RolloutBuffer = TypeVar('RolloutBuffer', bound=BasicRolloutBuffer)
 
 Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class PolicyRollout:
+class OnPolicyAlgorithm(abc.ABC):
 
     def __init__(
             self,
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
-            buffer: Buffer,
+            policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
+            buffer: RolloutBuffer,
             gamma: float,
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
-            logging_config: RolloutLogConf,
+            reset_env_between_rollouts: bool,
+            callback: Callback,
+            logging_config: LogConf,
             torch_device: TorchDevice,
     ):
         self.env, self.num_envs = as_vec_env(env)
@@ -78,7 +61,25 @@ class PolicyRollout:
                 and not isinstance(policy.action_selector, ContinuousActionSelector)):
             raise ValueError('Cannot log action distribution stds with non continuous action selector')
 
+        if isinstance(policy_optimizer, optim.Optimizer):
+            self.policy_optimizer = optimizer_to_device(policy_optimizer, torch_device)
+        else:
+            self.policy_optimizer = optimizer_to_device(policy_optimizer(policy), torch_device)
+
+        self.reset_env_between_rollouts = reset_env_between_rollouts
+        self.callback = callback
+
         self.torch_device = torch_device
+
+    @abc.abstractmethod
+    def optimize(
+            self,
+            last_obs: np.ndarray,
+            last_episode_starts: np.ndarray,
+            info: InfoDict,
+            buffer: RolloutBuffer
+    ) -> None:
+        raise NotImplemented
 
     def rollout_step(
             self,
@@ -131,50 +132,6 @@ class PolicyRollout:
 
         return step + 1, obs, episode_starts
 
-
-class PolicyOptimizationBase(PolicyRollout, abc.ABC):
-
-    def __init__(
-            self,
-            env: gymnasium.Env,
-            policy: Policy | PolicyProvider,
-            policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
-            buffer: Buffer,
-            gamma: float,
-            gae_lambda: float,
-            sde_noise_sample_freq: int | None,
-            reset_env_between_rollouts: bool,
-            callback: Callback,
-            logging_config: LogConf,
-            torch_device: TorchDevice,
-    ):
-        super().__init__(
-            env=env,
-            policy=policy,
-            buffer=buffer,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            sde_noise_sample_freq=sde_noise_sample_freq,
-            logging_config=logging_config,
-            torch_device=torch_device,
-        )
-        if isinstance(policy_optimizer, optim.Optimizer):
-            self.policy_optimizer = optimizer_to_device(policy_optimizer, torch_device)
-        else:
-            self.policy_optimizer = optimizer_to_device(policy_optimizer(policy), torch_device)
-
-        self.reset_env_between_rollouts = reset_env_between_rollouts
-        self.callback = callback
-
-    @abc.abstractmethod
-    def optimize(
-            self,
-            last_obs: np.ndarray,
-            last_episode_starts: np.ndarray,
-            info: InfoDict
-    ) -> None:
-        raise NotImplemented
-
     def train(self, num_steps: int):
         self.policy.train()
 
@@ -202,7 +159,7 @@ class PolicyOptimizationBase(PolicyRollout, abc.ABC):
 
             self.callback.on_rollout_done(self, step, info)
 
-            self.optimize(obs, episode_starts, info)
+            self.optimize(obs, episode_starts, info, self.buffer)
 
             self.callback.on_optimization_done(self, step, info)
 

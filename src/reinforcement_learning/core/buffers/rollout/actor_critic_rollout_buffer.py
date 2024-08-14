@@ -3,9 +3,9 @@ from overrides import override
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.generalized_advantage_estimate import compute_gae_and_returns
-from src.reinforcement_learning.core.normalization import NormalizationType, normalize_np_array
+from src.reinforcement_learning.core.normalization import NormalizationType
 
 
 class ActorCriticRolloutBuffer(BasicRolloutBuffer):

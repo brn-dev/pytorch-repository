@@ -3,7 +3,7 @@ from overrides import override
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
 
 
 class ActorCriticSTMRolloutBuffer(ActorCriticRolloutBuffer):

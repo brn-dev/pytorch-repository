@@ -5,9 +5,9 @@ import numpy as np
 import torch
 from torch import optim
 
-from src.reinforcement_learning.algorithms.policy_optimization_base import PolicyOptimizationBase, Policy, \
+from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, Policy, \
     PolicyProvider, LoggingConfig
-from src.reinforcement_learning.core.buffers.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.basic_rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
@@ -18,7 +18,7 @@ Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
 BufferType = Type[Buffer]
 
 
-class SupervisedPreTraining(PolicyOptimizationBase):
+class SupervisedPreTraining(OnPolicyAlgorithm):
 
     def __init__(
             self,
