@@ -7,7 +7,7 @@ from torch import optim
 
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, Policy, \
     PolicyProvider, LoggingConfig
-from src.reinforcement_learning.core.buffers.rollout.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import BasicRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy

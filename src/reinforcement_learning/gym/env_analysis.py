@@ -56,7 +56,9 @@ def get_obs_shape(
 
 
 # Adapted from https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/preprocessing.py
-def get_action_shape(action_space: spaces.Space) -> tuple[int, ...]:
+def get_action_shape(env: Env) -> tuple[int, ...]:
+    action_space = get_single_action_space(env)
+
     if isinstance(action_space, spaces.Box):
         return action_space.shape
     elif isinstance(action_space, spaces.Discrete):

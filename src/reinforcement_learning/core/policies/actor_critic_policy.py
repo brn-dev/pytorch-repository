@@ -1,9 +1,10 @@
 import torch
-from overrides import override
 from torch import nn
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy, ObsPreprocessing, Obs
+from src.reinforcement_learning.core.policies.components.actor import Actor
+from src.reinforcement_learning.core.policies.components.v_critic import VCritic
 
 VALUE_ESTIMATES_KEY = 'value_estimates'
 
@@ -12,23 +13,20 @@ class ActorCriticPolicy(BasePolicy):
 
     def __init__(
             self,
-            network: nn.Module,
-            action_selector: ActionSelector
+            actor: Actor,
+            critic: VCritic | nn.Module,  # A state value critic is essentially just a module
+            obs_preprocessing: ObsPreprocessing = nn.Identity()
     ):
         super().__init__(
-            network=network,
-            action_selector=action_selector
+            actor=actor,
+            obs_preprocessing=obs_preprocessing,
         )
+        self.critic = critic
 
-    @override
-    def process_obs(self, obs: torch.Tensor) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
-        latent_pi, value_estimates = self.predict_latent_pi_and_values(obs)
-        return self.action_selector.update_latent_features(latent_pi), {VALUE_ESTIMATES_KEY: value_estimates}
+    def forward(self, obs: Obs) -> tuple[ActionSelector, torch.Tensor]:
+        obs = self.obs_preprocessing(obs)
+        return self.actor(obs), self.critic(obs)
 
     def predict_values(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.predict_latent_pi_and_values(obs)[1]
-
-    def predict_latent_pi_and_values(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        obs_tensor = torch.as_tensor(obs, dtype=torch.float32)
-        actions_logits, value_estimates = self(obs_tensor)
-        return actions_logits, value_estimates
+        obs = self.obs_preprocessing(obs)
+        return self.critic(obs)

@@ -38,8 +38,8 @@ def format_summary_statics(
 def compute_summary_statistics(
         arr: TensorOrNpArray
 ) -> tuple[TensorOrNpArray, TensorOrNpArray, TensorOrNpArray, TensorOrNpArray]:
-    mean = arr.mean()
-    std = arr.std()
+    mean = arr.ravel().mean()
+    std = arr.ravel().std()
     min_value = arr.min()
     max_value = arr.max()
 

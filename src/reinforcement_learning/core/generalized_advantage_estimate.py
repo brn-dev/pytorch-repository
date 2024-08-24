@@ -5,7 +5,7 @@ from src.reinforcement_learning.core.normalization import normalize_np_array, No
 
 # Adapted from
 # https://github.com/DLR-RM/stable-baselines3/blob/5623d98f9d6bcfd2ab450e850c3f7b090aef5642/stable_baselines3/common/buffers.py#L402
-def compute_gae_and_returns(
+def compute_returns_and_gae(
         value_estimates: np.ndarray,
         rewards: np.ndarray,
         episode_starts: np.ndarray,
@@ -41,7 +41,7 @@ def compute_gae_and_returns(
     if normalize_advantages is not None:
         advantages = normalize_np_array(advantages, normalization_type=normalize_advantages)
 
-    return advantages, returns
+    return returns, advantages
 
 
 def compute_returns(
@@ -52,7 +52,7 @@ def compute_returns(
         gae_lambda: float,
         normalize_rewards: NormalizationType | None
 ) -> np.ndarray:
-    return compute_gae_and_returns(
+    return compute_returns_and_gae(
         value_estimates=np.zeros_like(rewards),
         rewards=rewards,
         episode_starts=episode_starts,
@@ -62,7 +62,7 @@ def compute_returns(
         gae_lambda=gae_lambda,
         normalize_rewards=normalize_rewards,
         normalize_advantages=None,
-    )[1]
+    )[0]
 
 
 def compute_episode_returns(

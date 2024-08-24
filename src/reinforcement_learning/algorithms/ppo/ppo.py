@@ -9,18 +9,18 @@ from torch import nn, optim
 
 from src.function_types import TorchLossFunction, TorchTensorTransformation
 from src.module_analysis import calculate_grad_norm
-from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
-from src.reinforcement_learning.core.batching import batched
-from src.reinforcement_learning.core.buffers.rollout.actor_critic_rollout_buffer import ActorCriticRolloutBuffer
-from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.infos import InfoDict, concat_infos
-from src.reinforcement_learning.core.objectives import weigh_and_reduce_objective, ObjectiveLoggingConfig
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, LoggingConfig, \
     PolicyProvider, Policy
+from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
+from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
+from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.normalization import NormalizationType
+from src.reinforcement_learning.core.objectives import weigh_and_reduce_objective, ObjectiveLoggingConfig
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
+from src.type_aliases import KwArgs
 
 
 @dataclass
@@ -46,11 +46,7 @@ class PPOLoggingConfig(LoggingConfig):
             self.critic_objective = ObjectiveLoggingConfig()
 
 
-class PPO(OnPolicyAlgorithm):
-
-    policy: ActorCriticPolicy
-    buffer: ActorCriticRolloutBuffer
-    logging_config: PPOLoggingConfig
+class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig]):
 
     def __init__(
             self,
@@ -58,7 +54,8 @@ class PPO(OnPolicyAlgorithm):
             policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
             buffer_size: int,
-            buffer_type=ActorCriticRolloutBuffer,
+            buffer_type=RolloutBuffer,
+            buffer_kwargs: KwArgs = None,
             gamma: float = 0.99,
             gae_lambda: float = 1.0,
             normalize_rewards: NormalizationType | None = None,
@@ -79,6 +76,7 @@ class PPO(OnPolicyAlgorithm):
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
             torch_device: TorchDevice = 'cpu',
+            torch_dtype: torch.dtype = torch.float32,
     ):
         env, num_envs = as_vec_env(env)
 
@@ -86,7 +84,7 @@ class PPO(OnPolicyAlgorithm):
             env=env,
             policy=policy,
             policy_optimizer=policy_optimizer,
-            buffer=buffer_type(buffer_size, num_envs, env.observation_space.shape),
+            buffer=buffer_type.for_env(env, buffer_size, torch_device, torch_dtype, **(buffer_kwargs or {})),
             gamma=gamma,
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
@@ -94,6 +92,7 @@ class PPO(OnPolicyAlgorithm):
             callback=callback or Callback(),
             logging_config=logging_config or PPOLoggingConfig(),
             torch_device=torch_device,
+            torch_dtype=torch_dtype,
         )
 
         self.normalize_rewards = normalize_rewards
@@ -133,9 +132,11 @@ class PPO(OnPolicyAlgorithm):
             last_episode_starts: np.ndarray,
             info: InfoDict
     ) -> None:
-        last_values = self.policy.predict_values(torch.tensor(last_obs, device=self.torch_device))
+        last_values = self.policy.predict_values(
+            torch.tensor(last_obs, device=self.torch_device, dtype=self.torch_dtype)
+        )
 
-        advantages, returns = self.buffer.compute_gae_and_returns(
+        self.buffer.compute_returns_and_gae(
             last_values=last_values,
             last_episode_starts=last_episode_starts,
             gamma=self.gamma,
@@ -144,22 +145,6 @@ class PPO(OnPolicyAlgorithm):
             normalize_advantages=self.normalize_advantages
         )
 
-        if self.logging_config.log_advantages:
-            info['advantages'] = advantages
-        if self.logging_config.log_returns:
-            info['returns'] = returns
-
-        advantages = torch.tensor(advantages[:self.buffer.pos], dtype=torch.float32, device=self.torch_device)
-        returns = torch.tensor(returns[:self.buffer.pos], dtype=torch.float32, device=self.torch_device)
-
-        observations = torch.tensor(
-            self.buffer.observations[:self.buffer.pos], dtype=torch.float32, device=self.torch_device
-        )
-
-        old_actions = torch.stack(self.buffer.actions).detach()
-        old_action_log_probs = torch.stack(self.buffer.action_log_probs).detach()
-        old_value_estimates = torch.stack(self.buffer.value_estimates).detach()
-
         optimization_infos: list[InfoDict] = []
         continue_training = True
         nr_updates = 0
@@ -167,20 +152,16 @@ class PPO(OnPolicyAlgorithm):
         for i_epoch in range(self.ppo_max_epochs):
             epoch_infos: list[InfoDict] = []
 
-            for obs, adv, ret, old_a, old_p, old_v in batched(
-                    self.ppo_batch_size,
-                    observations, advantages, returns, old_actions, old_action_log_probs, old_value_estimates,
-                    shuffle=self.shuffle_batches
-            ):
+            for batch_samples in self.buffer.get_samples(self.ppo_batch_size, self.shuffle_batches):
                 batch_info: InfoDict = {}
 
                 objectives = self.compute_ppo_objectives(
-                    observations=obs,
-                    advantages=adv,
-                    returns=ret,
-                    old_actions=old_a,
-                    old_action_log_probs=old_p,
-                    old_value_estimates=old_v,
+                    observations=batch_samples.observations,
+                    advantages=batch_samples.advantages,
+                    returns=batch_samples.returns,
+                    old_actions=batch_samples.actions,
+                    old_action_log_probs=batch_samples.old_log_probs,
+                    old_value_estimates=batch_samples.old_values,
                     info=batch_info,
                 )
 
@@ -235,8 +216,7 @@ class PPO(OnPolicyAlgorithm):
             old_value_estimates: torch.Tensor,
             info: InfoDict,
     ) -> Optional[list[torch.Tensor]]:
-        latent_pi, value_estimates = self.policy.predict_latent_pi_and_values(observations)
-        new_action_selector = self.policy.action_selector.update_latent_features(latent_pi)
+        new_action_selector, value_estimates = self.policy(observations)
 
         if self.logging_config.log_optimization_action_stds:
             info['action_stds'] = new_action_selector.distribution.stddev
@@ -285,10 +265,7 @@ class PPO(OnPolicyAlgorithm):
             if self.ppo_kl_target is not None and approx_kl_div > 1.5 * self.ppo_kl_target:
                 return None, None
 
-        action_log_probs_ratios = torch.exp(new_action_log_probs - old_action_log_probs)
-
-        if action_log_probs_ratios.dim() > 2:
-            action_log_probs_ratios = action_log_probs_ratios.flatten(start_dim=2).sum(dim=2)
+        action_log_probs_ratios = torch.exp(new_action_log_probs - old_action_log_probs).sum(dim=-1)
 
         unclipped_actor_objective = advantages * action_log_probs_ratios
         clipped_actor_objective = advantages * torch.clamp(

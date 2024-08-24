@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Generic
 
 import gymnasium
 import numpy as np
@@ -8,7 +8,7 @@ from torch import optim
 
 from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
-from src.reinforcement_learning.core.buffers.rollout.basic_rollout_buffer import BasicRolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
@@ -17,20 +17,20 @@ from src.torch_device import TorchDevice, optimizer_to_device
 
 LogConf = TypeVar('LogConf', bound=LoggingConfig)
 
-RolloutBuffer = TypeVar('RolloutBuffer', bound=BasicRolloutBuffer)
+_RolloutBuffer = TypeVar('_RolloutBuffer', bound=RolloutBuffer)
 
 Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class OnPolicyAlgorithm(abc.ABC):
+class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
 
     def __init__(
             self,
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
-            buffer: RolloutBuffer,
+            buffer: _RolloutBuffer,
             gamma: float,
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
@@ -38,10 +38,11 @@ class OnPolicyAlgorithm(abc.ABC):
             callback: Callback,
             logging_config: LogConf,
             torch_device: TorchDevice,
+            torch_dtype: torch.dtype
     ):
         self.env, self.num_envs = as_vec_env(env)
 
-        self.policy = (policy if isinstance(policy, BasePolicy) else policy()).to(torch_device)
+        self.policy: Policy = (policy if isinstance(policy, BasePolicy) else policy()).to(torch_device)
         self.buffer = buffer
 
         self.gamma = gamma
@@ -70,14 +71,14 @@ class OnPolicyAlgorithm(abc.ABC):
         self.callback = callback
 
         self.torch_device = torch_device
+        self.torch_dtype = torch_dtype
 
     @abc.abstractmethod
     def optimize(
             self,
             last_obs: np.ndarray,
             last_episode_starts: np.ndarray,
-            info: InfoDict,
-            buffer: RolloutBuffer
+            info: InfoDict
     ) -> None:
         raise NotImplemented
 
@@ -86,7 +87,9 @@ class OnPolicyAlgorithm(abc.ABC):
             obs: np.ndarray,
             episode_starts: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        action_selector, extra_predictions = self.policy.process_obs(torch.tensor(obs, device=self.torch_device))
+        action_selector, value_estimates = self.policy(
+            torch.tensor(obs, device=self.torch_device, dtype=self.torch_dtype)
+        )
         actions = action_selector.get_actions()
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
@@ -99,7 +102,7 @@ class OnPolicyAlgorithm(abc.ABC):
             episode_starts=episode_starts,
             actions=actions,
             action_log_probs=action_selector.log_prob(actions),
-            **extra_predictions
+            value_estimates=value_estimates
         )
 
         return next_obs, rewards, np.logical_or(terminated, truncated), info
@@ -159,9 +162,8 @@ class OnPolicyAlgorithm(abc.ABC):
 
             self.callback.on_rollout_done(self, step, info)
 
-            self.optimize(obs, episode_starts, info, self.buffer)
+            self.optimize(obs, episode_starts, info)
 
             self.callback.on_optimization_done(self, step, info)
 
             self.buffer.reset()
-

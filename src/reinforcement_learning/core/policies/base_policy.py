@@ -1,43 +1,41 @@
 import abc
+from typing import Callable
 
 import torch
 from torch import nn
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
-from src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \
-    StateDependentNoiseActionSelector
+from src.reinforcement_learning.core.policies.components.actor import Actor
+from src.type_aliases import TensorDict
 
+Obs = torch.Tensor | TensorDict
+ObsPreprocessing = Callable[[Obs], torch.Tensor] | nn.Module
 
-class BasePolicy(nn.Module, abc.ABC):
-
-    action_selector: ActionSelector
-    uses_sde: bool
+class BasePolicy(nn.Module):
 
     def __init__(
             self,
-            network: nn.Module,
-            action_selector: ActionSelector
+            actor: Actor,
+            obs_preprocessing: ObsPreprocessing = nn.Identity()
     ):
         super().__init__()
-        self.network = network
+        self.actor = actor
+        self.obs_preprocessing = obs_preprocessing
 
-        self.replace_action_selector(action_selector, copy_action_net_weights=False)
+    def act(self, obs: Obs) -> ActionSelector:
+        obs = self.obs_preprocessing(obs)
+        return self.actor(obs)
 
-    @abc.abstractmethod
-    def process_obs(self, obs: torch.Tensor) -> tuple[ActionSelector, dict[str, torch.Tensor]]:
-        raise NotImplemented
+    @property
+    def uses_sde(self):
+        return self.actor.uses_sde
 
-    def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.network(obs)
+    @property
+    def action_selector(self):
+        return self.actor.action_selector
 
     def replace_action_selector(self, new_action_selector: ActionSelector, copy_action_net_weights: bool) -> None:
-        if copy_action_net_weights:
-            new_action_selector.action_net.load_state_dict(self.action_selector.action_net.state_dict())
-        self.action_selector = new_action_selector
-        self.uses_sde = isinstance(self.action_selector, StateDependentNoiseActionSelector)
+        self.actor.replace_action_selector(new_action_selector, copy_action_net_weights)
 
     def reset_sde_noise(self, batch_size: int) -> None:
-        if self.uses_sde:
-            self.action_selector: StateDependentNoiseActionSelector
-
-            self.action_selector.sample_exploration_noise(batch_size)
+        self.actor.reset_sde_noise(batch_size)

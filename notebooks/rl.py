@@ -34,9 +34,8 @@ def init_policy(
     from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
     from src.networks.core.net import Net
     from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection
-    from src.networks.skip_nets.additive_skip_net import AdditiveSkipNet, FullyConnectedWeightedAdditiveSkipNet1, \
-        FullyConnectedUnweightedAdditiveSkipNet
     from src.weight_initialization import orthogonal_initialization
+    from src.reinforcement_learning.core.policies.components.actor import Actor
 
     # in_size = 376
     # action_size = 17
@@ -54,55 +53,46 @@ def init_policy(
 
     hidden_activation_function = nn.ELU
 
-    class A2CNetwork(nn.Module):
+    actor_net = nn.Sequential(
+        nn.Linear(in_size, actor_features),
+        hidden_activation_function(),
+        SeqNet.from_layer_provider(
+            layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:
+            AdditiveSkipConnection(Net.seq_as_net(
+                orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
+                hidden_activation_function(),
+                orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
+                nn.Tanh() if is_last_layer else hidden_activation_function(),
+            )),
+            num_features=actor_features,
+            num_layers=actor_layers,
+        )
+    )
+    critic_net = nn.Sequential(
+        nn.Linear(in_size, critic_features),
+        hidden_activation_function(),
+        SeqNet.from_layer_provider(
+            layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:
+            AdditiveSkipConnection(Net.seq_as_net(
+                orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
+                hidden_activation_function(),
+                orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
+                hidden_activation_function(),
+            )),
+            num_features=critic_features,
+            num_layers=critic_layers,
+        ),
+        nn.Linear(critic_features, 1)
+        )
 
-        def __init__(self):
-            super().__init__()
-
-            self.actor_embedding = nn.Sequential(
-                nn.Linear(in_size, actor_features),
-                hidden_activation_function()
-            )
-            self.actor = SeqNet.from_layer_provider(
-                layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:
-                AdditiveSkipConnection(Net.seq_as_net(
-                    orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
-                    hidden_activation_function(),
-                    orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
-                    nn.Tanh() if is_last_layer else hidden_activation_function(),
-                )),
-                num_features=actor_features,
-                num_layers=actor_layers,
-            )
-
-            self.critic_embedding = nn.Sequential(
-                nn.Linear(in_size, critic_features),
-                hidden_activation_function()
-            )
-            self.critic = SeqNet.from_layer_provider(
-                layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:
-                AdditiveSkipConnection(Net.seq_as_net(
-                    orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
-                    hidden_activation_function(),
-                    orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),
-                    hidden_activation_function(),
-                )),
-                num_features=critic_features,
-                num_layers=critic_layers,
-            )
-            self.critic_regressor = nn.Linear(critic_features, 1)
-
-
-        def forward(self, x: torch.Tensor):
-            actor_out = self.actor(self.actor_embedding(x))
-            critic_out = self.critic_regressor(self.critic(self.critic_embedding(x)))
-            return actor_out, critic_out
-
-    return ActorCriticPolicy(A2CNetwork(), init_action_selector_(
-        latent_dim=actor_features,
-        action_dim=action_size,
-        hyper_parameters=hyper_parameters,
-    ))
+    return ActorCriticPolicy(
+        Actor(actor_net, init_action_selector_(
+            latent_dim=actor_features,
+            action_dim=action_size,
+            hyper_parameters=hyper_parameters,
+        )),
+        critic_net
+    )
 
 def init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':
     import torch.optim
