@@ -13,7 +13,6 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
             self,
             latent_dim: int,
             action_dim: int,
-            sum_action_dim: bool,
             action_net_initialization: ActionNetInitialization | None,
     ):
         super().__init__(
@@ -23,8 +22,6 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
         )
 
         self.distribution: Optional[torchdist.Distribution] = None
-
-        self._sum_action_dim = sum_action_dim
 
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         action_means = self.action_net(latent_pi)
@@ -36,8 +33,6 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
     def entropy(self) -> torch.Tensor | None:
         return self.sum_action_dim(self.distribution.entropy())
 
-    def sum_action_dim(self, tensor: torch.Tensor) -> torch.Tensor:
-        if self._sum_action_dim:
-            return tensor.sum(dim=-1)
-        else:
-            return tensor
+    @staticmethod
+    def sum_action_dim(tensor: torch.Tensor) -> torch.Tensor:
+        return tensor.sum(dim=-1)

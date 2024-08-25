@@ -35,6 +35,7 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
             reset_env_between_rollouts: bool,
+            grad_enabled_during_rollout: bool,
             callback: Callback,
             logging_config: LogConf,
             torch_device: TorchDevice,
@@ -68,6 +69,7 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
             self.policy_optimizer = optimizer_to_device(policy_optimizer(policy), torch_device)
 
         self.reset_env_between_rollouts = reset_env_between_rollouts
+        self.grad_enabled_during_rollout = grad_enabled_during_rollout
         self.callback = callback
 
         self.torch_device = torch_device
@@ -114,26 +116,27 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
             episode_starts: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray]:
-        step = 0
+        with torch.set_grad_enabled(self.grad_enabled_during_rollout):
+            step = 0
 
-        self.policy.reset_sde_noise(self.num_envs)
+            self.policy.reset_sde_noise(self.num_envs)
 
-        infos: list[InfoDict] = []
-        for step in range(min(self.buffer.buffer_size, max_steps)):
-            if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
-                self.policy.reset_sde_noise(self.num_envs)
+            infos: list[InfoDict] = []
+            for step in range(min(self.buffer.buffer_size, max_steps)):
+                if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
+                    self.policy.reset_sde_noise(self.num_envs)
 
-            obs, rewards, episode_starts, step_info = self.rollout_step(obs, episode_starts)
-            infos.append(step_info)
+                obs, rewards, episode_starts, step_info = self.rollout_step(obs, episode_starts)
+                infos.append(step_info)
 
-        if self.logging_config.log_rollout_infos:
-            info['rollout'] = stack_infos(infos)
+            if self.logging_config.log_rollout_infos:
+                info['rollout'] = stack_infos(infos)
 
-        if self.logging_config.log_last_obs:
-            info['last_obs'] = obs
-            info['last_episode_starts'] = episode_starts
+            if self.logging_config.log_last_obs:
+                info['last_obs'] = obs
+                info['last_episode_starts'] = episode_starts
 
-        return step + 1, obs, episode_starts
+            return step + 1, obs, episode_starts
 
     def train(self, num_steps: int):
         self.policy.train()

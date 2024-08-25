@@ -19,13 +19,11 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
             action_dim: int,
             std: float,
             std_learnable: bool,
-            sum_action_dim: bool = False,
             action_net_initialization: ActionNetInitialization | None = None,
     ):
         super().__init__(
             latent_dim=latent_dim,
             action_dim=action_dim,
-            sum_action_dim=sum_action_dim,
             action_net_initialization=action_net_initialization,
         )
 

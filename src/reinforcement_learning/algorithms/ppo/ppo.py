@@ -73,6 +73,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             grad_norm_clip_value: float | None = None,
             sde_noise_sample_freq: int | None = None,
             reset_env_between_rollouts: bool = False,
+            grad_enabled_during_rollout: bool = False,
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
             torch_device: TorchDevice = 'cpu',
@@ -89,6 +90,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
             reset_env_between_rollouts=reset_env_between_rollouts,
+            grad_enabled_during_rollout=grad_enabled_during_rollout,
             callback=callback or Callback(),
             logging_config=logging_config or PPOLoggingConfig(),
             torch_device=torch_device,
@@ -113,17 +115,6 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         self.value_function_clip_range_factor = value_function_clip_range_factor
 
         self.grad_norm_clip_value = grad_norm_clip_value
-
-    @override
-    def perform_rollout(
-            self,
-            max_steps: int,
-            obs: np.ndarray,
-            episode_starts: np.ndarray,
-            info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray]:
-        with torch.no_grad():
-            return super().perform_rollout(max_steps, obs, episode_starts, info)
 
     @override
     def optimize(
@@ -253,11 +244,13 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
     ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         new_action_log_probs = new_action_selector.log_prob(old_actions)
 
+        action_log_prob_ratios = new_action_log_probs - old_action_log_probs
+        action_prob_ratios = torch.exp(action_log_prob_ratios)
+
         if self.ppo_kl_target is not None or self.logging_config.log_actor_kl_divergence:
             # https://github.com/DLR-RM/stable-baselines3/blob/285e01f64aa8ba4bd15aa339c45876d56ed0c3b4/stable_baselines3/ppo/ppo.py#L266
             with torch.no_grad():
-                log_ratio = new_action_log_probs - old_action_log_probs
-                approx_kl_div = torch.mean((torch.exp(log_ratio) - 1) - log_ratio).cpu().unsqueeze(0).numpy()
+                approx_kl_div = torch.mean((action_prob_ratios - 1) - action_log_prob_ratios).cpu().unsqueeze(0).numpy()
 
             if self.logging_config.log_actor_kl_divergence:
                 info['actor_kl_divergence'] = approx_kl_div
@@ -265,11 +258,9 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             if self.ppo_kl_target is not None and approx_kl_div > 1.5 * self.ppo_kl_target:
                 return None, None
 
-        action_log_probs_ratios = torch.exp(new_action_log_probs - old_action_log_probs).sum(dim=-1)
-
-        unclipped_actor_objective = advantages * action_log_probs_ratios
+        unclipped_actor_objective = advantages * action_prob_ratios
         clipped_actor_objective = advantages * torch.clamp(
-            action_log_probs_ratios,
+            action_prob_ratios,
             1 - self.action_ratio_clip_range,
             1 + self.action_ratio_clip_range
         )

@@ -11,16 +11,27 @@ from src.reinforcement_learning.core.policy_construction import InitActionSelect
 def init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':
     from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \
         import PredictedStdActionSelector
+    from src.reinforcement_learning.core.action_selectors.squashed_diag_gaussian_action_selector import \
+        SquashedDiagGaussianActionSelector
     from src.weight_initialization import orthogonal_initialization
 
-    return PredictedStdActionSelector(
+    # return PredictedStdActionSelector(
+    #     latent_dim=latent_dim,
+    #     action_dim=action_dim,
+    #     base_std=0.15,
+    #     squash_output=True,
+    #     action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),
+    #     log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),
+    # )
+    return SquashedDiagGaussianActionSelector(
         latent_dim=latent_dim,
         action_dim=action_dim,
-        base_std=0.15,
-        squash_output=True,
+        std=1.0,
+        std_learnable=True,
         action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),
-        log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),
     )
+
+
 
 def init_policy(
         init_action_selector_: 'InitActionSelectorFunction',
@@ -96,7 +107,7 @@ def init_policy(
 
 def init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':
     import torch.optim
-    return torch.optim.AdamW(pol.parameters(), lr=1e-5)
+    return torch.optim.AdamW(pol.parameters(), lr=3e-4)
 
 def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':
     from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper

@@ -20,7 +20,6 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
             std: float,
             std_learnable: bool,
             epsilon: float = 1e-6,
-            sum_action_dim: bool = False,
             action_net_initialization: ActionNetInitialization | None = None,
     ):
         super().__init__(
@@ -28,7 +27,6 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
             action_dim=action_dim,
             std=std,
             std_learnable=std_learnable,
-            sum_action_dim=sum_action_dim,
             action_net_initialization=action_net_initialization,
         )
 

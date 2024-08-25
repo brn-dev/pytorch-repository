@@ -50,7 +50,7 @@ class RolloutBuffer(BaseBuffer[RolloutBufferSamples]):
         self.episode_starts = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
 
         self.actions = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
-        self.action_log_probs = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
+        self.action_log_probs = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
 
         self.value_estimates = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
 
