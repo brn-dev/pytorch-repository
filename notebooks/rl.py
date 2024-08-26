@@ -107,7 +107,7 @@ def init_policy(
 
 def init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':
     import torch.optim
-    return torch.optim.AdamW(pol.parameters(), lr=3e-4)
+    return torch.optim.AdamW(pol.collect_trainable_parameters(), lr=3e-4)
 
 def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':
     from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper

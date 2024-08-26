@@ -74,10 +74,10 @@ class RolloutBuffer(BaseBuffer[RolloutBufferSamples]):
         self.rewards[self.pos] = rewards
         self.episode_starts[self.pos] = episode_starts
 
-        self.actions[self.pos] = actions.cpu()
-        self.action_log_probs[self.pos] = action_log_probs.cpu()
+        self.actions[self.pos] = actions.cpu().numpy()
+        self.action_log_probs[self.pos] = action_log_probs.cpu().numpy()
 
-        self.value_estimates[self.pos] = value_estimates.squeeze(-1).cpu()
+        self.value_estimates[self.pos] = value_estimates.squeeze(-1).cpu().numpy()
 
         self.pos += 1
 

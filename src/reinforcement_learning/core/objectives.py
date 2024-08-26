@@ -22,9 +22,9 @@ def weigh_and_reduce_objective(
     reduced_objective = weigh_and_reduce_function(raw_objective)
 
     if logging_config.log_raw:
-        info[f'raw_{objective_name}'] = raw_objective.detach().cpu()
+        info[f'raw_{objective_name}'] = raw_objective.detach()
     if logging_config.log_reduced:
-        info[f'reduced_{objective_name}'] = reduced_objective.detach().cpu()
+        info[f'reduced_{objective_name}'] = reduced_objective.detach()
 
     return reduced_objective
 

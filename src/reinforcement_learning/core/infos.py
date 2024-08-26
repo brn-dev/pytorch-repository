@@ -30,11 +30,11 @@ def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'c
         if isinstance(values[0], torch.Tensor):
             match combination_method:
                 case 'stack':
-                    stacked_info[key] = torch.stack(values)
+                    stacked_info[key] = torch.stack(values).cpu()
                 case 'concat':
                     if len(values[0].shape) == 0:
                         values = [val.unsqueeze(0) for val in values]
-                    stacked_info[key] = torch.cat(values, dim=0)
+                    stacked_info[key] = torch.cat(values, dim=0).cpu()
                 case _:
                     raise ValueError(combination_method)
         elif isinstance(values[0], np.ndarray):

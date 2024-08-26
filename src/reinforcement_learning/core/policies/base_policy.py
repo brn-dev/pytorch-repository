@@ -1,4 +1,5 @@
 import abc
+import itertools
 from typing import Callable
 
 import torch
@@ -21,6 +22,9 @@ class BasePolicy(nn.Module):
         super().__init__()
         self.actor = actor
         self.obs_preprocessing = obs_preprocessing
+
+    def collect_trainable_parameters(self):
+        return self.parameters()
 
     def act(self, obs: Obs) -> ActionSelector:
         obs = self.obs_preprocessing(obs)
