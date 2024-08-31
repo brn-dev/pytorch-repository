@@ -1,6 +1,5 @@
-import abc
 import itertools
-from typing import Callable
+from typing import Callable, Iterable, Any
 
 import torch
 from torch import nn
@@ -23,6 +22,8 @@ class BasePolicy(nn.Module):
         self.actor = actor
         self.obs_preprocessing = obs_preprocessing
 
+    # In case of off-policy algorithms, this should only return the parameters of the components which are actually
+    # optimized
     def collect_trainable_parameters(self):
         return self.parameters()
 
@@ -43,3 +44,11 @@ class BasePolicy(nn.Module):
 
     def reset_sde_noise(self, batch_size: int) -> None:
         self.actor.reset_sde_noise(batch_size)
+
+    @staticmethod
+    def _chain_trainable_parameters(modules: Iterable[nn.Module | Any]) -> Iterable[torch.Tensor]:
+        return itertools.chain(*[
+            module.parameters()
+            for module in modules
+            if isinstance(module, nn.Module)
+        ])

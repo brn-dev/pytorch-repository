@@ -7,6 +7,7 @@ from gymnasium import Env
 
 from src.reinforcement_learning.gym.env_analysis import get_obs_shape, get_action_shape, get_num_envs
 from src.torch_device import TorchDevice, get_torch_device
+from src.type_aliases import ShapeDict
 
 BufferSamples = TypeVar('BufferSamples', bound=NamedTuple)
 
@@ -17,7 +18,7 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
             self,
             buffer_size: int,
             num_envs: int,
-            obs_shape: tuple[int, ...],
+            obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
@@ -34,17 +35,15 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
         self.np_dtype = np_dtype
 
         self.pos = 0
+        self.full = False
 
     @property
     def size(self):
-        return self.pos
-
-    @property
-    def full(self):
-        return self.pos == self.buffer_size
+        return self.buffer_size if self.full else self.pos
 
     def reset(self):
         self.pos = 0
+        self.full = False
 
     def extend(self, *args) -> None:
         for sample in zip(*args):

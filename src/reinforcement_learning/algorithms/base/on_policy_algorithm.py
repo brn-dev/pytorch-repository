@@ -1,12 +1,13 @@
 import abc
-from typing import Callable, TypeVar, Generic
+from typing import Callable, TypeVar
 
 import gymnasium
 import numpy as np
 import torch
+from overrides import override
 from torch import optim
 
-from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
+from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -15,22 +16,17 @@ from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice, optimizer_to_device
 
-LogConf = TypeVar('LogConf', bound=LoggingConfig)
-
-_RolloutBuffer = TypeVar('_RolloutBuffer', bound=RolloutBuffer)
-
-Policy = TypeVar('Policy', bound=BasePolicy)
-PolicyProvider = Callable[[], Policy]
+RolloutBuf = TypeVar('RolloutBuf', bound=RolloutBuffer)
 
 
-class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
+class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
 
     def __init__(
             self,
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
-            buffer: _RolloutBuffer,
+            buffer: RolloutBuf,
             gamma: float,
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
@@ -138,14 +134,15 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
 
             return step + 1, obs, episode_starts
 
-    def train(self, num_steps: int):
+    @override
+    def learn(self, total_timesteps: int):
         self.policy.train()
 
         obs: np.ndarray = np.empty(())
         episode_starts: np.ndarray = np.empty(())
 
         step = 0
-        while step < num_steps:
+        while step < total_timesteps:
             info: InfoDict = {}
 
             if step == 0 or self.reset_env_between_rollouts:
@@ -156,7 +153,7 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
                     info['reset'] = reset_info
 
             steps_performed, obs, episode_starts = self.perform_rollout(
-                max_steps=num_steps - step,
+                max_steps=total_timesteps - step,
                 obs=obs,
                 episode_starts=episode_starts,
                 info=info
@@ -170,3 +167,5 @@ class OnPolicyAlgorithm(Generic[Policy, _RolloutBuffer, LogConf], abc.ABC):
             self.callback.on_optimization_done(self, step, info)
 
             self.buffer.reset()
+
+        return self

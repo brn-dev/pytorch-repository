@@ -1,16 +1,24 @@
-from typing import Generator
+from typing import Generator, NamedTuple
 
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
-from src.reinforcement_learning.core.buffers.rollout.rollout_buffer_samples import RolloutBufferSamples
+from src.reinforcement_learning.core.buffers.rollout.base_rollout_buffer import BaseRolloutBuffer
 from src.reinforcement_learning.core.generalized_advantage_estimate import compute_returns_and_gae
 from src.reinforcement_learning.core.normalization import NormalizationType
 from src.torch_device import TorchDevice
 
 
-class RolloutBuffer(BaseBuffer[RolloutBufferSamples]):
+class RolloutBufferSamples(NamedTuple):
+    observations: torch.Tensor
+    actions: torch.Tensor
+    old_log_probs: torch.Tensor
+    old_values: torch.Tensor
+    returns: torch.Tensor
+    advantages: torch.Tensor
+
+
+class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
 
     observations: np.ndarray
     rewards: np.ndarray
@@ -80,6 +88,8 @@ class RolloutBuffer(BaseBuffer[RolloutBufferSamples]):
         self.value_estimates[self.pos] = value_estimates.squeeze(-1).cpu().numpy()
 
         self.pos += 1
+        if self.pos == self.buffer_size:
+            self.full = True
 
     def compute_returns_and_gae(
             self,
@@ -169,4 +179,3 @@ class RolloutBuffer(BaseBuffer[RolloutBufferSamples]):
 
         value_predictions = self.value_estimates.ravel()
         return 1 - np.var(returns - value_predictions) / return_variance
-
