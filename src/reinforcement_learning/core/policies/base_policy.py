@@ -6,17 +6,15 @@ from torch import nn
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.policies.components.actor import Actor
-from src.type_aliases import TensorDict
+from src.reinforcement_learning.core.type_aliases import TensorObsPreprocessing, TensorObs
 
-Obs = torch.Tensor | TensorDict
-ObsPreprocessing = Callable[[Obs], torch.Tensor] | nn.Module
 
 class BasePolicy(nn.Module):
 
     def __init__(
             self,
             actor: Actor,
-            obs_preprocessing: ObsPreprocessing = nn.Identity()
+            obs_preprocessing: TensorObsPreprocessing = nn.Identity()
     ):
         super().__init__()
         self.actor = actor
@@ -27,7 +25,7 @@ class BasePolicy(nn.Module):
     def collect_trainable_parameters(self):
         return self.parameters()
 
-    def act(self, obs: Obs) -> ActionSelector:
+    def act(self, obs: TensorObs) -> ActionSelector:
         obs = self.obs_preprocessing(obs)
         return self.actor(obs)
 
@@ -44,6 +42,9 @@ class BasePolicy(nn.Module):
 
     def reset_sde_noise(self, batch_size: int) -> None:
         self.actor.reset_sde_noise(batch_size)
+
+    def set_train_mode(self, mode: bool) -> None:
+        self.train(mode)
 
     @staticmethod
     def _chain_trainable_parameters(modules: Iterable[nn.Module | Any]) -> Iterable[torch.Tensor]:

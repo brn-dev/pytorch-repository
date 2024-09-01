@@ -13,7 +13,7 @@ class Scheduler(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def step(self) -> T:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class FixedValueScheduler(Scheduler[T]):

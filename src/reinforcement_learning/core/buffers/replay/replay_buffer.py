@@ -14,6 +14,7 @@ class ReplayBufferSamples(NamedTuple):
     dones: torch.Tensor
     rewards: torch.Tensor
 
+
 class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
 
     def __init__(
@@ -43,15 +44,6 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
         if not optimize_memory_usage:
             self.next_observations = np.zeros((self.buffer_size, self.num_envs, *obs_shape), dtype=self.np_dtype)
 
-        self.actions = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
-
-        self.rewards = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
-        self.dones = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
-
-        # TODO: maybe introduce truncation logic
-        # https://github.com/DLR-RM/stable-baselines3/blob/9a3b28bb9f24a1646479500fb23be55ba652a30d/stable_baselines3/common/buffers.py#L321
-
-
     def add(
         self,
         obs: np.ndarray,
@@ -65,14 +57,11 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
         if self.optimize_memory_usage:
             self.observations[(self.pos + 1) % self.buffer_size] = next_obs
 
-        self.actions[self.pos] = actions
-        self.rewards[self.pos] = rewards
-        self.dones[self.pos] = dones
-
-        self.pos += 1
-        if self.pos == self.buffer_size:
-            self.full = True
-            self.pos = 0
+        self._add(
+            actions=actions,
+            rewards=rewards,
+            dones=dones,
+        )
 
     def sample(self, batch_size: int, with_replacement: bool = False) -> ReplayBufferSamples:
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
@@ -91,7 +80,6 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
             step_indices = np.random.choice(self.pos, batch_size, replace=with_replacement)
 
         return self.get_batch(step_indices, env_indices)
-
 
     def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         if self.optimize_memory_usage:

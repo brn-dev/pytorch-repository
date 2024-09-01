@@ -7,7 +7,7 @@ from gymnasium import Env
 
 from src.reinforcement_learning.gym.env_analysis import get_obs_shape, get_action_shape, get_num_envs
 from src.torch_device import TorchDevice, get_torch_device
-from src.type_aliases import ShapeDict
+from src.reinforcement_learning.core.type_aliases import ShapeDict
 
 BufferSamples = TypeVar('BufferSamples', bound=NamedTuple)
 
@@ -51,7 +51,7 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
 
     @abc.abstractmethod
     def add(self, *args, **kwargs) -> None:
-        raise NotImplemented
+        raise NotImplementedError
 
     def to_torch(self, data: np.ndarray) -> torch.Tensor:
         return torch.as_tensor(data, device=self.torch_device, dtype=self.torch_dtype)

@@ -34,11 +34,11 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
 
     @abc.abstractmethod
     def __len__(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def close(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def save_state_dict(
@@ -49,7 +49,7 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
             model_state_dict: StateDict,
             optimizer_state_dict: Optional[StateDict],
     ) -> ModelEntry[ModelInfo]:
-        raise NotImplemented
+        raise NotImplementedError
 
     def save_model_state_dict(
             self,
@@ -73,7 +73,7 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
             model_id: str,
             load_optimizer: bool = True
     ) -> tuple[StateDict, Optional[StateDict]]:
-        raise NotImplemented
+        raise NotImplementedError
 
     def load_model_state_dict(
             self,
@@ -94,19 +94,19 @@ class ModelDB(abc.ABC, Generic[ModelInfo]):
 
     @abc.abstractmethod
     def all_entries(self) -> list[ModelEntry[ModelInfo]]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def fetch_entry(self, model_id: str) -> ModelEntry[ModelInfo]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def delete_entry(self, model_id: str, delete_state_dict: bool) -> None:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def _save_entry(self, entry: ModelEntry[ModelInfo]):
-        raise NotImplemented
+        raise NotImplementedError
 
     def filtered_entries(self, entry_filter: ModelEntryFilter):
         return filter(entry_filter, self.all_entries())

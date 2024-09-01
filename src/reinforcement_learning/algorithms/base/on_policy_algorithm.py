@@ -4,19 +4,17 @@ from typing import Callable, TypeVar
 import gymnasium
 import numpy as np
 import torch
-from overrides import override
 from torch import optim
 
 from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
-from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
-from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
+from src.reinforcement_learning.core.buffers.rollout.base_rollout_buffer import BaseRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice, optimizer_to_device
+from src.void_list import VoidList
 
-RolloutBuf = TypeVar('RolloutBuf', bound=RolloutBuffer)
+RolloutBuf = TypeVar('RolloutBuf', bound=BaseRolloutBuffer)
 
 
 class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
@@ -30,55 +28,28 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             gamma: float,
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
-            reset_env_between_rollouts: bool,
-            grad_enabled_during_rollout: bool,
             callback: Callback,
             logging_config: LogConf,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype
     ):
-        self.env, self.num_envs = as_vec_env(env)
-
-        self.policy: Policy = (policy if isinstance(policy, BasePolicy) else policy()).to(torch_device)
-        self.buffer = buffer
-
-        self.gamma = gamma
+        super().__init__(
+            env=env,
+            policy=policy,
+            buffer=buffer,
+            gamma=gamma,
+            sde_noise_sample_freq=sde_noise_sample_freq,
+            callback=callback,
+            logging_config=logging_config,
+            torch_device=torch_device,
+            torch_dtype=torch_dtype,
+        )
         self.gae_lambda = gae_lambda
 
-        if not policy.uses_sde and sde_noise_sample_freq is not None:
-            print(f'================================= Warning ================================= \n'
-                  f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n'
-                  f'=========================================================================== \n\n\n')
-        if policy.uses_sde and sde_noise_sample_freq is None:
-            raise ValueError(f'SDE noise sample freq is set to None despite using SDE')
-
-        self.sde_noise_sample_freq = sde_noise_sample_freq
-
-        self.logging_config = logging_config
-        if (self.logging_config.log_rollout_action_stds
-                and not isinstance(policy.action_selector, ContinuousActionSelector)):
-            raise ValueError('Cannot log action distribution stds with non continuous action selector')
-
         if isinstance(policy_optimizer, optim.Optimizer):
-            self.policy_optimizer = optimizer_to_device(policy_optimizer, torch_device)
+            self.policy_optimizer = optimizer_to_device(policy_optimizer, self.torch_device)
         else:
-            self.policy_optimizer = optimizer_to_device(policy_optimizer(policy), torch_device)
-
-        self.reset_env_between_rollouts = reset_env_between_rollouts
-        self.grad_enabled_during_rollout = grad_enabled_during_rollout
-        self.callback = callback
-
-        self.torch_device = torch_device
-        self.torch_dtype = torch_dtype
-
-    @abc.abstractmethod
-    def optimize(
-            self,
-            last_obs: np.ndarray,
-            last_episode_starts: np.ndarray,
-            info: InfoDict
-    ) -> None:
-        raise NotImplemented
+            self.policy_optimizer = optimizer_to_device(policy_optimizer(self.policy), self.torch_device)
 
     def rollout_step(
             self,
@@ -112,12 +83,12 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             episode_starts: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray]:
-        with torch.set_grad_enabled(self.grad_enabled_during_rollout):
-            step = 0
-
+        with torch.no_grad():
+            self.buffer.reset()
             self.policy.reset_sde_noise(self.num_envs)
 
-            infos: list[InfoDict] = []
+            infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
+            step = 0
             for step in range(min(self.buffer.buffer_size, max_steps)):
                 if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
                     self.policy.reset_sde_noise(self.num_envs)
@@ -133,39 +104,3 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
                 info['last_episode_starts'] = episode_starts
 
             return step + 1, obs, episode_starts
-
-    @override
-    def learn(self, total_timesteps: int):
-        self.policy.train()
-
-        obs: np.ndarray = np.empty(())
-        episode_starts: np.ndarray = np.empty(())
-
-        step = 0
-        while step < total_timesteps:
-            info: InfoDict = {}
-
-            if step == 0 or self.reset_env_between_rollouts:
-                obs, reset_info = self.env.reset()
-                episode_starts = np.ones(self.num_envs, dtype=bool)
-
-                if self.logging_config.log_reset_info:
-                    info['reset'] = reset_info
-
-            steps_performed, obs, episode_starts = self.perform_rollout(
-                max_steps=total_timesteps - step,
-                obs=obs,
-                episode_starts=episode_starts,
-                info=info
-            )
-            step += steps_performed
-
-            self.callback.on_rollout_done(self, step, info)
-
-            self.optimize(obs, episode_starts, info)
-
-            self.callback.on_optimization_done(self, step, info)
-
-            self.buffer.reset()
-
-        return self

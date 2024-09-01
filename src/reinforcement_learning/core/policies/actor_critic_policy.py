@@ -2,9 +2,10 @@ import torch
 from torch import nn
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy, ObsPreprocessing, Obs
+from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.v_critic import VCritic
+from src.reinforcement_learning.core.type_aliases import TensorObsPreprocessing, TensorObs
 
 VALUE_ESTIMATES_KEY = 'value_estimates'
 
@@ -15,7 +16,7 @@ class ActorCriticPolicy(BasePolicy):
             self,
             actor: Actor,
             critic: VCritic | nn.Module,  # A state value critic is essentially just a module
-            obs_preprocessing: ObsPreprocessing = nn.Identity()
+            obs_preprocessing: TensorObsPreprocessing = nn.Identity()
     ):
         super().__init__(
             actor=actor,
@@ -23,7 +24,7 @@ class ActorCriticPolicy(BasePolicy):
         )
         self.critic = critic
 
-    def forward(self, obs: Obs) -> tuple[ActionSelector, torch.Tensor]:
+    def forward(self, obs: TensorObs) -> tuple[ActionSelector, torch.Tensor]:
         obs = self.obs_preprocessing(obs)
         return self.actor(obs), self.critic(obs)
 

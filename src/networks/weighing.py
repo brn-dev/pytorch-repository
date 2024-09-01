@@ -15,7 +15,7 @@ class Weighing(Net, abc.ABC):
 
     @abc.abstractmethod
     def get_weight(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplemented
+        raise NotImplementedError
 
     def forward(self, x: torch.Tensor):
         return x * self.get_weight(x)

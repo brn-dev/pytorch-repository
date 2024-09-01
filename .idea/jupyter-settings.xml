@@ -3,6 +3,15 @@
   <component name="JupyterPersistentConnectionParameters">
     <option name="moduleParameters">
       <map>
+        <entry key="$PROJECT_DIR$/.idea/pytorch-repository.iml">
+          <value>
+            <JupyterConnectionParameters>
+              <option name="argv" value="lab --no-browser" />
+              <option name="managed" value="true" />
+              <option name="sdkName" value="" />
+            </JupyterConnectionParameters>
+          </value>
+        </entry>
         <entry key="$PROJECT_DIR$/.idea/pytorch-starter.iml">
           <value>
             <JupyterConnectionParameters>

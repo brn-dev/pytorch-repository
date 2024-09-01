@@ -42,7 +42,7 @@ class GlobalPooling(Net, abc.ABC):
 
     @abc.abstractmethod
     def forward(self, x: torch.Tensor):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class GlobalAveragePooling(GlobalPooling):

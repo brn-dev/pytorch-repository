@@ -30,7 +30,7 @@ class InitActionSelectorFunction(Protocol):
             action_dim: int,
             hyper_parameters: InitializationHyperParameters
     ) -> ActionSelector:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 InitPolicyFunction = Callable[[InitActionSelectorFunction, InitializationHyperParameters], BasePolicy]

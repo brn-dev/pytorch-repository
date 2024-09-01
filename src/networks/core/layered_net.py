@@ -212,7 +212,7 @@ class LayeredNet(Net, abc.ABC):
     @classmethod
     @abc.abstractmethod
     def from_layer_provider(cls, layer_provider: LayerProvider, *args, **kwargs) -> 'LayeredNetDerived':
-        raise NotImplemented
+        raise NotImplementedError
 
 
 LayeredNetDerived = TypeVar('LayeredNetDerived', bound=LayeredNet)

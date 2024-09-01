@@ -9,8 +9,8 @@ from torch import nn, optim
 
 from src.function_types import TorchLossFunction, TorchTensorTransformation
 from src.module_analysis import calculate_grad_norm
-from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, LoggingConfig, \
-    PolicyProvider, Policy
+from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
+from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, Policy
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -72,8 +72,6 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             value_function_clip_range_factor: float | None = None,
             grad_norm_clip_value: float | None = None,
             sde_noise_sample_freq: int | None = None,
-            reset_env_between_rollouts: bool = False,
-            grad_enabled_during_rollout: bool = False,
             callback: Callback['PPO'] = None,
             logging_config: PPOLoggingConfig = None,
             torch_device: TorchDevice = 'cpu',
@@ -89,8 +87,6 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             gamma=gamma,
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
-            reset_env_between_rollouts=reset_env_between_rollouts,
-            grad_enabled_during_rollout=grad_enabled_during_rollout,
             callback=callback or Callback(),
             logging_config=logging_config or PPOLoggingConfig(),
             torch_device=torch_device,

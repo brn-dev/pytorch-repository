@@ -4,8 +4,8 @@ import numpy as np
 import torch
 
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
+from src.reinforcement_learning.core.type_aliases import TensorDict, ShapeDict, NpArrayDict
 from src.torch_device import TorchDevice
-from src.type_aliases import TensorDict, ShapeDict, NpArrayDict
 
 
 class DictReplayBufferSamples(NamedTuple):
@@ -49,12 +49,7 @@ class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
         }
         self.obs_keys = set(self.obs_shape.keys())
 
-        self.actions = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
-
-        self.rewards = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
-        self.dones = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
-
-    def add(  # type: ignore[override]
+    def add(
         self,
         obs: NpArrayDict,
         next_obs: NpArrayDict,
@@ -66,14 +61,11 @@ class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
             self.observations[key][self.pos] = obs[key]
             self.next_observations[key][self.pos] = next_obs[key]
 
-        self.actions[self.pos] = actions
-        self.rewards[self.pos] = rewards
-        self.dones[self.pos] = dones
-
-        self.pos += 1
-        if self.pos == self.buffer_size:
-            self.full = True
-            self.pos = 0
+        self._add(
+            actions=actions,
+            rewards=rewards,
+            dones=dones,
+        )
 
     def sample(self, batch_size: int, with_replacement: bool = False):
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)

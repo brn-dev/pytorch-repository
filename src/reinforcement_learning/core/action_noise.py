@@ -12,7 +12,7 @@ class ActionNoise(abc.ABC):
 
     @abc.abstractmethod
     def __call__(self) -> np.ndarray:
-        raise NotImplemented
+        raise NotImplementedError
 
 class NormalActionNoise(ActionNoise):
 

@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 @dataclass
 class LoggingConfig:
-    log_reset_info: bool = False
     log_rollout_infos: bool = False
     log_rollout_action_stds: bool = False
     log_last_obs: bool = False

@@ -11,11 +11,11 @@ class MovingAverage(abc.ABC):
 
     @abc.abstractmethod
     def update(self, value: float) -> float:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def get(self) -> float:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class SimpleMovingAverage(MovingAverage):

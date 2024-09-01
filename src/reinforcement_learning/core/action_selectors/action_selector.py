@@ -35,35 +35,35 @@ class ActionSelector(nn.Module, abc.ABC):
 
     @abc.abstractmethod
     def update_latent_features(self: SelfActionDistribution, latent_pi: torch.Tensor) -> SelfActionDistribution:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def update_distribution_params(self: SelfActionDistribution, *args, **kwargs) -> SelfActionDistribution:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def sample(self) -> torch.Tensor:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def mode(self) -> torch.Tensor:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def log_prob(self, actions: torch.Tensor) -> torch.Tensor:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def entropy(self) -> torch.Tensor | None:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def actions_from_distribution_params(self, *args, **kwargs) -> torch.Tensor:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abc.abstractmethod
     def log_prob_from_distribution_params(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplemented
+        raise NotImplementedError
 
     def get_actions(self, deterministic: bool = False) -> torch.Tensor:
         if deterministic:
