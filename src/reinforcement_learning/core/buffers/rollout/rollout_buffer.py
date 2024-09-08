@@ -18,7 +18,14 @@ class RolloutBufferSamples(NamedTuple):
 
 class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
 
-    samples_ready: bool
+    observations: np.ndarray
+
+    flat_observations: np.ndarray
+    flat_actions: np.ndarray
+    flat_action_log_probs: np.ndarray
+    flat_value_estimates: np.ndarray
+    flat_returns: np.ndarray
+    flat_advantages: np.ndarray
 
     def __init__(
             self,
@@ -39,10 +46,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
         )
-        self.reset()
 
-    def reset(self):
-        super().reset()
         self.observations = np.zeros((self.buffer_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
         self.rewards = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
         self.episode_starts = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
@@ -52,10 +56,13 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
 
         self.value_estimates = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
 
+        self.reset()
+
+    def reset(self):
+        super().reset()
+
         self.returns = None
         self.advantages = None
-
-        self.samples_ready = False
 
     def add(
             self,
@@ -83,48 +90,38 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
 
     def get_samples(
             self,
-            batch_size: int | None = None,
-            shuffled: bool = True
+            batch_size: int | None = None
     ) -> Generator[RolloutBufferSamples, None, None]:
         assert self.advantages is not None and self.returns is not None, \
             'Call compute_gae_and_returns before calling get_samples'
 
         num_samples = self.pos * self.num_envs
 
-        if shuffled:
-            indices = np.random.permutation(num_samples)
-        else:
-            indices = np.arange(num_samples)
+        indices = np.random.permutation(num_samples)
 
         if batch_size is None:
             batch_size = num_samples
 
-        if not self.samples_ready:
-            array_names = [
-                "observations",
-                "actions",
-                "action_log_probs",
-                "value_estimates",
-                "returns",
-                "advantages",
-            ]
-
-            for array_name in array_names:
-                # swapping and flattening creates a copy of the array. To prevent excess memory usage, we replace the
-                # old arrays with the flattened ones, keeping memory usage the same.
-                self.__dict__[array_name] = self.swap_and_flatten(self.__dict__[array_name])
-            self.samples_ready = True
+        self.create_flattened_array_views()
 
         for start_index in range(0, num_samples, batch_size):
             yield self.get_batch(indices[start_index:start_index + batch_size])
 
+    def create_flattened_array_views(self):
+        self.flat_observations = self.flatten(self.observations)
+        self.flat_actions = self.flatten(self.actions)
+        self.flat_action_log_probs = self.flatten(self.action_log_probs)
+        self.flat_value_estimates = self.flatten(self.value_estimates)
+        self.flat_returns = self.flatten(self.returns)
+        self.flat_advantages = self.flatten(self.advantages)
+
     def get_batch(self, batch_indices: np.ndarray):
         data = (
-            self.observations[batch_indices],
-            self.actions[batch_indices],
-            self.action_log_probs[batch_indices],
-            self.value_estimates[batch_indices],
-            self.returns[batch_indices],
-            self.advantages[batch_indices],
+            self.flat_observations[batch_indices],
+            self.flat_actions[batch_indices],
+            self.flat_action_log_probs[batch_indices],
+            self.flat_value_estimates[batch_indices],
+            self.flat_returns[batch_indices],
+            self.flat_advantages[batch_indices],
         )
         return RolloutBufferSamples(*self.all_to_torch(data))

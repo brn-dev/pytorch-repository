@@ -36,7 +36,6 @@ class BaseRolloutBuffer(BaseBuffer[BufferSamples], abc.ABC):
     def get_samples(
             self,
             batch_size: int | None = None,
-            shuffled: bool = True
     ) -> Generator[BufferSamples, None, None]:
         raise NotImplementedError
 

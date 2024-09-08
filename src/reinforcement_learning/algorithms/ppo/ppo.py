@@ -67,7 +67,6 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             ppo_max_epochs: int = 5,
             ppo_kl_target: float | None = None,
             ppo_batch_size: int | None = None,
-            shuffle_batches: bool = False,
             action_ratio_clip_range: float = 0.2,
             value_function_clip_range_factor: float | None = None,
             grad_norm_clip_value: float | None = None,
@@ -105,7 +104,6 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         self.ppo_max_epochs = ppo_max_epochs
         self.ppo_kl_target = ppo_kl_target
         self.ppo_batch_size = ppo_batch_size if ppo_batch_size is not None else self.buffer.buffer_size
-        self.shuffle_batches = shuffle_batches
 
         self.action_ratio_clip_range = action_ratio_clip_range
         self.value_function_clip_range_factor = value_function_clip_range_factor
@@ -139,7 +137,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         for i_epoch in range(self.ppo_max_epochs):
             epoch_infos: list[InfoDict] = []
 
-            for batch_samples in self.buffer.get_samples(self.ppo_batch_size, self.shuffle_batches):
+            for batch_samples in self.buffer.get_samples(self.ppo_batch_size):
                 batch_info: InfoDict = {}
 
                 objectives = self.compute_ppo_objectives(

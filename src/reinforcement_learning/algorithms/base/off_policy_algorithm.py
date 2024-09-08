@@ -1,19 +1,14 @@
 from abc import ABC
-from typing import TypeVar, Optional, Self, Callable
+from typing import TypeVar
 
 import gymnasium
-import numpy as np
 import torch
-from overrides import override
-from torch import optim
 
 from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import RolloutBuf
 from src.reinforcement_learning.core.action_noise import ActionNoise
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.infos import InfoDict
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.torch_device import TorchDevice
 
 ReplayBuf = TypeVar('ReplayBuf', bound=BaseReplayBuffer)
@@ -28,6 +23,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             buffer: RolloutBuf,
             gamma: float,
             tau: float,
+            rollout_steps: int,
             gradient_steps: int,
             action_noise: ActionNoise,
             warmup_steps: int,
@@ -52,6 +48,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
 
         self.tau = tau
 
+        self.rollout_steps = rollout_steps
         self.gradient_steps = gradient_steps
 
         self.action_noise = action_noise

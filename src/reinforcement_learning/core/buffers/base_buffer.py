@@ -60,9 +60,9 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
         return tuple(map(self.to_torch, arrays))
 
     @staticmethod
-    def swap_and_flatten(arr: np.ndarray) -> np.ndarray:
+    def flatten(arr: np.ndarray) -> np.ndarray:
         shape = arr.shape
-        return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
+        return arr.reshape(shape[0] * shape[1], *shape[2:])
 
     @classmethod
     def for_env(
