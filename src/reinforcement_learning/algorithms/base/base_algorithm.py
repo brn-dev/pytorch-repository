@@ -37,8 +37,8 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
             torch_dtype: torch.dtype
     ):
         self.env, self.num_envs = as_vec_env(env)
-        self.observation_space = self.env.get_wrapper_attr('single_observation_space')
-        self.action_space = self.env.get_wrapper_attr('single_action_space')
+        self.observation_space: gymnasium.spaces.Space = self.env.get_wrapper_attr('single_observation_space')
+        self.action_space: gymnasium.spaces.Space = self.env.get_wrapper_attr('single_action_space')
 
         self.policy: Policy = (policy if isinstance(policy, BasePolicy) else policy()).to(torch_device)
         self.buffer = buffer
@@ -92,12 +92,13 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
             info: InfoDict = {}
 
             self.policy.set_train_mode(False)
-            steps_performed, obs, episode_starts = self.perform_rollout(
-                max_steps=total_timesteps - step,
-                obs=obs,
-                episode_starts=episode_starts,
-                info=info
-            )
+            with torch.no_grad():
+                steps_performed, obs, episode_starts = self.perform_rollout(
+                    max_steps=total_timesteps - step,
+                    obs=obs,
+                    episode_starts=episode_starts,
+                    info=info
+                )
             step += steps_performed
 
             self.callback.on_rollout_done(self, step, info)
@@ -109,15 +110,20 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
 
         return self
 
-    def normalize_action(self, action: np.ndarray) -> np.ndarray:
+    def normalize_actions(self, actions: np.ndarray) -> np.ndarray:
         assert isinstance(self.action_space, gymnasium.spaces.Box), 'Can only normalize continuous actions'
         low, high = self.action_space.low, self.action_space.high
-        return 2.0 * ((action - low) / (high - low)) - 1.0
+        return 2.0 * ((actions - low) / (high - low)) - 1.0
 
-    def denormalize_action(self, normalized_action: np.ndarray) -> np.ndarray:
+    def denormalize_actions(self, normalized_actions: np.ndarray) -> np.ndarray:
         assert isinstance(self.action_space, gymnasium.spaces.Box), 'Can only denormalize continuous actions'
         low, high = self.action_space.low, self.action_space.high
-        return low + (0.5 * (normalized_action + 1.0) * (high - low))
+        return low + (0.5 * (normalized_actions + 1.0) * (high - low))
+
+    def clip_actions(self, actions: np.ndarray) -> np.ndarray:
+        assert isinstance(self.action_space, gymnasium.spaces.Box), 'Can only clip continuous actions'
+        low, high = self.action_space.low, self.action_space.high
+        return np.clip(actions, low, high)
 
     def to_tensor(self, arr: np.ndarray) -> torch.Tensor:
         return torch.tensor(arr, dtype=self.torch_dtype, device=self.torch_device)

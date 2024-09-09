@@ -46,16 +46,16 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
 
     def add(
         self,
-        obs: np.ndarray,
-        next_obs: np.ndarray,
+        observations: np.ndarray,
+        next_observations: np.ndarray,
         actions: np.ndarray,
         rewards: np.ndarray,
         dones: np.ndarray,
     ) -> None:
-        self.observations[self.pos] = obs
+        self.observations[self.pos] = observations
 
         if self.optimize_memory_usage:
-            self.observations[(self.pos + 1) % self.buffer_size] = next_obs
+            self.observations[(self.pos + 1) % self.buffer_size] = next_observations
 
         self._add(
             actions=actions,

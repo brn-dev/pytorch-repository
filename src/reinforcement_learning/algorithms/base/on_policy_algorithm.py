@@ -55,7 +55,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             self,
             obs: np.ndarray,
             episode_starts: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    ) -> tuple[np.ndarray, np.ndarray, dict]:
         action_selector, value_estimates = self.policy(
             torch.tensor(obs, device=self.torch_device, dtype=self.torch_dtype)
         )
@@ -74,7 +74,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             value_estimates=value_estimates
         )
 
-        return next_obs, rewards, np.logical_or(terminated, truncated), info
+        return next_obs, np.logical_or(terminated, truncated), info
 
     def perform_rollout(
             self,
@@ -83,24 +83,23 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             episode_starts: np.ndarray,
             info: InfoDict
     ) -> tuple[int, np.ndarray, np.ndarray]:
-        with torch.no_grad():
-            self.buffer.reset()
-            self.policy.reset_sde_noise(self.num_envs)
+        self.buffer.reset()
+        self.policy.reset_sde_noise(self.num_envs)
 
-            infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
-            step = 0
-            for step in range(min(self.buffer.buffer_size, max_steps)):
-                if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
-                    self.policy.reset_sde_noise(self.num_envs)
+        infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
+        step = 0
+        for step in range(min(self.buffer.buffer_size, max_steps)):
+            if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
+                self.policy.reset_sde_noise(self.num_envs)
 
-                obs, rewards, episode_starts, step_info = self.rollout_step(obs, episode_starts)
-                infos.append(step_info)
+            obs, episode_starts, step_info = self.rollout_step(obs, episode_starts)
+            infos.append(step_info)
 
-            if self.logging_config.log_rollout_infos:
-                info['rollout'] = stack_infos(infos)
+        if self.logging_config.log_rollout_infos:
+            info['rollout'] = stack_infos(infos)
 
-            if self.logging_config.log_last_obs:
-                info['last_obs'] = obs
-                info['last_episode_starts'] = episode_starts
+        if self.logging_config.log_last_obs:
+            info['last_obs'] = obs
+            info['last_episode_starts'] = episode_starts
 
-            return step + 1, obs, episode_starts
+        return step + 1, obs, episode_starts

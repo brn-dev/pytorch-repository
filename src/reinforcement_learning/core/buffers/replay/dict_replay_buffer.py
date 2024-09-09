@@ -51,15 +51,15 @@ class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
 
     def add(
         self,
-        obs: NpArrayDict,
-        next_obs: NpArrayDict,
+        observations: NpArrayDict,
+        next_observations: NpArrayDict,
         actions: np.ndarray,
         rewards: np.ndarray,
         dones: np.ndarray,
     ) -> None:
         for key in self.obs_keys:
-            self.observations[key][self.pos] = obs[key]
-            self.next_observations[key][self.pos] = next_obs[key]
+            self.observations[key][self.pos] = observations[key]
+            self.next_observations[key][self.pos] = next_observations[key]
 
         self._add(
             actions=actions,

@@ -41,8 +41,8 @@ class BaseReplayBuffer(BaseBuffer[BufferSamples], abc.ABC):
     @abc.abstractmethod
     def add(
             self,
-            obs: NpObs,
-            next_obs: NpObs,
+            observations: NpObs,
+            next_observations: NpObs,
             actions: np.ndarray,
             rewards: np.ndarray,
             dones: np.ndarray,
