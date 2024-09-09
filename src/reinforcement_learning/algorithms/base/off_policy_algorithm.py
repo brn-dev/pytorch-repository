@@ -106,6 +106,10 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
                 else:
                     next_obs[i] = final_obs
 
+        print(f'{obs = }')
+        print(f'{next_obs = }')
+        print()
+
         self.buffer.add(
             observations=obs,
             next_observations=next_obs,
@@ -117,7 +121,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         self._on_step()
 
         self.steps_performed += 1
-        return next_obs, np.logical_or(terminated, truncated), info
+        return new_obs, np.logical_or(terminated, truncated), info
 
     def perform_rollout(
             self,

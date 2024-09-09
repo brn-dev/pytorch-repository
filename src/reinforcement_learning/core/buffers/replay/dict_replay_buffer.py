@@ -67,9 +67,9 @@ class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
             dones=dones,
         )
 
-    def sample(self, batch_size: int, with_replacement: bool = False):
+    def sample(self, batch_size: int):
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
-        step_indices = np.random.choice(self.size, batch_size, replace=with_replacement)
+        step_indices = np.random.choice(self.size, batch_size)
         return self.get_batch(step_indices, env_indices)
 
     def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> DictReplayBufferSamples:

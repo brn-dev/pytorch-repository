@@ -54,8 +54,13 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
     ) -> None:
         self.observations[self.pos] = observations
 
+        # TODO: using this simple logic when optimize_memory_usage=True stores and samples the transition
+        # last obs before terminal -> first obs of new episode
+        # which preferably should not happen
         if self.optimize_memory_usage:
             self.observations[(self.pos + 1) % self.buffer_size] = next_observations
+        else:
+            self.next_observations[self.pos] = next_observations
 
         self._add(
             actions=actions,
@@ -63,21 +68,21 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
             dones=dones,
         )
 
-    def sample(self, batch_size: int, with_replacement: bool = False) -> ReplayBufferSamples:
+    def sample(self, batch_size: int) -> ReplayBufferSamples:
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
 
         if not self.optimize_memory_usage:
-            step_indices = np.random.choice(self.size, batch_size, replace=with_replacement)
+            step_indices = np.random.choice(self.size, batch_size)
             return self.get_batch(step_indices, env_indices)
 
         # Do not sample the element with index `self.pos` as the transitions is invalid
         # (we use only one array to store `obs` and `next_obs`)
         if self.full:
             step_indices = (
-               np.random.choice(self.buffer_size - 1, batch_size, replace=with_replacement) + self.pos + 1
+               np.random.choice(self.buffer_size - 1, batch_size) + self.pos + 1
             ) % self.buffer_size
         else:
-            step_indices = np.random.choice(self.pos, batch_size, replace=with_replacement)
+            step_indices = np.random.choice(self.pos, batch_size)
 
         return self.get_batch(step_indices, env_indices)
 

@@ -65,5 +65,5 @@ class BaseReplayBuffer(BaseBuffer[BufferSamples], abc.ABC):
             self.pos = 0
 
     @abc.abstractmethod
-    def sample(self, batch_size: int, with_replacement: bool = False) -> BufferSamples:
+    def sample(self, batch_size: int) -> BufferSamples:
         raise NotImplementedError

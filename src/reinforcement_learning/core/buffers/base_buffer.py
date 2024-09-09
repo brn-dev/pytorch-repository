@@ -72,12 +72,14 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
             torch_device: TorchDevice,
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
+            **buffer_kwargs
     ):
         num_envs = get_num_envs(env)
 
         obs_shape = get_obs_shape(env)
         action_shape = get_action_shape(env)
 
+        # noinspection PyArgumentList
         return cls(
             buffer_size=buffer_size,
             num_envs=num_envs,
@@ -86,4 +88,5 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
+            **buffer_kwargs
         )

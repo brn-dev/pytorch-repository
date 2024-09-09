@@ -47,7 +47,7 @@ class TestEnv(gymnasium.Env):
         self.counter += 1
         done = self.counter >= self.episode_length
 
-        if False and done:
+        if True and done:
             reward = 5.0
         else:
             reward = 1.0
