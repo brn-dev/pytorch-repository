@@ -31,6 +31,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             gradient_steps: int,
             action_noise: ActionNoise | None,
             warmup_steps: int,
+            learning_starts: int,
             sde_noise_sample_freq: int | None,
             callback: Callback,
             logging_config: LogConf,
@@ -60,10 +61,15 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         self.action_noise = action_noise
         self.warmup_steps = warmup_steps
 
+        self.learning_starts = learning_starts
+
         self.steps_performed = 0
 
     def _on_step(self):
         pass
+
+    def _should_optimize(self):
+        return self.steps_performed >= self.learning_starts
 
     def sample_actions(self, obs: np.ndarray, info: InfoDict):
         if self.steps_performed < self.warmup_steps:

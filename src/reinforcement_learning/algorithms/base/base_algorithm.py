@@ -83,6 +83,11 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
     ) -> tuple[int, np.ndarray, np.ndarray]:
         raise NotImplementedError
 
+    # noinspection PyMethodMayBeStatic
+    def _should_optimize(self):
+        # Used in off policy to delay training until a set amount of steps have been collected
+        return True
+
     def learn(self, total_timesteps: int) -> Self:
         obs, _ = self.env.reset()
         episode_starts = np.ones(self.num_envs, dtype=bool)
@@ -103,8 +108,9 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
 
             self.callback.on_rollout_done(self, step, info)
 
-            self.policy.set_train_mode(True)
-            self.optimize(obs, episode_starts, info)
+            if self._should_optimize():
+                self.policy.set_train_mode(True)
+                self.optimize(obs, episode_starts, info)
 
             self.callback.on_optimization_done(self, step, info)
 
