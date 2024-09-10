@@ -37,7 +37,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             torch_device: TorchDevice,
             torch_dtype: torch.dtype
     ):
-        assert action_noise is None or isinstance(self.env.action_space, gymnasium.spaces.Box), \
+        assert action_noise is None or isinstance(env.action_space, gymnasium.spaces.Box), \
                 'Can only use action noise with continuous actions!'
 
         super().__init__(
@@ -105,10 +105,6 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
                         next_obs[key][i] = final_obs[key]
                 else:
                     next_obs[i] = final_obs
-
-        print(f'{obs = }')
-        print(f'{next_obs = }')
-        print()
 
         self.buffer.add(
             observations=obs,

@@ -7,30 +7,41 @@ from gymnasium.core import ObsType, ActType
 
 class TestEnv(gymnasium.Env):
 
-    def __init__(self, obs_size: int, dict_obs: bool, episode_length: int):
+    def __init__(self, obs_size: int, dict_obs: bool, action_in_obs: int, episode_length: int):
         self.counter = 0
+
+        self.action_size = 2
         self.obs_size = obs_size
+
         self.dict_obs = dict_obs
+        self.action_in_obs = action_in_obs
+
         self.episode_length = episode_length
 
+        _obs_size = self.obs_size + (self.action_size if self.action_in_obs else 0)
         if dict_obs:
             self.observation_space = gymnasium.spaces.Dict({
-                'a': gymnasium.spaces.Box(0, 10, (obs_size,)),
-                'b': gymnasium.spaces.Box(0, 10, (obs_size,)),
+                'a': gymnasium.spaces.Box(0, 10, (_obs_size,)),
+                'b': gymnasium.spaces.Box(0, 10, (_obs_size,)),
             })
         else:
-            self.observation_space = gymnasium.spaces.Box(0, 10, (obs_size,))
+            self.observation_space = gymnasium.spaces.Box(0, 10, (_obs_size,))
 
-        self.action_space = gymnasium.spaces.Box(-1, 1, (2,))
+        self.action_space = gymnasium.spaces.Box(-1, 1, (self.action_size,))
 
-    def get_obs(self):
+    def get_obs(self, action: np.ndarray):
+        obs = np.array([self.counter] * self.obs_size, dtype=float)
+
+        if self.action_in_obs:
+            obs = np.concatenate((obs, action))
+
         if self.dict_obs:
             return {
-                'a': np.array([self.counter] * self.obs_size, dtype=float),
+                'a': obs,
                 'b': np.ones(self.obs_size, dtype=float)
             }
         else:
-            return np.array([self.counter] * self.obs_size, dtype=float)
+            return obs
 
     def reset(
             self,
@@ -39,7 +50,7 @@ class TestEnv(gymnasium.Env):
             options: dict[str, Any] | None = None,
     ) -> tuple[ObsType, dict[str, Any]]:
         self.counter = 0
-        return self.get_obs(), {}
+        return self.get_obs(np.zeros(self.action_size, dtype=float)), {}
 
     def step(
             self, action: ActType
@@ -52,4 +63,4 @@ class TestEnv(gymnasium.Env):
         else:
             reward = 1.0
 
-        return self.get_obs(), reward, done, False, {}
+        return self.get_obs(action), reward, done, False, {}

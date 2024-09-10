@@ -24,8 +24,8 @@ class NormalActionNoise(ActionNoise):
     ):
         super().__init__()
 
-        self.mean = mean
-        self.std = std
+        self.mean = mean.astype(dtype)
+        self.std = std.astype(dtype)
 
         self.dtype = dtype
 
@@ -44,11 +44,11 @@ class OrnsteinUhlenbeckActionNoise(ActionNoise):
             dtype: np.dtype = np.float32,
     ):
         super().__init__()
-        self.mean = mean
-        self.std = std
+        self.mean = mean.astype(dtype)
+        self.std = std.astype(dtype)
         self.theta = theta
         self.dt = dt
-        self.initial_noise = initial_noise
+        self.initial_noise = initial_noise.astype(dtype) if initial_noise is not None else None
         self.prev_noise = np.zeros_like(self.mean)
         self.dtype = dtype
         self.reset()
