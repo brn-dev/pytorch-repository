@@ -1,13 +1,14 @@
 from typing import Generic, TypeVar, Callable, Iterable, Any
 
+from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm
 from src.reinforcement_learning.core.infos import InfoDict
 from src.schedulers import Scheduler
 
-OptimAlgo = TypeVar('OptimAlgo', bound='PolicyOptimizationBase')
+Algo = TypeVar('Algo', bound=BaseAlgorithm)
 SchedulerDict = dict[str, Scheduler]
-CallbackWithStep = Callable[[OptimAlgo, int, InfoDict, dict[str, Any]], None]
+CallbackWithStep = Callable[[Algo, int, InfoDict, dict[str, Any]], None]
 
-class Callback(Generic[OptimAlgo]):
+class Callback(Generic[Algo]):
 
     def __init__(
             self,
@@ -25,7 +26,7 @@ class Callback(Generic[OptimAlgo]):
 
     def on_rollout_done(
             self,
-            optim_algo: OptimAlgo,
+            optim_algo: Algo,
             step: int,
             info: InfoDict,
     ):
@@ -34,7 +35,7 @@ class Callback(Generic[OptimAlgo]):
 
     def on_optimization_done(
             self,
-            optim_algo: OptimAlgo,
+            optim_algo: Algo,
             step: int,
             info: InfoDict,
     ):
@@ -48,4 +49,3 @@ class Callback(Generic[OptimAlgo]):
             for scheduler_id, scheduler
             in schedulers.items()
         }
-
