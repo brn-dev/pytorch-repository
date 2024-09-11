@@ -112,7 +112,7 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
                 self.policy.set_train_mode(True)
                 self.optimize(obs, episode_starts, info)
 
-            self.callback.on_optimization_done(self, step, info)
+                self.callback.on_optimization_done(self, step, info)
 
         return self
 

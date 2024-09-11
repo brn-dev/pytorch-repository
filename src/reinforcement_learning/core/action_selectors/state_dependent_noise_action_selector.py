@@ -145,7 +145,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         if self.use_individual_action_stds:
             return stds
 
-        return torch.ones((self.latent_dim, self.action_dim)).to(log_stds.device) * stds
+        return torch.ones((self.latent_dim, self.action_dim), device=log_stds.device) * stds
 
     def sample_exploration_noise(self, batch_size: int = 1):
         stds = self.get_stds(self.log_stds)
