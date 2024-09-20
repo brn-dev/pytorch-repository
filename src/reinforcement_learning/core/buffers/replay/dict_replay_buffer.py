@@ -3,20 +3,12 @@ from typing import NamedTuple
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
+from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
 from src.reinforcement_learning.core.type_aliases import TensorDict, ShapeDict, NpArrayDict
 from src.torch_device import TorchDevice
 
 
-class DictReplayBufferSamples(NamedTuple):
-    observations: TensorDict
-    actions: torch.Tensor
-    next_observations: TensorDict
-    dones: torch.Tensor
-    rewards: torch.Tensor
-
-
-class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
+class DictReplayBuffer(BaseReplayBuffer):
 
     def __init__(
             self,
@@ -67,19 +59,19 @@ class DictReplayBuffer(BaseReplayBuffer[DictReplayBufferSamples]):
             dones=dones,
         )
 
-    def sample(self, batch_size: int):
+    def sample(self, batch_size: int) -> ReplayBufferSamples:
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
         step_indices = np.random.choice(self.size, batch_size)
         return self.get_batch(step_indices, env_indices)
 
-    def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> DictReplayBufferSamples:
+    def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         obs = {key: self.to_torch(_obs[step_indices, env_indices, :]) for key, _obs in self.observations.items()}
         next_obs = {
             key: self.to_torch(_next_obs[step_indices, env_indices, :])
             for key, _next_obs in self.next_observations.items()
         }
 
-        return DictReplayBufferSamples(
+        return ReplayBufferSamples(
             observations=obs,
             actions=self.to_torch(self.actions[step_indices, env_indices, :]),
             next_observations=next_obs,

@@ -1,14 +1,22 @@
 import abc
+from typing import NamedTuple
 
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer, BufferSamples
-from src.reinforcement_learning.core.type_aliases import ShapeDict, NpObs
+from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
+from src.reinforcement_learning.core.type_aliases import ShapeDict, NpObs, TensorObs
 from src.torch_device import TorchDevice
 
 
-class BaseReplayBuffer(BaseBuffer[BufferSamples], abc.ABC):
+class ReplayBufferSamples(NamedTuple):
+    observations: TensorObs
+    actions: torch.Tensor
+    next_observations: TensorObs
+    dones: torch.Tensor
+    rewards: torch.Tensor
+
+class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
     def __init__(
             self,
@@ -65,5 +73,19 @@ class BaseReplayBuffer(BaseBuffer[BufferSamples], abc.ABC):
             self.pos = 0
 
     @abc.abstractmethod
-    def sample(self, batch_size: int) -> BufferSamples:
+    def sample(self, batch_size: int) -> ReplayBufferSamples:
         raise NotImplementedError
+
+    def tail_indices(self, tail_length: int):
+        if tail_length > self.size:
+            tail_length = self.size
+
+        if not self.full or self.pos >= tail_length:
+            return np.arange(self.pos - tail_length, self.pos)
+
+        return np.concatenate((
+            np.arange(self.size - tail_length + self.pos, self.size),
+            np.arange(self.pos)
+        ))
+
+    # def compute_episode_scores(self):

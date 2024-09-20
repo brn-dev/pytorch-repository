@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import gymnasium
 import numpy as np
@@ -10,7 +10,7 @@ from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgori
 from src.reinforcement_learning.core.buffers.rollout.base_rollout_buffer import BaseRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
-from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.core.type_aliases import OptimizerProvider
 from src.torch_device import TorchDevice, optimizer_to_device
 from src.void_list import VoidList
 
@@ -23,7 +23,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             self,
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
-            policy_optimizer: optim.Optimizer | Callable[[BasePolicy], optim.Optimizer],
+            policy_optimizer: optim.Optimizer | OptimizerProvider,
             buffer: RolloutBuf,
             gamma: float,
             gae_lambda: float,
@@ -49,7 +49,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
         if isinstance(policy_optimizer, optim.Optimizer):
             self.policy_optimizer = optimizer_to_device(policy_optimizer, self.torch_device)
         else:
-            self.policy_optimizer = optimizer_to_device(policy_optimizer(self.policy), self.torch_device)
+            self.policy_optimizer = optimizer_to_device(policy_optimizer(self.policy.parameters()), self.torch_device)
 
     def rollout_step(
             self,

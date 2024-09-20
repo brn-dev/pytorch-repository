@@ -1,15 +1,17 @@
 import abc
-from typing import TypeVar, Callable, Generic, Self
+import itertools
+from typing import TypeVar, Callable, Generic, Self, Iterable
 
 import gymnasium
 import numpy as np
 import torch
+from torch import nn
 
-from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
+from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
 from src.reinforcement_learning.core.callback import Callback
-from src.reinforcement_learning.core.infos import InfoDict, stack_infos
+from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice, get_torch_device
@@ -56,7 +58,7 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
 
         self.logging_config = logging_config
         if (self.logging_config.log_rollout_action_stds
-                and not isinstance(policy.action_selector, ContinuousActionSelector)):
+                and not isinstance(policy.actor.action_selector, ContinuousActionSelector)):
             raise ValueError('Cannot log action distribution stds with non continuous action selector')
 
         self.callback = callback
@@ -105,7 +107,6 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
                     info=info
                 )
             step += steps_performed
-
             self.callback.on_rollout_done(self, step, info)
 
             if self._should_optimize():
@@ -134,3 +135,8 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
     def to_tensor(self, arr: np.ndarray) -> torch.Tensor:
         return torch.tensor(arr, dtype=self.torch_dtype, device=self.torch_device)
 
+    @staticmethod
+    def chain_parameters(*modules: nn.Module) -> Iterable[torch.Tensor]:
+        return itertools.chain(*[
+            module.parameters() for module in modules
+        ])

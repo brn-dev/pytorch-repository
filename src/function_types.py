@@ -3,10 +3,10 @@ from typing import Protocol, Callable
 import torch
 
 
-TorchTensorTransformation = Callable[[torch.Tensor], torch.Tensor]
+TorchTensorFn = Callable[[torch.Tensor], torch.Tensor]
 
 
-class TorchLossFunction(Protocol):
+class TorchLossFn(Protocol):
 
     # noinspection PyShadowingBuiltins
     def __call__(self, input: torch.Tensor, target: torch.Tensor, reduction: str = 'mean'):

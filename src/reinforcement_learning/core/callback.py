@@ -1,10 +1,9 @@
-from typing import Generic, TypeVar, Callable, Iterable, Any
+from typing import Generic, TypeVar, Callable, Any
 
-from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm
 from src.reinforcement_learning.core.infos import InfoDict
 from src.schedulers import Scheduler
 
-Algo = TypeVar('Algo', bound=BaseAlgorithm)
+Algo = TypeVar('Algo', bound='BaseAlgorithm')
 SchedulerDict = dict[str, Scheduler]
 CallbackWithStep = Callable[[Algo, int, InfoDict, dict[str, Any]], None]
 

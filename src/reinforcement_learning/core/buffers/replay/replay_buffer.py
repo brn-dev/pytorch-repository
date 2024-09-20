@@ -1,21 +1,11 @@
-from typing import NamedTuple
-
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
+from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
 from src.torch_device import TorchDevice
 
 
-class ReplayBufferSamples(NamedTuple):
-    observations: torch.Tensor
-    actions: torch.Tensor
-    next_observations: torch.Tensor
-    dones: torch.Tensor
-    rewards: torch.Tensor
-
-
-class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
+class ReplayBuffer(BaseReplayBuffer):
 
     def __init__(
             self,
@@ -55,8 +45,8 @@ class ReplayBuffer(BaseReplayBuffer[ReplayBufferSamples]):
         self.observations[self.pos] = observations
 
         # TODO: using this simple logic when optimize_memory_usage=True stores and samples the transition
-        # last obs before terminal -> first obs of new episode
-        # which preferably should not happen
+        # TODO: last obs before terminal -> first obs of new episode
+        # TODO: which preferably should not happen
         if self.optimize_memory_usage:
             self.observations[(self.pos + 1) % self.buffer_size] = next_observations
         else:

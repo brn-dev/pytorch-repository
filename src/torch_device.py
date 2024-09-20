@@ -1,11 +1,13 @@
 import torch
 from torch import optim
 
+AUTO_TORCH_DEVICE = 'auto'
+
 TorchDevice = torch.device | str
 
 
 def get_torch_device(device: TorchDevice | None = None):
-    if device is None:
+    if device is None or device == AUTO_TORCH_DEVICE:
         device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     return torch.device(device)
 

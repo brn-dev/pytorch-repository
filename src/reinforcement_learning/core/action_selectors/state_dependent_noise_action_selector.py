@@ -28,6 +28,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             use_stds_expln: bool = False,
             squash_output: bool = False,
             learn_sde_features: bool = True,
+            clip_mean: float = 0.0,
             epsilon: float = 1e-6,
             action_net_initialization: ActionNetInitialization | None = None,
     ):
@@ -50,6 +51,9 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         self.learn_sde_features = learn_sde_features
 
         self.latent_pi: Optional[torch.Tensor] = None
+
+        assert clip_mean >= 0.0
+        self.clip_mean = clip_mean
 
         self.epsilon = epsilon
 
@@ -77,6 +81,10 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             flat_latent_pi = torch.flatten(latent_pi, end_dim=-2)
             variance = torch.mm(flat_latent_pi ** 2, self.get_stds(self.log_stds) ** 2)
             variance = variance.reshape(batch_shape + (self.action_dim,))
+
+        if self.clip_mean > 0.0:
+            mean_actions = nn.functional.hardtanh(mean_actions, -self.clip_mean, self.clip_mean)
+
         self.distribution = torchdist.Normal(mean_actions, torch.sqrt(variance + self.epsilon))
         return self
 

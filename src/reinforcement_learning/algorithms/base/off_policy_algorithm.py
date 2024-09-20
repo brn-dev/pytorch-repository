@@ -1,13 +1,12 @@
 from abc import ABC
 from copy import deepcopy
-from typing import TypeVar
+from typing import TypeVar, Optional
 
 import gymnasium
 import numpy as np
 import torch
 
 from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
-from src.reinforcement_learning.algorithms.base.on_policy_algorithm import RolloutBuf
 from src.reinforcement_learning.core.action_noise import ActionNoise
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -24,15 +23,16 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             self,
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
-            buffer: RolloutBuf,
+            buffer: ReplayBuf,
             gamma: float,
             tau: float,
             rollout_steps: int,
             gradient_steps: int,
-            action_noise: ActionNoise | None,
+            optimization_batch_size: int,
+            action_noise: Optional[ActionNoise],
             warmup_steps: int,
             learning_starts: int,
-            sde_noise_sample_freq: int | None,
+            sde_noise_sample_freq: Optional[int],
             callback: Callback,
             logging_config: LogConf,
             torch_device: TorchDevice,
@@ -57,6 +57,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
 
         self.rollout_steps = rollout_steps
         self.gradient_steps = gradient_steps
+        self.optimization_batch_size = optimization_batch_size
 
         self.action_noise = action_noise
         self.warmup_steps = warmup_steps
@@ -101,16 +102,20 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         dones = np.logical_or(terminated, truncated)
         info.update(step_info)
 
-        next_obs = deepcopy(new_obs)
+        done_indices = np.where(dones)[0]
+        if len(done_indices) > 0:
+            next_obs = deepcopy(new_obs)
 
-        final_observations = step_info.get('final_observation')
-        for i, done in enumerate(dones):
-            if done and (final_obs := final_observations[i]) is not None:
-                if isinstance(next_obs, dict):
-                    for key in next_obs.keys():
-                        next_obs[key][i] = final_obs[key]
-                else:
-                    next_obs[i] = final_obs
+            final_observations = step_info.get('final_observation')
+            for done_index in done_indices:
+                if (final_obs := final_observations[done_index]) is not None:
+                    if isinstance(next_obs, dict):
+                        for key in next_obs.keys():
+                            next_obs[key][done_index] = final_obs[key]
+                    else:
+                        next_obs[done_index] = final_obs
+        else:
+            next_obs = new_obs
 
         self.buffer.add(
             observations=obs,
@@ -134,7 +139,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
     ) -> tuple[int, np.ndarray, np.ndarray]:
         self.policy.reset_sde_noise(self.num_envs)
 
-        infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
+        rollout_infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
         step = 0
 
         for step in range(min(self.rollout_steps, max_steps)):
@@ -142,13 +147,13 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
                 self.policy.reset_sde_noise(self.num_envs)
 
             obs, episode_starts, step_info = self.rollout_step(obs)
-            infos.append(step_info)
+            rollout_infos.append(step_info)
 
             if np.any(episode_starts) and self.action_noise is not None:
                 self.action_noise.reset(np.where(episode_starts)[0])
 
         if self.logging_config.log_rollout_infos:
-            info['rollout'] = stack_infos(infos)
+            info['rollout'] = stack_infos(rollout_infos)
 
         if self.logging_config.log_last_obs:
             info['last_obs'] = obs

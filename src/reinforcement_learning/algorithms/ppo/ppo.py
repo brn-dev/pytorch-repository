@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Optional, Type
 
 import gymnasium
 import numpy as np
@@ -7,17 +7,18 @@ import torch
 from overrides import override
 from torch import nn, optim
 
-from src.function_types import TorchLossFunction, TorchTensorTransformation
+from src.function_types import TorchLossFn, TorchTensorFn
 from src.module_analysis import calculate_grad_norm
-from src.reinforcement_learning.algorithms.base.logging_config import LoggingConfig
-from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, Policy
+from src.reinforcement_learning.core.logging import LoggingConfig
+from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, RolloutBuf
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.normalization import NormalizationType
-from src.reinforcement_learning.core.objectives import weigh_and_reduce_objective, ObjectiveLoggingConfig
+from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossLoggingConfig
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
+from src.reinforcement_learning.core.type_aliases import OptimizerProvider
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 from src.type_aliases import KwArgs
@@ -28,22 +29,24 @@ class PPOLoggingConfig(LoggingConfig):
     log_returns: bool = False
     log_advantages: bool = False
 
-    log_ppo_objective: bool = False
+    log_ppo_loss: bool = False
     log_grad_norm: bool = False
     log_actor_kl_divergence: bool = False
     log_optimization_action_stds: bool = False
 
-    actor_objective: ObjectiveLoggingConfig = None
-    entropy_objective: ObjectiveLoggingConfig = None
-    critic_objective: ObjectiveLoggingConfig = None
+    actor_loss: LossLoggingConfig = None
+    entropy_loss: LossLoggingConfig = None
+    critic_loss: LossLoggingConfig = None
 
     def __post_init__(self):
-        if self.actor_objective is None:
-            self.actor_objective = ObjectiveLoggingConfig()
-        if self.entropy_objective is None:
-            self.entropy_objective = ObjectiveLoggingConfig()
-        if self.critic_objective is None:
-            self.critic_objective = ObjectiveLoggingConfig()
+        if self.actor_loss is None:
+            self.actor_loss = LossLoggingConfig()
+        if self.entropy_loss is None:
+            self.entropy_loss = LossLoggingConfig()
+        if self.critic_loss is None:
+            self.critic_loss = LossLoggingConfig()
+
+        super().__post_init__()
 
 
 class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig]):
@@ -51,19 +54,19 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
     def __init__(
             self,
             env: gymnasium.Env,
-            policy: Policy | PolicyProvider,
-            policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
+            policy: ActorCriticPolicy | PolicyProvider[ActorCriticPolicy],
+            policy_optimizer: optim.Optimizer | OptimizerProvider,
             buffer_size: int,
-            buffer_type=RolloutBuffer,
+            buffer_type: Type[RolloutBuf] = RolloutBuffer,
             buffer_kwargs: KwArgs = None,
             gamma: float = 0.99,
             gae_lambda: float = 1.0,
             normalize_rewards: NormalizationType | None = None,
             normalize_advantages: NormalizationType | None = None,
-            weigh_and_reduce_actor_objective: TorchTensorTransformation = torch.mean,
-            weigh_and_reduce_entropy_objective: TorchTensorTransformation | None = None,
-            critic_loss_fn: TorchLossFunction = nn.functional.mse_loss,
-            weigh_and_reduce_critic_objective: TorchTensorTransformation = torch.mean,
+            weigh_and_reduce_actor_loss: TorchTensorFn = torch.mean,
+            weigh_and_reduce_entropy_loss: TorchTensorFn | None = None,
+            critic_loss_fn: TorchLossFn = nn.functional.mse_loss,
+            weigh_and_reduce_critic_loss: TorchTensorFn = torch.mean,
             ppo_max_epochs: int = 5,
             ppo_kl_target: float | None = None,
             ppo_batch_size: int | None = None,
@@ -95,11 +98,11 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         self.normalize_rewards = normalize_rewards
         self.normalize_advantages = normalize_advantages
 
-        self.weigh_and_reduce_actor_objective = weigh_and_reduce_actor_objective
-        self.weigh_and_reduce_entropy_objective = weigh_and_reduce_entropy_objective
+        self.weigh_and_reduce_actor_loss = weigh_and_reduce_actor_loss
+        self.weigh_and_reduce_entropy_loss = weigh_and_reduce_entropy_loss
 
         self.critic_loss_fn = critic_loss_fn
-        self.weigh_and_reduce_critic_objective = weigh_and_reduce_critic_objective
+        self.weigh_and_reduce_critic_loss = weigh_and_reduce_critic_loss
 
         self.ppo_max_epochs = ppo_max_epochs
         self.ppo_kl_target = ppo_kl_target
@@ -140,7 +143,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             for batch_samples in self.buffer.get_samples(self.ppo_batch_size):
                 batch_info: InfoDict = {}
 
-                objectives = self.compute_ppo_objectives(
+                losses = self.compute_ppo_losses(
                     observations=batch_samples.observations,
                     advantages=batch_samples.advantages,
                     returns=batch_samples.returns,
@@ -150,19 +153,19 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
                     info=batch_info,
                 )
 
-                if objectives is None:
+                if losses is None:
                     continue_training = False
                     epoch_infos.append(batch_info)
                     break
 
-                objective = torch.stack(objectives).sum()
+                total_loss = torch.stack(losses).sum()
 
-                if self.logging_config.log_ppo_objective:
-                    batch_info['objective'] = objective
+                if self.logging_config.log_ppo_loss:
+                    batch_info['ppo_loss'] = total_loss
 
                 self.policy_optimizer.zero_grad()
 
-                objective.backward()
+                total_loss.backward()
 
                 grad_norm: float | None = None
                 if self.grad_norm_clip_value:
@@ -185,13 +188,12 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             else:
                 break
 
-        for info_key, info_value in concat_infos(optimization_infos).items():
-            info[info_key] = info_value
+        info.update(concat_infos(optimization_infos))
 
         info['nr_ppo_epochs'] = epochs_done
         info['nr_ppo_updates'] = nr_updates
 
-    def compute_ppo_objectives(
+    def compute_ppo_losses(
             self,
             observations: torch.Tensor,
             advantages: torch.Tensor,
@@ -208,7 +210,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
 
         value_estimates = value_estimates.squeeze(dim=-1)
 
-        actor_objective, entropy_objective = self.compute_ppo_actor_objectives(
+        actor_loss, entropy_loss = self.compute_ppo_actor_losses(
             new_action_selector=new_action_selector,
             advantages=advantages,
             old_actions=old_actions,
@@ -216,19 +218,19 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             info=info,
         )
 
-        if actor_objective is None:
+        if actor_loss is None:
             return None
 
-        critic_objective = self.compute_ppo_critic_objective(
+        critic_loss = self.compute_ppo_critic_loss(
             returns=returns,
             old_value_estimates=old_value_estimates,
             new_value_estimates=value_estimates,
             info=info,
         )
 
-        return [actor_objective, entropy_objective, critic_objective]
+        return [actor_loss, entropy_loss, critic_loss]
 
-    def compute_ppo_actor_objectives(
+    def compute_ppo_actor_losses(
             self,
             new_action_selector: ActionSelector,
             advantages: torch.Tensor,
@@ -246,29 +248,28 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             with torch.no_grad():
                 approx_kl_div = torch.mean((action_prob_ratios - 1) - action_log_prob_ratios).cpu().unsqueeze(0).numpy()
 
-            if self.logging_config.log_actor_kl_divergence:
-                info['actor_kl_divergence'] = approx_kl_div
+            log_if_enabled(info, 'actor_kl_divergence', approx_kl_div, self.logging_config.log_actor_kl_divergence)
 
             if self.ppo_kl_target is not None and approx_kl_div > 1.5 * self.ppo_kl_target:
                 return None, None
 
-        unclipped_actor_objective = advantages * action_prob_ratios
-        clipped_actor_objective = advantages * torch.clamp(
+        unclipped_actor_loss = advantages * action_prob_ratios
+        clipped_actor_loss = advantages * torch.clamp(
             action_prob_ratios,
             1 - self.action_ratio_clip_range,
             1 + self.action_ratio_clip_range
         )
-        raw_actor_objective = -torch.min(unclipped_actor_objective, clipped_actor_objective)
+        raw_actor_loss = -torch.min(unclipped_actor_loss, clipped_actor_loss)
 
-        actor_objective = weigh_and_reduce_objective(
-            raw_objective=raw_actor_objective,
-            weigh_and_reduce_function=self.weigh_and_reduce_actor_objective,
+        actor_loss = weigh_and_reduce_loss(
+            raw_loss=raw_actor_loss,
+            weigh_and_reduce_function=self.weigh_and_reduce_actor_loss,
             info=info,
-            objective_name='actor_objective',
-            logging_config=self.logging_config.actor_objective,
+            loss_name='actor_loss',
+            logging_config=self.logging_config.actor_loss,
         )
 
-        if self.weigh_and_reduce_entropy_objective is not None:
+        if self.weigh_and_reduce_entropy_loss is not None:
             entropy = new_action_selector.entropy()
             if entropy is None:
                 # Approximate entropy when no analytical form
@@ -276,19 +277,19 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             else:
                 negative_entropy = -entropy
 
-            entropy_objective = weigh_and_reduce_objective(
-                raw_objective=negative_entropy,
-                weigh_and_reduce_function=self.weigh_and_reduce_entropy_objective,
+            entropy_loss = weigh_and_reduce_loss(
+                raw_loss=negative_entropy,
+                weigh_and_reduce_function=self.weigh_and_reduce_entropy_loss,
                 info=info,
-                objective_name='entropy_objective',
-                logging_config=self.logging_config.entropy_objective
+                loss_name='entropy_loss',
+                logging_config=self.logging_config.entropy_loss
             )
         else:
-            entropy_objective = torch.zeros_like(actor_objective)
+            entropy_loss = torch.zeros_like(actor_loss)
 
-        return actor_objective, entropy_objective
+        return actor_loss, entropy_loss
 
-    def compute_ppo_critic_objective(
+    def compute_ppo_critic_loss(
             self,
             returns: torch.Tensor,
             old_value_estimates: torch.Tensor,
@@ -305,14 +306,14 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
                 new_value_estimates - old_value_estimates, -clip_range, clip_range
             )
 
-        raw_critic_objective = self.critic_loss_fn(value_estimates, returns, reduction='none')
+        raw_critic_loss = self.critic_loss_fn(value_estimates, returns, reduction='none')
 
-        critic_objective = weigh_and_reduce_objective(
-            raw_objective=raw_critic_objective,
-            weigh_and_reduce_function=self.weigh_and_reduce_critic_objective,
+        critic_loss = weigh_and_reduce_loss(
+            raw_loss=raw_critic_loss,
+            weigh_and_reduce_function=self.weigh_and_reduce_critic_loss,
             info=info,
-            objective_name='critic_objective',
-            logging_config=self.logging_config.critic_objective
+            loss_name='critic_loss',
+            logging_config=self.logging_config.critic_loss
         )
 
-        return critic_objective
+        return critic_loss

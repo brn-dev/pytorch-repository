@@ -5,16 +5,17 @@ import numpy as np
 import torch
 from torch import optim
 
+from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, Policy, \
-    PolicyProvider, LoggingConfig
-from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import BasicRolloutBuffer
+    PolicyProvider
+from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 
-Buffer = TypeVar('Buffer', bound=BasicRolloutBuffer)
+Buffer = TypeVar('Buffer', bound=RolloutBuffer)
 BufferType = Type[Buffer]
 
 
@@ -22,19 +23,19 @@ class SupervisedPreTraining(OnPolicyAlgorithm):
 
     def __init__(
             self,
-            compute_supervised_objective: Callable[[Buffer, np.ndarray, np.ndarray, InfoDict], torch.Tensor],
+            compute_supervised_loss: Callable[[Buffer, np.ndarray, np.ndarray, InfoDict], torch.Tensor],
             env: gymnasium.Env,
             policy: Policy | PolicyProvider,
             policy_optimizer: optim.Optimizer | Callable[[ActorCriticPolicy], optim.Optimizer],
             buffer_size: int,
-            buffer_type: BufferType = BasicRolloutBuffer,
+            buffer_type: BufferType = RolloutBuffer,
             gamma: float = 1.0,
             gae_lambda: float = 1.0,
             sde_noise_sample_freq: int | None = None,
-            reset_env_between_rollouts: bool = False,
             callback: Callback[Self] = None,
             logging_config: LoggingConfig = None,
             torch_device: TorchDevice = 'cpu',
+            torch_dtype: torch.dtype = torch.float32,
     ):
         env, num_envs = as_vec_env(env)
 
@@ -46,13 +47,13 @@ class SupervisedPreTraining(OnPolicyAlgorithm):
             gamma=gamma,
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
-            reset_env_between_rollouts=reset_env_between_rollouts,
             callback=callback or Callback(),
             logging_config=logging_config or LoggingConfig(),
             torch_device=torch_device,
+            torch_dtype=torch_dtype,
         )
 
-        self.compute_supervised_objective = compute_supervised_objective
+        self.compute_supervised_loss = compute_supervised_loss
 
     def optimize(
             self,
@@ -61,8 +62,8 @@ class SupervisedPreTraining(OnPolicyAlgorithm):
             info: InfoDict,
     ) -> None:
         self.policy_optimizer.zero_grad()
-        objective = self.compute_supervised_objective(self.buffer, last_obs, last_episode_starts, info)
-        objective.backward()
+        loss = self.compute_supervised_loss(self.buffer, last_obs, last_episode_starts, info)
+        loss.backward()
         self.policy_optimizer.step()
 
 
