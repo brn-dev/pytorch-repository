@@ -3,6 +3,7 @@ from typing import Optional
 import torch
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \
     StateDependentNoiseActionSelector
@@ -25,6 +26,12 @@ class Actor(BasePolicyComponent):
         super().__init__(feature_extractor or IdentityExtractor())
         self.network = network
         self.replace_action_selector(action_selector, copy_action_net_weights=False)
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'network': self.get_hps_or_str(self.network),
+            'action_selector': self.get_hps_or_str(self.action_selector),
+        })
 
     def forward(self, obs: TensorObs) -> ActionSelector:
         obs = self.feature_extractor(obs)

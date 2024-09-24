@@ -1,18 +1,43 @@
+from typing import TypedDict, Optional, NotRequired
+
 import numpy as np
 import torch
 
 TensorOrNpArray = torch.Tensor | np.ndarray
 
+SMALL_DATA_THRESHOLD = 8
+
+
+class SummaryStatistics(TypedDict):
+    n: int
+    mean: float
+    std: NotRequired[float]
+    min_value: NotRequired[float]
+    max_value: NotRequired[float]
+    data: NotRequired[list]
+
 
 def format_summary_statics(
-        arr: TensorOrNpArray,
+        x: TensorOrNpArray | SummaryStatistics | None,
         mean_format: str | None = '.2f',
         std_format: str | None = '.2f',
         min_value_format: str | None = None,
         max_value_format: str | None = None,
         n_format: str | None = None
 ):
-    mean, std, min_value, max_value = compute_summary_statistics(arr)
+    if isinstance(x, dict):
+        summary_statistics = x
+    else:
+        summary_statistics = compute_summary_statistics(x)
+
+    if summary_statistics is None:
+        return 'N/A'
+
+    n = summary_statistics['n']
+    mean = summary_statistics['mean']
+    std = summary_statistics['std']
+    min_value = summary_statistics['min_value']
+    max_value = summary_statistics['max_value']
 
     representation = ''
 
@@ -30,17 +55,40 @@ def format_summary_statics(
         representation += f' ≤ {max_value.__format__(max_value_format)}'
 
     if n_format:
-        representation += f' (n={len(arr).__format__(n_format)})'
+        representation += f' (n={n.__format__(n_format)})'
 
     return representation
 
 
 def compute_summary_statistics(
-        arr: TensorOrNpArray
-) -> tuple[TensorOrNpArray, TensorOrNpArray, TensorOrNpArray, TensorOrNpArray]:
-    mean = arr.ravel().mean()
-    std = arr.ravel().std()
-    min_value = arr.min()
-    max_value = arr.max()
+        arr: TensorOrNpArray,
+        small_data_threshold: int = SMALL_DATA_THRESHOLD
+) -> Optional[SummaryStatistics]:
+    if isinstance(arr, np.ndarray):
+        n = arr.size
+    else:
+        n = arr.numel()
 
-    return mean, std, min_value, max_value
+    if n == 0:
+        return None
+
+    mean = arr.ravel().mean().item()
+
+    if n == 1:
+        return {
+            'n': n,
+            'mean': mean,
+        }
+
+    summary_stats: SummaryStatistics = {
+        'n': n,
+        'mean': mean,
+        'std': arr.ravel().std().item(),
+        'min_value': arr.min().item(),
+        'max_value': arr.max().item(),
+    }
+
+    if n <= small_data_threshold:
+        summary_stats['data'] = arr.tolist()
+
+    return summary_stats

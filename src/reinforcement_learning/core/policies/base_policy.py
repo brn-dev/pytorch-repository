@@ -1,5 +1,6 @@
 from typing import Optional
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.base_component import BasePolicyComponent
@@ -18,6 +19,11 @@ class BasePolicy(BasePolicyComponent):
     ):
         super().__init__(shared_feature_extractor or IdentityExtractor())
         self.actor = actor
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'actor': self.actor.collect_hyper_parameters(),
+        })
 
     @property
     def shared_feature_extractor(self):

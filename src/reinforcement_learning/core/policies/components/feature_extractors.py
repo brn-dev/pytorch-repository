@@ -1,11 +1,11 @@
 import torch
-from torch import nn
 
-from src.reinforcement_learning.core.policies.components.base_module import BaseModule
+from src.hyper_parameters import HyperParameters
+from src.reinforcement_learning.core.policies.components.base_rl_module import BaseRLModule
 from src.reinforcement_learning.core.type_aliases import TensorDict
 
 
-class FeatureExtractor(BaseModule):
+class FeatureExtractor(BaseRLModule):
     pass
 
 

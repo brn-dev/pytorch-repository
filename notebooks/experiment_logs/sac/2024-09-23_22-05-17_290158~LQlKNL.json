@@ -1,0 +1,1469 @@
+{
+    "experiment_id": "2024-09-23_22-05-17_290158~LQlKNL",
+    "experiment_tags": [
+        "SAC",
+        "HalfCheetah-v4"
+    ],
+    "start_time": "2024-09-23 22:05:17.290158",
+    "end_time": "2024-09-23 22:09:59.451884",
+    "model_db_reference": null,
+    "hyper_parameters": {
+        "env": "<RescaleAction<TransformRewardWrapper<AsyncVectorEnv instance>>>",
+        "num_envs": 16,
+        "policy": {
+            "parameter_count": 217870,
+            "feature_extractor": "IdentityExtractor()",
+            "feature_extractor_parameter_count": 0,
+            "actor": {
+                "parameter_count": 73484,
+                "feature_extractor": "IdentityExtractor()",
+                "feature_extractor_parameter_count": 0,
+                "network": "Sequential(\n  (0): Linear(in_features=17, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ELU(alpha=1.0)\n)",
+                "action_selector": "PredictedStdActionSelector(\n  (action_net): Linear(in_features=256, out_features=6, bias=True)\n  (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n)"
+            },
+            "critic": {
+                "parameter_count": 144386,
+                "feature_extractor": "IdentityExtractor()",
+                "feature_extractor_parameter_count": 0,
+                "n_critics": 2,
+                "q_network_architecture": "Sequential(\n  (0): Linear(in_features=23, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ReLU()\n  (4): Linear(in_features=256, out_features=1, bias=True)\n)"
+            }
+        },
+        "policy_parameter_count": 217870,
+        "buffer": "<src.reinforcement_learning.core.buffers.replay.replay_buffer.ReplayBuffer object at 0x000001D75CE3FA90>",
+        "buffer_step_size": 0,
+        "buffer_total_size": 0,
+        "gamma": 0.99,
+        "sde_noise_sample_freq": null,
+        "torch_device": "cuda:0",
+        "torch_dtype": "torch.float32",
+        "tau": 0.005,
+        "rollout_steps": 2,
+        "gradient_steps": 2,
+        "optimization_batch_size": 256,
+        "action_noise": null,
+        "warmup_steps": 500,
+        "actor_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.5, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "critic_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.5, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "entropy_coef_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "weigh_and_reduce_entropy_coef_loss": "<built-in method mean of type object at 0x00007FF833D262F0>",
+        "weigh_and_reduce_actor_loss": "<function <lambda> at 0x000001D75B975EE0>",
+        "weigh_critic_loss": "<function <lambda> at 0x000001D75D15D120>",
+        "target_update_interval": 1,
+        "target_entropy": -6.0,
+        "entropy_coef": "Dynamic"
+    },
+    "setup": {
+        "sac.py": "from typing import Any\n\nimport gymnasium\nimport torch\n\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction\n\npolicy_construction_hyper_parameter = {}\n\ndef init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':\n    from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \\\n        import PredictedStdActionSelector\n    from src.reinforcement_learning.core.action_selectors.squashed_diag_gaussian_action_selector import \\\n        SquashedDiagGaussianActionSelector\n    from src.weight_initialization import orthogonal_initialization\n\n    return PredictedStdActionSelector(\n        latent_dim=latent_dim,\n        action_dim=action_dim,\n        base_std=1.0,\n        squash_output=True,\n        action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n        log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),\n    )\n    # return PredictedStdActionSelector(\n    #     latent_dim=latent_dim,\n    #     action_dim=action_dim,\n    #     std=1.0,\n    #     std_learnable=True,\n    #     action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n    # )\n\n\n\ndef init_policy(\n        init_action_selector_: 'InitActionSelectorFunction',\n        hyper_parameters: dict[str, 'Any']\n) -> 'BasePolicy':\n    import torch\n    from torch import nn\n    import numpy as np\n\n    from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy\n    from src.reinforcement_learning.algorithms.sac.sac_crossq_policy import SACCrossQPolicy\n    from src.networks.core.seq_net import SeqNet\n    from src.networks.core.net import Net\n    from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection\n    from src.weight_initialization import orthogonal_initialization\n    from src.reinforcement_learning.core.policies.components.actor import Actor\n    from src.reinforcement_learning.core.policies.components.q_critic import QCritic\n    from src.networks.normalization.batch_renorm import BatchRenorm\n\n    # in_size = 376\n    # action_size = 17\n    # actor_out_sizes = [512, 512, 256, 256, 256, 256, 256, 256]\n    # critic_out_sizes = [512, 512, 256, 256, 256, 1]\n\n    in_size = 17\n    action_size = 6\n\n    actor_layers = 3\n    actor_features = 96\n\n    critic_layers = 2\n    critic_features = 96\n\n    hidden_activation_function = nn.ELU\n\n    # actor_net = nn.Sequential(\n    #     nn.Linear(in_size, actor_features),\n    #     hidden_activation_function(),\n    #     SeqNet.from_layer_provider(\n    #         layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #         AdditiveSkipConnection(Net.seq_as_net(\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             hidden_activation_function(),\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             nn.Tanh() if is_last_layer else hidden_activation_function(),\n    #         )),\n    #         num_features=actor_features,\n    #         num_layers=actor_layers,\n    #     )\n    # )\n    #\n    # critic = QCritic(\n    #     n_critics=2,\n    #     create_q_network=lambda: nn.Sequential(\n    #         nn.Linear(in_size + action_size, critic_features),\n    #         hidden_activation_function(),\n    #         SeqNet.from_layer_provider(\n    #             layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #             AdditiveSkipConnection(Net.seq_as_net(\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #             )),\n    #             num_features=critic_features,\n    #             num_layers=critic_layers,\n    #         ),\n    #         nn.Linear(critic_features, 1)\n    #     )\n    # )\n\n    actor_net = nn.Sequential(\n        nn.Linear(in_size, 256),\n        nn.ReLU(),\n        nn.Linear(256, 256),\n        nn.ELU(),\n    )\n\n    critic = QCritic(\n        n_critics=2,\n        create_q_network=lambda: nn.Sequential(\n            nn.Linear(in_size + action_size, 256),\n            nn.ReLU(),\n            # BatchRenorm(256),\n            nn.Linear(256, 256),\n            nn.ReLU(),\n#             BatchRenorm(256),\n            nn.Linear(256, 1)\n        )\n    )\n\n    return SACPolicy(\n        actor=Actor(actor_net, init_action_selector_(\n            latent_dim=256,\n            action_dim=action_size,\n            hyper_parameters=hyper_parameters,\n        )),\n        critic=critic\n    )\n\ndef init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':\n    import torch.optim\n    return torch.optim.AdamW(pol.parameters(), lr=3e-4, weight_decay=1e-4)\n\ndef wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':\n    from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper\n    from gymnasium.wrappers import RescaleAction\n    from src.np_functions import symmetric_log\n\n\n    env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)\n    env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)\n    return env_\n",
+        "notebook": "import inspect\nimport os\nimport time\nfrom pathlib import Path\n\nimport gymnasium\nfrom gymnasium import Env\nfrom gymnasium.vector import VectorEnv\n\nfrom sac import init_action_selector, init_policy, init_optimizer, wrap_env, policy_construction_hyper_parameter\nfrom src.datetime import get_current_timestamp\nfrom src.experiment_logging.experiment_logger import ExperimentLogger, log_experiment\nfrom src.model_db.model_db import ModelDB\nfrom src.model_db.dummy_model_db import DummyModelDB\nfrom src.np_functions import inv_symmetric_log\nfrom src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo\nfrom src.model_db.tiny_model_db import TinyModelDB\nfrom src.module_analysis import count_parameters, get_gradients_per_parameter\nfrom src.moving_averages import ExponentialMovingAverage\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.action_selectors.predicted_std_action_selector import PredictedStdActionSelector\nfrom src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \\\n    StateDependentNoiseActionSelector\nfrom src.reinforcement_learning.core.generalized_advantage_estimate import compute_episode_returns, compute_returns\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction, PolicyConstruction\nfrom src.reinforcement_learning.gym.envs.test_env import TestEnv\nfrom src.schedulers import FixedValueScheduler, OneStepRecursiveScheduler\nfrom src.stopwatch import Stopwatch\nfrom src.summary_statistics import format_summary_statics\nfrom src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy\nfrom typing import Any, SupportsFloat, Optional\nfrom gymnasium.wrappers import RecordVideo, AutoResetWrapper, NormalizeReward, TransformReward, TransformObservation, ClipAction\nfrom src.reinforcement_learning.core.callback import Callback\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SAC_DEFAULT_OPTIMIZER_PROVIDER\nfrom src.reinforcement_learning.algorithms.ppo.ppo import PPO, PPOLoggingConfig\nfrom src.reinforcement_learning.core.normalization import NormalizationType\nfrom src.torch_device import set_default_torch_device, optimizer_to_device\nfrom src.reinforcement_learning.gym.parallelize_env import parallelize_env_async\nfrom torch.distributions import Normal, Categorical\n\nimport torch\nfrom torch import optim, nn\nimport torch.distributions as dist\nimport gymnasium as gym\nimport numpy as np\n\nfrom src.torch_functions import antisymmetric_power\n\nget_ipython().run_line_magic('load_ext', 'autoreload')\nget_ipython().run_line_magic('autoreload', '2')\n\nfrom src.summary_statistics import compute_summary_statistics\nfrom src.reinforcement_learning.core.loss_config import LossLoggingConfig\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SACLoggingConfig\ndef get_setup() -> dict[str, str]:\n    import inspect\n    import sac\n    return {\n        'sac.py': inspect.getsource(sac),\n        'notebook': _ih[1] + '\\n\\n' + _ih[-1], # first and last cell input (imports and this cell)\n    }\n\npolicy_id: str\npolicy: BasePolicy\noptimizer: optim.Optimizer\nwrapped_env: Env\nsteps_trained: int\ndef get_policy(create_new_if_exists: bool):\n    \n    global policy_id, policy, optimizer, wrapped_env, steps_trained\n    \n    policy_in_ram = 'policy' in globals()\n    if not policy_in_ram or create_new_if_exists:\n        if not policy_in_ram:\n            print('No policy in RAM, creating a new one')\n        \n        policy_id = get_current_timestamp()\n        policy, optimizer, wrapped_env = PolicyConstruction.init_from_info(\n            env=env,\n            info=PolicyConstruction.create_policy_initialization_info(\n                init_action_selector=init_action_selector,\n                init_policy=init_policy,\n                init_optimizer=init_optimizer,\n                wrap_env=wrap_env,\n                hyper_parameters=policy_construction_hyper_parameter,\n            ),\n        )\n        steps_trained = 0\n        print(f'New policy {policy_id} created')\n    \n    if parent_policy_id is not None:\n        model_entry = policy_db.load_model_state_dict(policy, parent_policy_id)\n        steps_trained = model_entry['model_info']['steps_trained']\n        print(f'Loading state dict from policy {parent_policy_id}')\n    \n    print(f'Using policy {policy_id} with parent policy {parent_policy_id}')\n    return policy_id, policy, optimizer, wrapped_env, steps_trained\n\nscore_mean_ema = ExponentialMovingAverage(alpha=0.25)\nstopwatch = Stopwatch()\nbest_iteration_score = -1e6\n\ndef on_rollout_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    \n    if step % 1000 != 0:\n        return\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    rewards = rl.buffer.rewards[tail_indices]\n    # if 'raw_rewards' in info['rollout']:\n    #     rewards = info['rollout']['raw_rewards']\n    \n    episode_scores = compute_episode_returns(\n        rewards=rewards,\n        episode_starts=np.repeat(np.arange(len(tail_indices)).reshape(-1, 1), num_envs, axis=1) % 1000 == 0,\n        last_episode_starts=info['last_episode_starts'],\n        gamma=1.0,\n        gae_lambda=1.0,\n        normalize_rewards=None,\n        remove_unfinished_episodes=True,\n    )\n    \n    global best_iteration_score\n    iteration_score = episode_scores.mean()\n    score_moving_average = score_mean_ema.update(iteration_score)\n    if iteration_score >= best_iteration_score:\n        best_iteration_score = iteration_score\n        policy_db.save_model_state_dict(\n            model_id=policy_id,\n            parent_model_id=parent_policy_id,\n            model_info={\n                'score': iteration_score.item(),\n                'steps_trained': steps_trained,\n                'wrap_env_source_code': wrap_env_source_code_source,\n                'init_policy_source_code': init_policy_source\n            },\n            model=policy,\n            optimizer=optimizer,\n        )\n    \n    info['episode_scores'] = episode_scores\n    info['score_moving_average'] = score_moving_average\n        \ndef on_optimization_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    # global steps_trained\n    # steps_trained += rl.buffer.pos\n    \n    if step % 1000 != 0:\n        return\n    \n    time_taken = stopwatch.reset()\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    episode_scores = info['episode_scores']\n    score_moving_average = info['score_moving_average']\n    \n    scores = format_summary_statics(\n        episode_scores, \n        mean_format=' 6.3f',\n        std_format='4.3f',\n        min_value_format=' 6.3f',\n        max_value_format='5.3f',\n        n_format='>2'\n    )\n    # scores2 = format_summary_statics(\n    #     rl.buffer.compute_most_recent_episode_scores(rl.num_envs, lambda r: 1 * r), \n    #     mean_format=' 6.3f',\n    #     std_format='4.3f',\n    #     min_value_format=' 6.3f',\n    #     max_value_format='5.3f',\n    #     n_format='>2'\n    # )\n    # advantages = format_summary_statics(\n    #     rl.buffer.advantages, \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    actor_loss = format_summary_statics(\n        info['final_actor_loss'],  \n        mean_format=' 5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # actor_loss_raw = format_summary_statics(\n    #     info['raw_actor_loss'],  \n    #     mean_format=' 5.3f',\n    #     std_format='5.3f',\n    #     min_value_format=None,\n    #     max_value_format=None,\n    # )\n    entropy_coef_loss = None if 'final_entropy_coef_loss' not in info else format_summary_statics(\n        info['final_entropy_coef_loss'], \n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    critic_loss = format_summary_statics(\n        info['final_critic_loss'], \n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    entropy_coef = format_summary_statics(\n        info['entropy_coef'],\n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # resets = format_summary_statics(\n    #     rl.buffer.dones.astype(int).sum(axis=0), \n    #     mean_format='.2f',\n    #     std_format=None,\n    #     min_value_format='1d',\n    #     max_value_format=None,\n    # )\n    # kl_div = info['actor_kl_divergence'][-1]\n    # grad_norm = format_summary_statics(\n    #     info['grad_norm'], \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    action_stds = info['rollout'].get('action_stds')\n    if action_stds is not None:\n        rollout_action_stds = format_summary_statics(\n            action_stds,\n            mean_format='5.3f',\n            std_format='5.3f',\n            min_value_format=None,\n            max_value_format=None,\n        )\n    else:\n        rollout_action_stds = 'N/A'\n    action_magnitude = format_summary_statics(\n        np.abs(rl.buffer.actions[tail_indices]),\n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # ppo_epochs = info['nr_ppo_epochs']\n    # ppo_updates = info['nr_ppo_updates']\n    # expl_var = rl.buffer.compute_critic_explained_variance()\n    print(f\"{step = : >7}, \"\n          f\"{scores = :s}, \"\n          # f\"{scores2 = :s}, \"\n          f'score_ema = {score_moving_average: 6.3f}, '\n          # f\"{advantages = :s}, \"\n          f\"{actor_loss = :s}, \"\n          # f\"{actor_loss_raw = :s}, \"\n          +(f\"{entropy_coef_loss = :s}, \" if entropy_coef_loss is not None else '')+\n          f\"{critic_loss = :s}, \"\n          f\"{entropy_coef = :s}, \"\n          f\"rollout_stds = {rollout_action_stds:s}, \"\n          f\"{action_magnitude = :s}, \"\n          # f\"{expl_var = :.3f}, \"\n          # f\"{kl_div = :.4f}, \"\n          # f\"{ppo_epochs = }, \"\n          # f\"{ppo_updates = }, \"\n          # f\"{grad_norm = :s}, \"\n          f\"n_updates = {rl.gradient_steps_performed}, \"\n          # f\"{resets = :s}, \"\n          f\"time = {time_taken:4.1f} \\n\"\n          )\n    logger.add_item({\n        'step': step,\n        'scores': compute_summary_statistics(episode_scores),\n        'actor_loss': compute_summary_statistics(info['final_actor_loss']),\n        'entropy_coef_loss': compute_summary_statistics(info['final_entropy_coef_loss']),\n        'critic_loss': compute_summary_statistics(info['final_critic_loss']),\n        'entropy_coef': compute_summary_statistics(info['entropy_coef']),\n        'action_stds': compute_summary_statistics(action_stds),\n        'action_magnitude': compute_summary_statistics(np.abs(rl.buffer.actions[tail_indices])),\n        'gradient_step': rl.gradient_steps_performed,\n        'time_taken': time_taken,\n    })\n    if step % 10000 == 0:\n        logger.save_experiment()\n    print()\n\ndevice = torch.device(\"cuda:0\") if True else torch.device('cpu')\nprint(f'using device {device}')\n\ndef create_env(render_mode: str | None):\n    return gym.make(env_name, render_mode=render_mode, **env_kwargs)\n\nwrap_env_source_code_source = inspect.getsource(wrap_env)\ninit_policy_source = inspect.getsource(init_policy)\n\nenv_name = 'HalfCheetah-v4'\n# env_kwargs = {'forward_reward_weight': 1.25, 'healthy_reward': 0.5, 'ctrl_cost_weight': 0.001 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.1 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.05 }\nenv_kwargs = {}\nnum_envs = 16\n    \n# policy_db = TinyModelDB[MitosisPolicyInfo](base_path=f'saved_models/rl/{env_name}')\npolicy_db = DummyModelDB[MitosisPolicyInfo]()\nprint(f'{policy_db = }')\n\nparent_policy_id=None  # '2024-04-28_20.57.23'\n\nenv = parallelize_env_async(lambda: create_env(render_mode=None), num_envs)\n\nlogger = ExperimentLogger('experiment_logs/sac/')\n\ntry:\n    policy_id, policy, optimizer, wrapped_env, steps_trained = get_policy(create_new_if_exists=True)\n    print(f'{count_parameters(policy) = }')\n    print(f'{env = }, {num_envs = } \\n\\n')\n        \n    with ((torch.autograd.set_detect_anomaly(False))):\n        algo = SAC(\n            env=wrapped_env,\n            policy=policy,\n            actor_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4, betas=(0.5, 0.999)),\n            critic_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4, betas=(0.5, 0.999)),\n            weigh_and_reduce_actor_loss=lambda l: 1 * l.mean(),\n            weigh_critic_loss=lambda l: 1 * l,\n            buffer_size=15_000,\n            gamma=0.99,\n            tau=0.005,\n            entropy_coef_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),\n            entropy_coef=1.0,\n            rollout_steps=2,\n            gradient_steps=2,\n            warmup_steps=500,\n            learning_starts=500,\n            optimization_batch_size=256,\n            target_update_interval=1,\n            # sde_noise_sample_freq=50,\n            callback=Callback(\n                on_rollout_done=on_rollout_done,\n                rollout_schedulers={},\n                on_optimization_done=on_optimization_done,\n                optimization_schedulers={},\n            ),\n            logging_config=SACLoggingConfig(log_rollout_infos=True, log_rollout_action_stds=True,\n                                            log_last_obs=True, log_entropy_coef=True,\n                                            entropy_coef_loss=LossLoggingConfig(log_final=True),\n                                            actor_loss=LossLoggingConfig(log_final=True, log_raw=True),\n                                            critic_loss=LossLoggingConfig(log_final=True)),\n            torch_device=device,\n        )\n        with log_experiment(\n            logger,\n            experiment_tags=[type(algo).__name__, env_name],\n            hyper_parameters=algo.collect_hyper_parameters(),\n            setup=get_setup(),\n        ) as x:\n            # import cProfile\n            # pr = cProfile.Profile()\n            # pr.enable()\n            algo.learn(1_000_000)\n            # pr.disable()  \n            # pr.dump_stats('profile_stats.pstat')\nexcept KeyboardInterrupt:\n    print('keyboard interrupt')\nfinally:\n    print('closing envs')\n    time.sleep(0.5)\n    env.close()\n    print('envs closed')\n    policy_db.close()\n    print('model db closed')\n    \n\nprint('done')"
+    },
+    "notes": [],
+    "logs_by_category": {
+        "__default": [
+            {
+                "step": 1000,
+                "scores": {
+                    "n": 16,
+                    "mean": -267.410400390625,
+                    "std": 74.31510925292969,
+                    "min_value": -411.591552734375,
+                    "max_value": -153.38177490234375
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -12.90609359741211,
+                    "std": 0.32511740922927856,
+                    "min_value": -13.135986328125,
+                    "max_value": -12.676200866699219
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -1.5071884393692017,
+                    "std": 0.006023121997714043,
+                    "min_value": -1.5114474296569824,
+                    "max_value": -1.502929449081421
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 3.3603177070617676,
+                    "std": 0.7477213144302368,
+                    "min_value": 2.831598997116089,
+                    "max_value": 3.8890366554260254
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.8607776165008545,
+                    "std": 0.00018220083438791335,
+                    "min_value": 0.8606488108634949,
+                    "max_value": 0.8609064817428589
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.8932544589042664,
+                    "std": 0.024103818461298943,
+                    "min_value": 0.8217388391494751,
+                    "max_value": 0.9737816452980042
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5099416375160217,
+                    "std": 0.2869504690170288,
+                    "min_value": 5.140900611877441e-07,
+                    "max_value": 0.9999834299087524
+                },
+                "gradient_step": 502,
+                "time_taken": 8.484760999679565
+            },
+            {
+                "step": 2000,
+                "scores": {
+                    "n": 16,
+                    "mean": -276.0377502441406,
+                    "std": 66.18750762939453,
+                    "min_value": -406.6261901855469,
+                    "max_value": -176.6993865966797
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -22.256927490234375,
+                    "std": 0.3664132356643677,
+                    "min_value": -22.516019821166992,
+                    "max_value": -21.997833251953125
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -4.479862213134766,
+                    "std": 0.003205857938155532,
+                    "min_value": -4.482129096984863,
+                    "max_value": -4.477595329284668
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.788428783416748,
+                    "std": 0.5201635956764221,
+                    "min_value": 2.4206175804138184,
+                    "max_value": 3.1562399864196777
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.6379509568214417,
+                    "std": 0.0001345327473245561,
+                    "min_value": 0.6378558278083801,
+                    "max_value": 0.6380460858345032
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.8977006077766418,
+                    "std": 0.028810350224375725,
+                    "min_value": 0.8305348753929138,
+                    "max_value": 0.9686421751976013
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5302339792251587,
+                    "std": 0.2873106002807617,
+                    "min_value": 2.0973384380340576e-05,
+                    "max_value": 0.9994251728057861
+                },
+                "gradient_step": 1502,
+                "time_taken": 10.370584487915039
+            },
+            {
+                "step": 3000,
+                "scores": {
+                    "n": 16,
+                    "mean": -209.1085662841797,
+                    "std": 66.60040283203125,
+                    "min_value": -318.4669494628906,
+                    "max_value": -73.07994842529297
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -28.27035140991211,
+                    "std": 0.06098143383860588,
+                    "min_value": -28.3134708404541,
+                    "max_value": -28.227230072021484
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -7.340934753417969,
+                    "std": 0.008229762315750122,
+                    "min_value": -7.34675407409668,
+                    "max_value": -7.335115432739258
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 3.0243241786956787,
+                    "std": 0.0530170276761055,
+                    "min_value": 2.986835479736328,
+                    "max_value": 3.0618128776550293
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.47383594512939453,
+                    "std": 9.96351518551819e-05,
+                    "min_value": 0.47376549243927,
+                    "max_value": 0.47390639781951904
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9262495040893555,
+                    "std": 0.02890593931078911,
+                    "min_value": 0.8341205716133118,
+                    "max_value": 0.9974901080131531
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5422743558883667,
+                    "std": 0.2889569401741028,
+                    "min_value": 7.212162017822266e-06,
+                    "max_value": 0.9997079372406006
+                },
+                "gradient_step": 2502,
+                "time_taken": 10.370172262191772
+            },
+            {
+                "step": 4000,
+                "scores": {
+                    "n": 16,
+                    "mean": -207.4827880859375,
+                    "std": 59.022743225097656,
+                    "min_value": -314.0111083984375,
+                    "max_value": -98.68214416503906
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -31.233985900878906,
+                    "std": 0.017241770401597023,
+                    "min_value": -31.246177673339844,
+                    "max_value": -31.22179412841797
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -10.240301132202148,
+                    "std": 0.045111287385225296,
+                    "min_value": -10.272199630737305,
+                    "max_value": -10.208402633666992
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 3.0866973400115967,
+                    "std": 0.33731740713119507,
+                    "min_value": 2.848177909851074,
+                    "max_value": 3.325216770172119
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.3517780900001526,
+                    "std": 7.438918692059815e-05,
+                    "min_value": 0.3517254889011383,
+                    "max_value": 0.35183069109916687
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9320386052131653,
+                    "std": 0.028129376471042633,
+                    "min_value": 0.8339513540267944,
+                    "max_value": 0.9984644055366516
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5467442870140076,
+                    "std": 0.29027026891708374,
+                    "min_value": 1.862645149230957e-06,
+                    "max_value": 0.9998225569725037
+                },
+                "gradient_step": 3502,
+                "time_taken": 10.342797994613647
+            },
+            {
+                "step": 5000,
+                "scores": {
+                    "n": 16,
+                    "mean": -245.9355926513672,
+                    "std": 37.47978591918945,
+                    "min_value": -315.2608642578125,
+                    "max_value": -182.97030639648438
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -32.499149322509766,
+                    "std": 0.12641626596450806,
+                    "min_value": -32.588539123535156,
+                    "max_value": -32.409759521484375
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -13.020133972167969,
+                    "std": 0.06864473968744278,
+                    "min_value": -13.068673133850098,
+                    "max_value": -12.97159481048584
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 3.1122682094573975,
+                    "std": 0.31684887409210205,
+                    "min_value": 2.8882222175598145,
+                    "max_value": 3.3363142013549805
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.2610320746898651,
+                    "std": 5.46223163837567e-05,
+                    "min_value": 0.26099345088005066,
+                    "max_value": 0.26107069849967957
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9299895167350769,
+                    "std": 0.034853145480155945,
+                    "min_value": 0.8371211886405945,
+                    "max_value": 1.0250095129013062
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5497732162475586,
+                    "std": 0.29082298278808594,
+                    "min_value": 1.3887882232666016e-05,
+                    "max_value": 0.9995719790458679
+                },
+                "gradient_step": 4502,
+                "time_taken": 10.772700548171997
+            },
+            {
+                "step": 6000,
+                "scores": {
+                    "n": 16,
+                    "mean": -231.50851440429688,
+                    "std": 34.8557243347168,
+                    "min_value": -296.49163818359375,
+                    "max_value": -168.6634063720703
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -32.57693862915039,
+                    "std": 0.022652750834822655,
+                    "min_value": -32.59295654296875,
+                    "max_value": -32.56092071533203
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -15.572690963745117,
+                    "std": 0.09878209978342056,
+                    "min_value": -15.642539978027344,
+                    "max_value": -15.502840995788574
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.801931142807007,
+                    "std": 0.061316248029470444,
+                    "min_value": 2.7585740089416504,
+                    "max_value": 2.8452882766723633
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.19411331415176392,
+                    "std": 4.066117253387347e-05,
+                    "min_value": 0.1940845549106598,
+                    "max_value": 0.19414205849170685
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9317815899848938,
+                    "std": 0.04599349945783615,
+                    "min_value": 0.8222106695175171,
+                    "max_value": 1.0413446426391602
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5550249814987183,
+                    "std": 0.2917138338088989,
+                    "min_value": 4.976987838745117e-06,
+                    "max_value": 0.9998019933700562
+                },
+                "gradient_step": 5502,
+                "time_taken": 10.588919162750244
+            },
+            {
+                "step": 7000,
+                "scores": {
+                    "n": 16,
+                    "mean": -218.36892700195312,
+                    "std": 46.70272445678711,
+                    "min_value": -321.57330322265625,
+                    "max_value": -140.78097534179688
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -31.342504501342773,
+                    "std": 0.4918031394481659,
+                    "min_value": -31.690261840820312,
+                    "max_value": -30.994747161865234
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -17.651782989501953,
+                    "std": 0.14790913462638855,
+                    "min_value": -17.756370544433594,
+                    "max_value": -17.547195434570312
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 10.136686325073242,
+                    "std": 0.9149709939956665,
+                    "min_value": 9.489704132080078,
+                    "max_value": 10.783668518066406
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.14473727345466614,
+                    "std": 2.9745140636805445e-05,
+                    "min_value": 0.14471624791622162,
+                    "max_value": 0.14475831389427185
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9236029982566833,
+                    "std": 0.05204575136303902,
+                    "min_value": 0.7967951893806458,
+                    "max_value": 1.07469642162323
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5615423321723938,
+                    "std": 0.29292696714401245,
+                    "min_value": 6.143748760223389e-05,
+                    "max_value": 0.9997766017913818
+                },
+                "gradient_step": 6502,
+                "time_taken": 11.482102394104004
+            },
+            {
+                "step": 8000,
+                "scores": {
+                    "n": 16,
+                    "mean": -198.38052368164062,
+                    "std": 38.79777145385742,
+                    "min_value": -277.45562744140625,
+                    "max_value": -124.10009765625
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -29.94064712524414,
+                    "std": 0.012688561342656612,
+                    "min_value": -29.94961929321289,
+                    "max_value": -29.93167495727539
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -19.480201721191406,
+                    "std": 0.2277669608592987,
+                    "min_value": -19.641258239746094,
+                    "max_value": -19.31914710998535
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 6.5002875328063965,
+                    "std": 5.127541542053223,
+                    "min_value": 2.874567985534668,
+                    "max_value": 10.126007080078125
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.10831403732299805,
+                    "std": 2.207968100265134e-05,
+                    "min_value": 0.10829842835664749,
+                    "max_value": 0.1083296537399292
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.8941658139228821,
+                    "std": 0.05855410546064377,
+                    "min_value": 0.7091915011405945,
+                    "max_value": 1.0318245887756348
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5700386762619019,
+                    "std": 0.2934049069881439,
+                    "min_value": 3.5762786865234375e-07,
+                    "max_value": 0.9998270273208618
+                },
+                "gradient_step": 7502,
+                "time_taken": 10.753797054290771
+            },
+            {
+                "step": 9000,
+                "scores": {
+                    "n": 16,
+                    "mean": -193.17364501953125,
+                    "std": 29.42489242553711,
+                    "min_value": -228.1184539794922,
+                    "max_value": -111.6769027709961
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -28.081939697265625,
+                    "std": 0.04709252715110779,
+                    "min_value": -28.1152400970459,
+                    "max_value": -28.048641204833984
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -21.139163970947266,
+                    "std": 0.09599096328020096,
+                    "min_value": -21.207040786743164,
+                    "max_value": -21.0712890625
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.5536322593688965,
+                    "std": 0.23272612690925598,
+                    "min_value": 2.3890700340270996,
+                    "max_value": 2.7181944847106934
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.08144497871398926,
+                    "std": 1.6337173292413354e-05,
+                    "min_value": 0.08143343031406403,
+                    "max_value": 0.08145653456449509
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.9045183062553406,
+                    "std": 0.07783825695514679,
+                    "min_value": 0.6767242550849915,
+                    "max_value": 1.0935585498809814
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5810300707817078,
+                    "std": 0.2947941720485687,
+                    "min_value": 2.5704503059387207e-05,
+                    "max_value": 0.9999899864196777
+                },
+                "gradient_step": 8502,
+                "time_taken": 10.758363962173462
+            },
+            {
+                "step": 10000,
+                "scores": {
+                    "n": 16,
+                    "mean": -117.00160217285156,
+                    "std": 33.14222717285156,
+                    "min_value": -180.94764709472656,
+                    "max_value": -65.9150619506836
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -26.523658752441406,
+                    "std": 0.12186845391988754,
+                    "min_value": -26.609832763671875,
+                    "max_value": -26.437484741210938
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -21.21404457092285,
+                    "std": 0.07226599752902985,
+                    "min_value": -21.26514434814453,
+                    "max_value": -21.162944793701172
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.3113772869110107,
+                    "std": 0.3339051902294159,
+                    "min_value": 2.075270652770996,
+                    "max_value": 2.5474839210510254
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.06135033816099167,
+                    "std": 1.2162000530224759e-05,
+                    "min_value": 0.06134173646569252,
+                    "max_value": 0.06135893613100052
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.8670244812965393,
+                    "std": 0.07260864973068237,
+                    "min_value": 0.6634596586227417,
+                    "max_value": 1.0389364957809448
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5841711759567261,
+                    "std": 0.29517316818237305,
+                    "min_value": 3.4123659133911133e-06,
+                    "max_value": 0.999842643737793
+                },
+                "gradient_step": 9502,
+                "time_taken": 11.003533840179443
+            },
+            {
+                "step": 11000,
+                "scores": {
+                    "n": 16,
+                    "mean": -69.34178924560547,
+                    "std": 28.69858741760254,
+                    "min_value": -132.95819091796875,
+                    "max_value": -26.29532814025879
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -24.738731384277344,
+                    "std": 0.25523996353149414,
+                    "min_value": -24.919214248657227,
+                    "max_value": -24.558250427246094
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -21.121135711669922,
+                    "std": 0.0817689299583435,
+                    "min_value": -21.178955078125,
+                    "max_value": -21.063316345214844
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 7.350833892822266,
+                    "std": 6.826330184936523,
+                    "min_value": 2.5238895416259766,
+                    "max_value": 12.177778244018555
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.04655539244413376,
+                    "std": 8.99571841728175e-06,
+                    "min_value": 0.046549029648303986,
+                    "max_value": 0.04656175151467323
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.842614471912384,
+                    "std": 0.089845210313797,
+                    "min_value": 0.6155787110328674,
+                    "max_value": 1.083868145942688
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6027390956878662,
+                    "std": 0.2968699634075165,
+                    "min_value": 3.4868717193603516e-05,
+                    "max_value": 0.9999461770057678
+                },
+                "gradient_step": 10502,
+                "time_taken": 11.243493556976318
+            },
+            {
+                "step": 12000,
+                "scores": {
+                    "n": 16,
+                    "mean": -112.65756225585938,
+                    "std": 60.75804901123047,
+                    "min_value": -256.3802490234375,
+                    "max_value": -6.629546642303467
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -22.861270904541016,
+                    "std": 0.19765590131282806,
+                    "min_value": -23.001035690307617,
+                    "max_value": -22.721508026123047
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -20.058422088623047,
+                    "std": 0.7895770072937012,
+                    "min_value": -20.616737365722656,
+                    "max_value": -19.500106811523438
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.031338930130005,
+                    "std": 0.0291767455637455,
+                    "min_value": 2.0107078552246094,
+                    "max_value": 2.0519700050354004
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.03543953597545624,
+                    "std": 6.856766049168073e-06,
+                    "min_value": 0.03543468937277794,
+                    "max_value": 0.035444386303424835
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.7879149317741394,
+                    "std": 0.10765854269266129,
+                    "min_value": 0.560926079750061,
+                    "max_value": 1.0703952312469482
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6195065379142761,
+                    "std": 0.29717355966567993,
+                    "min_value": 2.9484741389751434e-05,
+                    "max_value": 0.999799907207489
+                },
+                "gradient_step": 11502,
+                "time_taken": 10.518500804901123
+            },
+            {
+                "step": 13000,
+                "scores": {
+                    "n": 16,
+                    "mean": -93.08890533447266,
+                    "std": 120.78055572509766,
+                    "min_value": -472.922607421875,
+                    "max_value": 7.765223979949951
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -21.167007446289062,
+                    "std": 0.05182106792926788,
+                    "min_value": -21.203649520874023,
+                    "max_value": -21.13036346435547
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -20.103199005126953,
+                    "std": 0.07990773022174835,
+                    "min_value": -20.15970230102539,
+                    "max_value": -20.046695709228516
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 2.038487434387207,
+                    "std": 0.13210542500019073,
+                    "min_value": 1.9450747966766357,
+                    "max_value": 2.1319000720977783
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.027175486087799072,
+                    "std": 5.164306003280217e-06,
+                    "min_value": 0.02717183344066143,
+                    "max_value": 0.027179136872291565
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.7440521121025085,
+                    "std": 0.09461788088083267,
+                    "min_value": 0.52986079454422,
+                    "max_value": 1.000211238861084
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6390345692634583,
+                    "std": 0.29571136832237244,
+                    "min_value": 1.2278556823730469e-05,
+                    "max_value": 0.9999358654022217
+                },
+                "gradient_step": 12502,
+                "time_taken": 10.332773447036743
+            },
+            {
+                "step": 14000,
+                "scores": {
+                    "n": 16,
+                    "mean": -99.11874389648438,
+                    "std": 103.96562957763672,
+                    "min_value": -312.1903381347656,
+                    "max_value": 63.853187561035156
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -19.483428955078125,
+                    "std": 0.23548153042793274,
+                    "min_value": -19.649938583374023,
+                    "max_value": -19.316917419433594
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -18.220809936523438,
+                    "std": 0.7098743319511414,
+                    "min_value": -18.722766876220703,
+                    "max_value": -17.718852996826172
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": 3.427689552307129,
+                    "std": 1.4950518608093262,
+                    "min_value": 2.370528221130371,
+                    "max_value": 4.484850883483887
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.02095199003815651,
+                    "std": 3.801118964474881e-06,
+                    "min_value": 0.02094930224120617,
+                    "max_value": 0.02095467783510685
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 0.7018420100212097,
+                    "std": 0.10437001287937164,
+                    "min_value": 0.4951346516609192,
+                    "max_value": 0.9943023920059204
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6626859307289124,
+                    "std": 0.2958337068557739,
+                    "min_value": 2.4139881134033203e-05,
+                    "max_value": 0.9999722838401794
+                },
+                "gradient_step": 13502,
+                "time_taken": 10.578538417816162
+            },
+            {
+                "step": 15000,
+                "scores": {
+                    "n": 16,
+                    "mean": -577.8065185546875,
+                    "std": 16.97919464111328,
+                    "min_value": -621.81494140625,
+                    "max_value": -559.860107421875
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -8.752109066807249e+22,
+                    "std": 2.3531990629829365e+21,
+                    "min_value": -8.918505363679557e+22,
+                    "max_value": -8.58571276993494e+22
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -1.6464723280416287e+25,
+                    "std": 4.426892517077271e+23,
+                    "min_value": -1.6777751845210588e+25,
+                    "max_value": -1.6151694715621987e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.9855402112007141,
+                    "std": 0.09255973249673843,
+                    "min_value": 9.530782699584961e-05,
+                    "max_value": 1.0
+                },
+                "gradient_step": 14502,
+                "time_taken": 10.352494478225708
+            },
+            {
+                "step": 16000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.9219360351562,
+                    "std": 1.2011799812316895,
+                    "min_value": -604.1945190429688,
+                    "max_value": -599.2494506835938
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.1473838785050322e+23,
+                    "std": 3.4808650845669315e+21,
+                    "min_value": -1.1719973114765076e+23,
+                    "max_value": -1.1227704455335568e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.1584920316430085e+25,
+                    "std": 6.548290063120051e+23,
+                    "min_value": -2.2047954345267278e+25,
+                    "max_value": -2.1121886287592892e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 15502,
+                "time_taken": 10.552184104919434
+            },
+            {
+                "step": 17000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.4555053710938,
+                    "std": 0.9173213243484497,
+                    "min_value": -602.1290283203125,
+                    "max_value": -599.2772827148438
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.2531383056748717e+23,
+                    "std": 6.483675320488299e+21,
+                    "min_value": -1.2989847697375182e+23,
+                    "max_value": -1.2072917515402326e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.357440397062267e+25,
+                    "std": 1.2197273970761026e+24,
+                    "min_value": -2.443688148978896e+25,
+                    "max_value": -2.271192645145638e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 16502,
+                "time_taken": 10.647129535675049
+            },
+            {
+                "step": 18000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.6557006835938,
+                    "std": 0.9075207114219666,
+                    "min_value": -602.110107421875,
+                    "max_value": -598.7161865234375
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.405231890706592e+23,
+                    "std": 3.2173392041711606e+21,
+                    "min_value": -1.4279819142962466e+23,
+                    "max_value": -1.3824818671169374e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.6435632327035574e+25,
+                    "std": 6.052543183626331e+23,
+                    "min_value": -2.686361062460369e+25,
+                    "max_value": -2.6007651723624448e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 17502,
+                "time_taken": 10.73078465461731
+            },
+            {
+                "step": 19000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.4815063476562,
+                    "std": 0.9227731227874756,
+                    "min_value": -602.5161743164062,
+                    "max_value": -599.39306640625
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.516939716295845e+23,
+                    "std": 8.573507536437306e+20,
+                    "min_value": -1.523002101826241e+23,
+                    "max_value": -1.5108773307654491e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.8537113082028676e+25,
+                    "std": 1.6128680096547025e+23,
+                    "min_value": -2.8651160077264386e+25,
+                    "max_value": -2.8423066086792967e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 18502,
+                "time_taken": 10.777048587799072
+            },
+            {
+                "step": 20000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.348388671875,
+                    "std": 0.8137060403823853,
+                    "min_value": -601.2149047851562,
+                    "max_value": -598.6814575195312
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.3676630427590524e+23,
+                    "std": 9.478932175409635e+21,
+                    "min_value": -1.434689215293282e+23,
+                    "max_value": -1.3006368702248228e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.572887760965352e+25,
+                    "std": 1.7832056767769007e+24,
+                    "min_value": -2.698979327159689e+25,
+                    "max_value": -2.446795964186714e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 19502,
+                "time_taken": 10.709847450256348
+            },
+            {
+                "step": 21000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.359375,
+                    "std": 0.7661170363426208,
+                    "min_value": -601.341064453125,
+                    "max_value": -599.22705078125
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.3226771265132038e+23,
+                    "std": 1.3352201243533915e+22,
+                    "min_value": -1.4170913997493318e+23,
+                    "max_value": -1.2282627632050833e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.488258710841191e+25,
+                    "std": 2.511856247028882e+24,
+                    "min_value": -2.6658738779078063e+25,
+                    "max_value": -2.310643774358877e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 20502,
+                "time_taken": 10.531811714172363
+            },
+            {
+                "step": 22000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.4566650390625,
+                    "std": 0.5156861543655396,
+                    "min_value": -601.3209838867188,
+                    "max_value": -599.14892578125
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.3408544652572041e+23,
+                    "std": 3.1236758723958994e+21,
+                    "min_value": -1.3629421894856576e+23,
+                    "max_value": -1.3187667410287506e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.522454823836432e+25,
+                    "std": 5.876354079580283e+23,
+                    "min_value": -2.5640068066153656e+25,
+                    "max_value": -2.4809026104731976e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 21502,
+                "time_taken": 10.821059465408325
+            },
+            {
+                "step": 23000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.6611328125,
+                    "std": 0.5732318162918091,
+                    "min_value": -601.7828979492188,
+                    "max_value": -599.5577392578125
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.1457315978737425e+23,
+                    "std": 1.29222009288123e+22,
+                    "min_value": -1.2371053108574476e+23,
+                    "max_value": -1.0543577948180449e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.1553835246822875e+25,
+                    "std": 2.4309649684226566e+24,
+                    "min_value": -2.3272788175802472e+25,
+                    "max_value": -1.9834884623686288e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 22502,
+                "time_taken": 10.520742177963257
+            },
+            {
+                "step": 24000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.9031982421875,
+                    "std": 0.6511090993881226,
+                    "min_value": -601.9425659179688,
+                    "max_value": -599.8876342773438
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.2005595006012615e+23,
+                    "std": 6.59881547446156e+21,
+                    "min_value": -1.2472202154765367e+23,
+                    "max_value": -1.153898875797979e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -2.258527571833231e+25,
+                    "std": 1.2413899274565368e+24,
+                    "min_value": -2.3463070952608805e+25,
+                    "max_value": -2.170748048405581e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 23502,
+                "time_taken": 10.724396228790283
+            },
+            {
+                "step": 25000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.6141357421875,
+                    "std": 0.8322685360908508,
+                    "min_value": -602.2503051757812,
+                    "max_value": -599.497314453125
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -1.0042677689705122e+23,
+                    "std": 1.3034901257687434e+22,
+                    "min_value": -1.0964384389442768e+23,
+                    "max_value": -9.120970989967476e+22
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -1.8892579972462524e+25,
+                    "std": 2.452164312588615e+24,
+                    "min_value": -2.0626522033923514e+25,
+                    "max_value": -1.7158637911001533e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 24502,
+                "time_taken": 10.80117917060852
+            },
+            {
+                "step": 26000,
+                "scores": {
+                    "n": 16,
+                    "mean": -600.3228759765625,
+                    "std": 0.7185075879096985,
+                    "min_value": -601.4668579101562,
+                    "max_value": -598.76513671875
+                },
+                "actor_loss": {
+                    "n": 2,
+                    "mean": -7.618407123970168e+22,
+                    "std": 7.309416504616167e+21,
+                    "min_value": -8.135260933765492e+22,
+                    "max_value": -7.101553314174844e+22
+                },
+                "entropy_coef_loss": {
+                    "n": 2,
+                    "mean": -1.4331969529610724e+25,
+                    "std": 1.375067861266375e+24,
+                    "min_value": -1.5304289339285422e+25,
+                    "max_value": -1.3359649719936026e+25
+                },
+                "critic_loss": {
+                    "n": 2,
+                    "mean": Infinity,
+                    "std": NaN,
+                    "min_value": Infinity,
+                    "max_value": Infinity
+                },
+                "entropy_coef": {
+                    "n": 2,
+                    "mean": 0.020630139857530594,
+                    "std": 0.0,
+                    "min_value": 0.020630139857530594,
+                    "max_value": 0.020630139857530594
+                },
+                "action_stds": {
+                    "n": 192,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.226251136614761e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 25502,
+                "time_taken": 10.696918964385986
+            }
+        ]
+    }
+}

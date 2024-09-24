@@ -6,6 +6,7 @@ from gymnasium import Env
 from torch import optim
 
 from src.datetime import get_current_timestamp
+from src.id_generation import generate_timestamp_id
 from src.model_db.model_db import ModelDB, ModelEntry
 from src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
@@ -59,7 +60,6 @@ class PolicyMitosisBase(abc.ABC):
 
         self.rng = np.random.default_rng(rng_seed)
 
-        self.policy_id_random_alphanumeric_length = 6
         self.sufficient_primordial_ancestors = False
 
     @abc.abstractmethod
@@ -136,10 +136,7 @@ class PolicyMitosisBase(abc.ABC):
 
         return policy_info
 
-    def create_policy_id(self) -> str:
-        random_alphanumeric = ''.join(np.random.choice(
-            ALPHANUMERIC_ALPHABET,
-            self.policy_id_random_alphanumeric_length
-        ))
-        return f'{get_current_timestamp()}~{random_alphanumeric}'
+    @staticmethod
+    def create_policy_id() -> str:
+        return generate_timestamp_id()
 

@@ -7,6 +7,7 @@ from src.reinforcement_learning.core.action_selectors.action_selector import Act
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction
 
+policy_construction_hyper_parameter = {}
 
 def init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':
     from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \
@@ -20,8 +21,8 @@ def init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dic
         action_dim=action_dim,
         base_std=1.0,
         squash_output=True,
-        action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),
-        log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),
+        # action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),
+        # log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),
     )
     # return PredictedStdActionSelector(
     #     latent_dim=latent_dim,
@@ -42,12 +43,14 @@ def init_policy(
     import numpy as np
 
     from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy
+    from src.reinforcement_learning.algorithms.sac.sac_crossq_policy import SACCrossQPolicy
     from src.networks.core.seq_net import SeqNet
     from src.networks.core.net import Net
     from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection
     from src.weight_initialization import orthogonal_initialization
     from src.reinforcement_learning.core.policies.components.actor import Actor
     from src.reinforcement_learning.core.policies.components.q_critic import QCritic
+    from src.networks.normalization.batch_renorm import BatchRenorm
 
     # in_size = 376
     # action_size = 17
@@ -113,8 +116,10 @@ def init_policy(
         create_q_network=lambda: nn.Sequential(
             nn.Linear(in_size + action_size, 256),
             nn.ReLU(),
+            # BatchRenorm(256),
             nn.Linear(256, 256),
             nn.ReLU(),
+            # BatchRenorm(256),
             nn.Linear(256, 1)
         )
     )
@@ -135,7 +140,9 @@ def init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'to
 def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':
     from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper
     from gymnasium.wrappers import RescaleAction
+    from src.np_functions import symmetric_log
 
-    env_ = TransformRewardWrapper(env_, lambda reward_: 0.5 * reward_)
+
+    env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)
     env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)
     return env_

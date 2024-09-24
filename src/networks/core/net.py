@@ -7,6 +7,7 @@ from src.module_analysis import count_parameters, get_gradients_per_parameter
 from src.networks.core.tensor_shape import TensorShape, TensorShapeError
 
 
+# TODO: extend jit.ScriptModule instead?
 class Net(nn.Module, abc.ABC):
 
     def __init__(
@@ -15,7 +16,7 @@ class Net(nn.Module, abc.ABC):
             out_shape: TensorShape,
             allow_extra_dimensions: bool = True,
     ):
-        nn.Module.__init__(self)
+        super().__init__()
 
         self.in_shape = in_shape
         self.out_shape = out_shape

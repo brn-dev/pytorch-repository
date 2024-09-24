@@ -9,6 +9,7 @@ from torch import nn, optim
 
 from src.function_types import TorchLossFn, TorchTensorFn
 from src.module_analysis import calculate_grad_norm
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, RolloutBuf
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
@@ -48,7 +49,12 @@ class PPOLoggingConfig(LoggingConfig):
 
         super().__post_init__()
 
+"""
 
+        Proximal Policy Optimization Algorithms
+        https://arxiv.org/abs/1707.06347
+
+"""
 class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig]):
 
     def __init__(
@@ -112,6 +118,22 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         self.value_function_clip_range_factor = value_function_clip_range_factor
 
         self.grad_norm_clip_value = grad_norm_clip_value
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'normalize_rewards': self.normalize_rewards,
+            'normalize_advantages': self.normalize_advantages,
+            'weigh_and_reduce_actor_loss': str(self.weigh_and_reduce_actor_loss),
+            'weigh_and_reduce_entropy_loss': str(self.weigh_and_reduce_entropy_loss),
+            'critic_loss_fn': str(self.critic_loss_fn),
+            'weigh_and_reduce_critic_loss': str(self.weigh_and_reduce_critic_loss),
+            'ppo_max_epochs': self.ppo_max_epochs,
+            'ppo_kl_target': self.ppo_kl_target,
+            'ppo_batch_size': self.ppo_batch_size,
+            'action_ratio_clip_range': self.action_ratio_clip_range,
+            'value_function_clip_range_factor': self.value_function_clip_range_factor,
+            'grad_norm_clip_value': self.grad_norm_clip_value,
+        })
 
     @override
     def optimize(

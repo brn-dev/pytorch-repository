@@ -27,6 +27,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             epsilon: float = 1e-6,
             action_net_initialization: ActionNetInitialization | None = None,
             log_std_net_initialization: LogStdNetInitialization | None = None,
+            log_std_clamp_range: tuple[int, int] = (-20, 2)
     ):
         super().__init__(
             latent_dim=latent_dim,
@@ -39,6 +40,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             log_std_net_initialization(self.log_std_net)
 
         self.base_log_std = math.log(base_std)
+        self.log_std_clamp_range = log_std_clamp_range
 
         if squash_output:
             self.output_bijector = TanhBijector(epsilon)
@@ -58,6 +60,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             mean_actions: torch.Tensor,
             log_stds: torch.Tensor,
     ) -> Self:
+        log_stds = torch.clamp(log_stds, *self.log_std_clamp_range)
         self.distribution = torchdist.Normal(mean_actions, log_stds.exp())
         return self
 

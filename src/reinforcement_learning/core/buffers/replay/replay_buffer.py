@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
 from src.torch_device import TorchDevice
 
@@ -33,6 +34,12 @@ class ReplayBuffer(BaseReplayBuffer):
         self.observations = np.zeros((self.buffer_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
         if not optimize_memory_usage:
             self.next_observations = np.zeros((self.buffer_size, self.num_envs, *obs_shape), dtype=self.np_dtype)
+
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'optimize_memory_usage': self.optimize_memory_usage,
+        })
 
     def add(
         self,

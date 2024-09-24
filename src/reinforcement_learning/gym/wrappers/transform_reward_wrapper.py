@@ -27,3 +27,4 @@ class TransformRewardWrapper(RewardWrapper):
         rewards = self.transform_reward(rewards)
 
         return observations, rewards, terminated, truncated, infos
+

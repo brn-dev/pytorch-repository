@@ -6,6 +6,7 @@ import gymnasium
 import numpy as np
 import torch
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
 from src.reinforcement_learning.core.action_noise import ActionNoise
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
@@ -65,6 +66,16 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         self.learning_starts = learning_starts
 
         self.steps_performed = 0
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'tau': self.tau,
+            'rollout_steps': self.rollout_steps,
+            'gradient_steps': self.gradient_steps,
+            'optimization_batch_size': self.optimization_batch_size,
+            'action_noise': self.action_noise,
+            'warmup_steps': self.warmup_steps,
+        })
 
     def _on_step(self):
         pass

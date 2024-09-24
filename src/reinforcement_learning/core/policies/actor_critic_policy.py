@@ -3,6 +3,7 @@ from typing import Optional
 import torch
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.components.actor import Actor
@@ -26,6 +27,11 @@ class ActorCriticPolicy(BasePolicy):
             shared_feature_extractor=shared_feature_extractor
         )
         self.critic = critic
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'critic': self.critic.collect_hyper_parameters(),
+        })
 
     def forward(self, obs: TensorObs) -> tuple[ActionSelector, torch.Tensor]:
         obs = self.shared_feature_extractor(obs)

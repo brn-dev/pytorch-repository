@@ -1,5 +1,5 @@
 import abc
-from typing import NamedTuple
+from typing import NamedTuple, Callable
 
 import numpy as np
 import torch
@@ -88,4 +88,32 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             np.arange(self.pos)
         ))
 
-    # def compute_episode_scores(self):
+    def compute_most_recent_episode_scores(
+            self,
+            n_episodes: int,
+            transform_rewards: Callable[[np.ndarray], np.ndarray] = lambda r: r,
+    ):
+        whole_episode = np.zeros((self.num_envs,), dtype=bool)
+
+        running_sum = np.zeros((self.num_envs,), dtype=float)
+        episode_scores: list[float] = []
+
+        for step_index in reversed(self.tail_indices(self.size)):
+            step_dones = self.dones[step_index]
+            episode_scores.extend(running_sum[np.logical_and(step_dones, whole_episode)])
+
+            if len(episode_scores) >= n_episodes:
+                break
+                
+            whole_episode[step_dones] = True
+            running_sum[step_dones] = 0.0
+
+            running_sum += transform_rewards(self.rewards[step_index])
+
+        return np.array(episode_scores)
+
+
+
+
+
+

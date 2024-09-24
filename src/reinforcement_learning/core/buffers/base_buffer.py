@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from gymnasium import Env
 
+from src.hyper_parameters import HasHyperParameters, HyperParameters
 from src.reinforcement_learning.gym.env_analysis import get_obs_shape, get_action_shape, get_num_envs
 from src.torch_device import TorchDevice, get_torch_device
 from src.reinforcement_learning.core.type_aliases import ShapeDict
@@ -12,7 +13,7 @@ from src.reinforcement_learning.core.type_aliases import ShapeDict
 BufferSamples = TypeVar('BufferSamples', bound=NamedTuple)
 
 
-class BaseBuffer(Generic[BufferSamples], abc.ABC):
+class BaseBuffer(HasHyperParameters, Generic[BufferSamples], abc.ABC):
 
     def __init__(
             self,
@@ -36,6 +37,16 @@ class BaseBuffer(Generic[BufferSamples], abc.ABC):
 
         self.pos = 0
         self.full = False
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return {
+            'buffer_size': self.buffer_size,
+            'num_envs': self.num_envs,
+            'total_buffer_size': self.buffer_size * self.num_envs,
+            'torch_device': str(self.torch_device),
+            'torch_dtype': str(self.torch_dtype),
+            'np_dtype': str(self.np_dtype),
+        }
 
     @property
     def size(self):

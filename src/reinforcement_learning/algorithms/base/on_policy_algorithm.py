@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch import optim
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
 from src.reinforcement_learning.core.buffers.rollout.base_rollout_buffer import BaseRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
@@ -50,6 +51,12 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             self.policy_optimizer = optimizer_to_device(policy_optimizer, self.torch_device)
         else:
             self.policy_optimizer = optimizer_to_device(policy_optimizer(self.policy.parameters()), self.torch_device)
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'gae_lambda': self.gae_lambda,
+            'policy_optimizer': str(self.policy_optimizer),
+        })
 
     def rollout_step(
             self,

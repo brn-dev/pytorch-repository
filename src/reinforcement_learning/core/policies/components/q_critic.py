@@ -3,6 +3,7 @@ from typing import Callable, Optional
 import torch
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.policies.components.base_component import BasePolicyComponent
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor, IdentityExtractor
 
@@ -27,6 +28,12 @@ class QCritic(BasePolicyComponent):
             self.q_networks.append(q_net)
 
         self.feature_dim = feature_dim
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'n_critics': self.n_critics,
+            'q_network': self.get_hps_or_str(self.q_networks[0]),
+        })
 
     def forward(self, obs: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, ...]:
         obs = self.feature_extractor(obs)

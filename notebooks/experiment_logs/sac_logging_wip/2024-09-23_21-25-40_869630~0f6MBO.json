@@ -1,0 +1,29 @@
+{
+    "experiment_id": "2024-09-23_21-25-40_869630~0f6MBO",
+    "experiment_tags": [
+        "SAC",
+        "HalfCheetah-v4"
+    ],
+    "start_time": "2024-09-23 21:25:40.869630",
+    "end_time": "2024-09-23 21:27:22.091534",
+    "model_db_reference": null,
+    "hyper_parameters": {
+        "env": "<RescaleAction<TransformRewardWrapper<AsyncVectorEnv instance>>>",
+        "num_envs": 16,
+        "policy": {
+            "parameter_count": 217870,
+            "feature_extractor": "IdentityExtractor()",
+            "feature_extractor_parameter_count": 0,
+            "actor": {
+                "parameter_count": 73484,
+                "feature_extractor": "IdentityExtractor()",
+                "feature_extractor_parameter_count": 0,
+                "network": "Sequential(\n  (0): Linear(in_features=17, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ELU(alpha=1.0)\n)",
+                "action_selector": "PredictedStdActionSelector(\n  (action_net): Linear(in_features=256, out_features=6, bias=True)\n  (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n)"
+            },
+            "critic": {
+                "parameter_count": 144386,
+                "feature_extractor": "IdentityExtractor()",
+                "feature_extractor_parameter_count": 0,
+                "n_critics": 2,
+                "q_network_architecture": 

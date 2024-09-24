@@ -7,11 +7,14 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.reinforcement_learning.core.logging import LoggingConfig
+from src.console import print_warning
+from src.hyper_parameters import HasHyperParameters, HyperParameters
+from src.module_analysis import count_parameters
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
+from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice, get_torch_device
@@ -24,7 +27,7 @@ Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
+class BaseAlgorithm(HasHyperParameters, Generic[Policy, Buffer, LogConf], abc.ABC):
 
     def __init__(
             self,
@@ -36,8 +39,9 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
             callback: Callback,
             logging_config: LogConf,
             torch_device: TorchDevice,
-            torch_dtype: torch.dtype
+            torch_dtype: torch.dtype,
     ):
+
         self.env, self.num_envs = as_vec_env(env)
         self.observation_space: gymnasium.spaces.Space = self.env.get_wrapper_attr('single_observation_space')
         self.action_space: gymnasium.spaces.Space = self.env.get_wrapper_attr('single_action_space')
@@ -48,9 +52,7 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
         self.gamma = gamma
 
         if not policy.uses_sde and sde_noise_sample_freq is not None:
-            print(f'================================= Warning ================================= \n'
-                  f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n'
-                  f'=========================================================================== \n\n\n')
+            print_warning(f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n')
         if policy.uses_sde and sde_noise_sample_freq is None:
             raise ValueError(f'SDE noise sample freq is set to None despite using SDE')
 
@@ -65,6 +67,22 @@ class BaseAlgorithm(Generic[Policy, Buffer, LogConf], abc.ABC):
 
         self.torch_device = get_torch_device(torch_device)
         self.torch_dtype = torch_dtype
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'env': str(self.env),
+            'num_envs': self.num_envs,
+            'policy': self.policy.collect_hyper_parameters(),
+            'policy_parameter_count': count_parameters(self.policy),
+            'policy_repr': str(self.policy),
+            'buffer': self.get_hps_or_str(self.buffer),
+            'buffer_step_size': self.buffer.buffer_size,
+            'buffer_total_size': self.buffer.buffer_size * self.num_envs,
+            'gamma': self.gamma,
+            'sde_noise_sample_freq': self.sde_noise_sample_freq,
+            'torch_device': str(self.torch_device),
+            'torch_dtype': str(self.torch_dtype),
+        })
 
     @abc.abstractmethod
     def optimize(
