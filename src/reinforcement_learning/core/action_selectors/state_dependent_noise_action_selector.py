@@ -88,6 +88,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         self.distribution = torchdist.Normal(mean_actions, torch.sqrt(variance + self.epsilon))
         return self
 
+    # TODO: save last_gaussian_actions like in the other squashing action selectors?
     def sample(self) -> torch.Tensor:
         noise = self.get_noise(self.latent_pi)
         actions = self.distribution.mean + noise
@@ -104,15 +105,15 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
     @override
     def log_prob(self, actions: torch.Tensor) -> torch.Tensor:
         if self.output_bijector is not None:
-            unsquashed_actions = self.output_bijector.inverse(actions)
+            gaussian_actions = self.output_bijector.inverse(actions)
         else:
-            unsquashed_actions = actions
+            gaussian_actions = actions
 
-        log_prob = self.distribution.log_prob(unsquashed_actions)
+        log_prob = self.distribution.log_prob(gaussian_actions)
         log_prob = self.sum_action_dim(log_prob)
 
         if self.output_bijector is not None:
-            log_prob -= self.sum_action_dim(self.output_bijector.log_prob_correction(unsquashed_actions))
+            log_prob -= self.sum_action_dim(self.output_bijector.log_prob_correction(gaussian_actions))
         return log_prob
 
     @override
@@ -120,26 +121,6 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         if self.output_bijector is not None:
             return None
         return self.sum_action_dim(self.distribution.entropy())
-
-    def actions_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-            latent_pi: torch.Tensor,
-            deterministic: bool = False,
-    ) -> torch.Tensor:
-        self.update_distribution_params(mean_actions, log_stds, latent_pi)
-        return self.get_actions(deterministic=deterministic)
-
-    def log_prob_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-            latent_pi: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        actions = self.actions_from_distribution_params(mean_actions, log_stds, latent_pi)
-        log_prob = self.log_prob(actions)
-        return actions, log_prob
 
     def get_stds(self, log_stds: torch.Tensor) -> torch.Tensor:
         if self.use_stds_expln:

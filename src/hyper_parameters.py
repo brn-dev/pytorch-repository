@@ -1,13 +1,16 @@
 import abc
 from typing import Any, Optional, Union
 
+from src.utils import get_fully_qualified_class_name
+
 HyperParameters = dict[str, Any]
 
 class HasHyperParameters(abc.ABC):
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return {
-            '__type': type(self).__name__
+            '_type': type(self).__name__,
+            '_type_fq': get_fully_qualified_class_name(self)
         }
 
     @staticmethod

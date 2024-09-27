@@ -26,10 +26,6 @@ from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
 
-# CAP the standard deviation of the actor
-LOG_STD_MAX = 2
-LOG_STD_MIN = -20
-
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.AdamW(params, lr=3e-4, weight_decay=1e-4)
 AUTO_TARGET_ENTROPY = 'auto'
 
@@ -151,7 +147,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             'weigh_critic_loss': str(self.weigh_critic_loss),
             'target_update_interval': self.target_update_interval,
             'target_entropy': self.target_entropy,
-            'entropy_coef': self.entropy_coef_tensor.item() if self.entropy_coef_tensor is not None else 'Dynamic',
+            'entropy_coef': self.entropy_coef_tensor.item() if self.entropy_coef_tensor is not None else 'dynamic',
         })
 
     def _setup_entropy_optimization(
@@ -259,7 +255,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             self.actor.reset_sde_noise()  # TODO: set batch size?
 
             observation_features = self.shared_feature_extractor(replay_samples.observations)
-            actions_pi, actions_pi_log_prob = self.actor.act_with_log_probs(observation_features)
+            actions_pi, actions_pi_log_prob = self.actor.get_actions_with_log_probs(observation_features)
             actions_pi_log_prob = actions_pi_log_prob.reshape(-1, 1)
 
             entropy_coef = self.get_and_optimize_entropy_coef(actions_pi_log_prob, step_info)

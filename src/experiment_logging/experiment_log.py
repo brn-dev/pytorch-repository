@@ -22,10 +22,12 @@ class ExperimentLog(TypedDict):
 
     start_time: str
     end_time: Optional[str]
+    end_exception: Optional[str]
 
     model_db_reference: Optional[ModelDBReference]
 
     hyper_parameters: HyperParameters
+    system_info: dict[str, Any]
     setup: dict[str, str]
     notes: list[str]
 

@@ -23,16 +23,3 @@ class DiscreteActionSelector(ActionSelector, abc.ABC):
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         action_logits = self.action_net(latent_pi)
         return self.update_distribution_params(action_logits)
-
-    def actions_from_distribution_params(
-            self,
-            action_logits: torch.Tensor,
-            deterministic: bool = False
-    ) -> torch.Tensor:
-        self.update_distribution_params(action_logits)
-        return self.get_actions(deterministic=deterministic)
-
-    def log_prob_from_distribution_params(self, action_logits: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        actions = self.actions_from_distribution_params(action_logits)
-        log_prob = self.log_prob(actions)
-        return actions, log_prob

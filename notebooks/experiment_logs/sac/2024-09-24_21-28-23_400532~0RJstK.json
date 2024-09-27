@@ -1,0 +1,169 @@
+{
+    "experiment_id": "2024-09-24_21-28-23_400532~0RJstK",
+    "experiment_tags": [
+        "SAC",
+        "HalfCheetah-v4"
+    ],
+    "start_time": "2024-09-24 21:28:23.400532",
+    "end_time": "2024-09-24 21:28:44.013506",
+    "model_db_reference": null,
+    "hyper_parameters": {
+        "__type": "SAC",
+        "env": "<RescaleAction<TransformRewardWrapper<AsyncVectorEnv instance>>>",
+        "num_envs": 16,
+        "policy": {
+            "__type": "SACPolicy",
+            "parameter_count": 217870,
+            "feature_extractor": {
+                "__type": "IdentityExtractor",
+                "parameter_count": 0
+            },
+            "actor": {
+                "__type": "Actor",
+                "parameter_count": 73484,
+                "feature_extractor": {
+                    "__type": "IdentityExtractor",
+                    "parameter_count": 0
+                },
+                "network": "Sequential(\n  (0): Linear(in_features=17, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ReLU()\n)",
+                "action_selector": "PredictedStdActionSelector(\n  (action_net): Linear(in_features=256, out_features=6, bias=True)\n  (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n)"
+            },
+            "critic": {
+                "__type": "QCritic",
+                "parameter_count": 144386,
+                "feature_extractor": {
+                    "__type": "IdentityExtractor",
+                    "parameter_count": 0
+                },
+                "n_critics": 2,
+                "q_network": "Sequential(\n  (0): Linear(in_features=23, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ReLU()\n  (4): Linear(in_features=256, out_features=1, bias=True)\n)"
+            }
+        },
+        "policy_parameter_count": 217870,
+        "policy_repr": "SACPolicy(\n  (feature_extractor): IdentityExtractor()\n  (actor): Actor(\n    (feature_extractor): IdentityExtractor()\n    (network): Sequential(\n      (0): Linear(in_features=17, out_features=256, bias=True)\n      (1): ReLU()\n      (2): Linear(in_features=256, out_features=256, bias=True)\n      (3): ReLU()\n    )\n    (action_selector): PredictedStdActionSelector(\n      (action_net): Linear(in_features=256, out_features=6, bias=True)\n      (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n    )\n  )\n  (critic): QCritic(\n    (feature_extractor): IdentityExtractor()\n    (q_networks): ModuleList(\n      (0-1): 2 x Sequential(\n        (0): Linear(in_features=23, out_features=256, bias=True)\n        (1): ReLU()\n        (2): Linear(in_features=256, out_features=256, bias=True)\n        (3): ReLU()\n        (4): Linear(in_features=256, out_features=1, bias=True)\n      )\n    )\n  )\n  (target_critic): QCritic(\n    (feature_extractor): IdentityExtractor()\n    (q_networks): ModuleList(\n      (0-1): 2 x Sequential(\n        (0): Linear(in_features=23, out_features=256, bias=True)\n        (1): ReLU()\n        (2): Linear(in_features=256, out_features=256, bias=True)\n        (3): ReLU()\n        (4): Linear(in_features=256, out_features=1, bias=True)\n      )\n    )\n  )\n  (target_shared_feature_extractor): IdentityExtractor()\n)",
+        "buffer": {
+            "__type": "ReplayBuffer",
+            "buffer_size": 50000,
+            "num_envs": 16,
+            "total_buffer_size": 800000,
+            "torch_device": "cuda:0",
+            "torch_dtype": "torch.float32",
+            "np_dtype": "<class 'numpy.float32'>",
+            "optimize_memory_usage": false
+        },
+        "buffer_step_size": 50000,
+        "buffer_total_size": 800000,
+        "gamma": 0.99,
+        "sde_noise_sample_freq": null,
+        "torch_device": "cuda:0",
+        "torch_dtype": "torch.float32",
+        "tau": 0.005,
+        "rollout_steps": 1,
+        "gradient_steps": 1,
+        "optimization_batch_size": 256,
+        "action_noise": null,
+        "warmup_steps": 100,
+        "actor_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "critic_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "entropy_coef_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "weigh_and_reduce_entropy_coef_loss": "<built-in method mean of type object at 0x00007FF833D262F0>",
+        "weigh_and_reduce_actor_loss": "<function <lambda> at 0x000002B289BF5620>",
+        "weigh_critic_loss": "<function <lambda> at 0x000002B289BF5760>",
+        "target_update_interval": 1,
+        "target_entropy": -6.0,
+        "entropy_coef": "dynamic"
+    },
+    "setup": {
+        "sac.py": "from typing import Any\n\nimport gymnasium\nimport torch\n\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction\n\npolicy_construction_hyper_parameter = {}\n\ndef init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':\n    from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \\\n        import PredictedStdActionSelector\n    from src.reinforcement_learning.core.action_selectors.squashed_diag_gaussian_action_selector import \\\n        SquashedDiagGaussianActionSelector\n    from src.weight_initialization import orthogonal_initialization\n\n    return PredictedStdActionSelector(\n        latent_dim=latent_dim,\n        action_dim=action_dim,\n        base_std=1.0,\n        squash_output=True,\n        # action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n        # log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),\n    )\n    # return PredictedStdActionSelector(\n    #     latent_dim=latent_dim,\n    #     action_dim=action_dim,\n    #     std=1.0,\n    #     std_learnable=True,\n    #     action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n    # )\n\n\n\ndef init_policy(\n        init_action_selector_: 'InitActionSelectorFunction',\n        hyper_parameters: dict[str, 'Any']\n) -> 'BasePolicy':\n    import torch\n    from torch import nn\n    import numpy as np\n\n    from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy\n    from src.reinforcement_learning.algorithms.sac.sac_crossq_policy import SACCrossQPolicy\n    from src.networks.core.seq_net import SeqNet\n    from src.networks.core.net import Net\n    from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection\n    from src.weight_initialization import orthogonal_initialization\n    from src.reinforcement_learning.core.policies.components.actor import Actor\n    from src.reinforcement_learning.core.policies.components.q_critic import QCritic\n    from src.networks.normalization.batch_renorm import BatchRenorm\n\n    # in_size = 376\n    # action_size = 17\n    # actor_out_sizes = [512, 512, 256, 256, 256, 256, 256, 256]\n    # critic_out_sizes = [512, 512, 256, 256, 256, 1]\n\n    in_size = 17\n    action_size = 6\n\n    actor_layers = 3\n    actor_features = 96\n\n    critic_layers = 2\n    critic_features = 96\n\n    hidden_activation_function = nn.ELU\n\n    # actor_net = nn.Sequential(\n    #     nn.Linear(in_size, actor_features),\n    #     hidden_activation_function(),\n    #     SeqNet.from_layer_provider(\n    #         layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #         AdditiveSkipConnection(Net.seq_as_net(\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             hidden_activation_function(),\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             nn.Tanh() if is_last_layer else hidden_activation_function(),\n    #         )),\n    #         num_features=actor_features,\n    #         num_layers=actor_layers,\n    #     )\n    # )\n    #\n    # critic = QCritic(\n    #     n_critics=2,\n    #     create_q_network=lambda: nn.Sequential(\n    #         nn.Linear(in_size + action_size, critic_features),\n    #         hidden_activation_function(),\n    #         SeqNet.from_layer_provider(\n    #             layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #             AdditiveSkipConnection(Net.seq_as_net(\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #             )),\n    #             num_features=critic_features,\n    #             num_layers=critic_layers,\n    #         ),\n    #         nn.Linear(critic_features, 1)\n    #     )\n    # )\n\n    actor_net = nn.Sequential(\n        nn.Linear(in_size, 256),\n        nn.ReLU(),\n        nn.Linear(256, 256),\n        nn.ReLU(),\n    )\n\n    critic = QCritic(\n        n_critics=2,\n        create_q_network=lambda: nn.Sequential(\n            nn.Linear(in_size + action_size, 256),\n            nn.ReLU(),\n            # BatchRenorm(256),\n            nn.Linear(256, 256),\n            nn.ReLU(),\n            # BatchRenorm(256),\n            nn.Linear(256, 1)\n        )\n    )\n\n    return SACPolicy(\n        actor=Actor(actor_net, init_action_selector_(\n            latent_dim=256,\n            action_dim=action_size,\n            hyper_parameters=hyper_parameters,\n        )),\n        critic=critic\n    )\n\ndef init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':\n    import torch.optim\n    return torch.optim.AdamW(pol.parameters(), lr=3e-4, weight_decay=1e-4)\n\ndef wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':\n    from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper\n    from gymnasium.wrappers import RescaleAction\n    from src.np_functions import symmetric_log\n\n\n    env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)\n    env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)\n    return env_\n",
+        "notebook": "import inspect\nimport os\nimport time\nfrom pathlib import Path\n\nimport gymnasium\nfrom gymnasium import Env\nfrom gymnasium.vector import VectorEnv\n\nfrom sac import init_action_selector, init_policy, init_optimizer, wrap_env, policy_construction_hyper_parameter\nfrom src.datetime import get_current_timestamp\nfrom src.experiment_logging.experiment_logger import ExperimentLogger, log_experiment\nfrom src.model_db.model_db import ModelDB\nfrom src.model_db.dummy_model_db import DummyModelDB\nfrom src.np_functions import inv_symmetric_log\nfrom src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo\nfrom src.model_db.tiny_model_db import TinyModelDB\nfrom src.module_analysis import count_parameters, get_gradients_per_parameter\nfrom src.moving_averages import ExponentialMovingAverage\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.action_selectors.predicted_std_action_selector import PredictedStdActionSelector\nfrom src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \\\n    StateDependentNoiseActionSelector\nfrom src.reinforcement_learning.core.generalized_advantage_estimate import compute_episode_returns, compute_returns\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction, PolicyConstruction\nfrom src.reinforcement_learning.gym.envs.test_env import TestEnv\nfrom src.schedulers import FixedValueScheduler, OneStepRecursiveScheduler\nfrom src.stopwatch import Stopwatch\nfrom src.summary_statistics import format_summary_statics\nfrom src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy\nfrom typing import Any, SupportsFloat, Optional\nfrom gymnasium.wrappers import RecordVideo, AutoResetWrapper, NormalizeReward, TransformReward, TransformObservation, ClipAction\nfrom src.reinforcement_learning.core.callback import Callback\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SAC_DEFAULT_OPTIMIZER_PROVIDER\nfrom src.reinforcement_learning.algorithms.ppo.ppo import PPO, PPOLoggingConfig\nfrom src.reinforcement_learning.core.normalization import NormalizationType\nfrom src.torch_device import set_default_torch_device, optimizer_to_device\nfrom src.reinforcement_learning.gym.parallelize_env import parallelize_env_async\nfrom torch.distributions import Normal, Categorical\n\nimport torch\nfrom torch import optim, nn\nimport torch.distributions as dist\nimport gymnasium as gym\nimport numpy as np\n\nfrom src.torch_functions import antisymmetric_power\n\nget_ipython().run_line_magic('load_ext', 'autoreload')\nget_ipython().run_line_magic('autoreload', '2')\n\nfrom src.summary_statistics import maybe_compute_summary_statistics\nfrom src.reinforcement_learning.core.loss_config import LossLoggingConfig\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SACLoggingConfig\ndef get_setup() -> dict[str, str]:\n    import inspect\n    import sac\n    return {\n        'sac.py': inspect.getsource(sac),\n        'notebook': _ih[1] + '\\n\\n' + _ih[-1], # first and last cell input (imports and this cell)\n    }\n\npolicy_id: str\npolicy: BasePolicy\noptimizer: optim.Optimizer\nwrapped_env: Env\nsteps_trained: int\ndef get_policy(create_new_if_exists: bool):\n    \n    global policy_id, policy, optimizer, wrapped_env, steps_trained\n    \n    policy_in_ram = 'policy' in globals()\n    if not policy_in_ram or create_new_if_exists:\n        if not policy_in_ram:\n            print('No policy in RAM, creating a new one')\n        \n        policy_id = get_current_timestamp()\n        policy, optimizer, wrapped_env = PolicyConstruction.init_from_info(\n            env=env,\n            info=PolicyConstruction.create_policy_initialization_info(\n                init_action_selector=init_action_selector,\n                init_policy=init_policy,\n                init_optimizer=init_optimizer,\n                wrap_env=wrap_env,\n                hyper_parameters=policy_construction_hyper_parameter,\n            ),\n        )\n        steps_trained = 0\n        print(f'New policy {policy_id} created')\n    \n    if parent_policy_id is not None:\n        model_entry = policy_db.load_model_state_dict(policy, parent_policy_id)\n        steps_trained = model_entry['model_info']['steps_trained']\n        print(f'Loading state dict from policy {parent_policy_id}')\n    \n    print(f'Using policy {policy_id} with parent policy {parent_policy_id}')\n    return policy_id, policy, optimizer, wrapped_env, steps_trained\n\nscore_mean_ema = ExponentialMovingAverage(alpha=0.25)\nstep_stopwatch = Stopwatch()\ntotal_stopwatch = Stopwatch()\nbest_iteration_score = -1e6\n\ndef on_rollout_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    \n    if step % 1000 != 0:\n        return\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    # rewards = rl.buffer.rewards[tail_indices]\n    # if 'raw_rewards' in info['rollout']:\n    #     rewards = info['rollout']['raw_rewards']\n    \n    # episode_scores = compute_episode_returns(\n    #     rewards=rewards,\n    #     episode_starts=np.repeat(np.arange(len(tail_indices)).reshape(-1, 1), num_envs, axis=1) % 1000 == 0,\n    #     last_episode_starts=info['last_episode_starts'],\n    #     gamma=1.0,\n    #     gae_lambda=1.0,\n    #     normalize_rewards=None,\n    #     remove_unfinished_episodes=True,\n    # )\n    \n    episode_scores = rl.buffer.compute_most_recent_episode_scores(rl.num_envs)\n    \n    if len(episode_scores) > 0:\n    \n        global best_iteration_score\n        iteration_score = episode_scores.mean()\n        score_moving_average = score_mean_ema.update(iteration_score)\n        if iteration_score >= best_iteration_score:\n            best_iteration_score = iteration_score\n            policy_db.save_model_state_dict(\n                model_id=policy_id,\n                parent_model_id=parent_policy_id,\n                model_info={\n                    'score': iteration_score.item(),\n                    'steps_trained': steps_trained,\n                    'wrap_env_source_code': wrap_env_source_code_source,\n                    'init_policy_source_code': init_policy_source\n                },\n                model=policy,\n                optimizer=optimizer,\n            )\n        info['score_moving_average'] = score_moving_average\n    \n    info['episode_scores'] = episode_scores\n        \ndef on_optimization_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    # global steps_trained\n    # steps_trained += rl.buffer.pos\n    \n    if step % 1000 != 0:\n        return\n    total_step = step * rl.num_envs\n    \n    time_taken = step_stopwatch.reset()\n    total_time = total_stopwatch.time_passed()\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    episode_scores = info.get('episode_scores')\n    score_moving_average = info.get('score_moving_average') or 0.0\n    \n    scores = format_summary_statics(\n        episode_scores, \n        mean_format=' 6.3f',\n        std_format='4.3f',\n        min_value_format=' 6.3f',\n        max_value_format='5.3f',\n        n_format='>2'\n    )\n    # scores2 = format_summary_statics(\n    #     rl.buffer.compute_most_recent_episode_scores(rl.num_envs, lambda r: 1 * r), \n    #     mean_format=' 6.3f',\n    #     std_format='4.3f',\n    #     min_value_format=' 6.3f',\n    #     max_value_format='5.3f',\n    #     n_format='>2'\n    # )\n    # advantages = format_summary_statics(\n    #     rl.buffer.advantages, \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    actor_loss = format_summary_statics(\n        info['final_actor_loss'],  \n        mean_format=' 5.3f',\n        # std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # actor_loss_raw = format_summary_statics(\n    #     info['raw_actor_loss'],  \n    #     mean_format=' 5.3f',\n    #     std_format='5.3f',\n    #     min_value_format=None,\n    #     max_value_format=None,\n    # )\n    entropy_coef_loss = None if 'final_entropy_coef_loss' not in info else format_summary_statics(\n        info['final_entropy_coef_loss'], \n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    critic_loss = format_summary_statics(\n        info['final_critic_loss'], \n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    entropy_coef = format_summary_statics(\n        info['entropy_coef'],\n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # resets = format_summary_statics(\n    #     rl.buffer.dones.astype(int).sum(axis=0), \n    #     mean_format='.2f',\n    #     std_format=None,\n    #     min_value_format='1d',\n    #     max_value_format=None,\n    # )\n    # kl_div = info['actor_kl_divergence'][-1]\n    # grad_norm = format_summary_statics(\n    #     info['grad_norm'], \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    action_stds = info['rollout'].get('action_stds')\n    if action_stds is not None:\n        rollout_action_stds = format_summary_statics(\n            action_stds,\n            mean_format='5.3f',\n            std_format='5.3f',\n            min_value_format=None,\n            max_value_format=None,\n        )\n    else:\n        rollout_action_stds = 'N/A'\n    action_magnitude = format_summary_statics(\n        np.abs(rl.buffer.actions[tail_indices]),\n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # ppo_epochs = info['nr_ppo_epochs']\n    # ppo_updates = info['nr_ppo_updates']\n    # expl_var = rl.buffer.compute_critic_explained_variance()\n    print(f\"{step = : >7}, \"\n          f\"{total_step = : >7}, \"\n          f\"{scores = :s}, \"\n          # f\"{scores2 = :s}, \"\n          f'score_ema = {score_moving_average: 6.3f}, '\n          # f\"{advantages = :s}, \"\n          f\"{actor_loss = :s}, \"\n          # f\"{actor_loss_raw = :s}, \"\n          +(f\"{entropy_coef_loss = :s}, \" if entropy_coef_loss is not None else '')+\n          f\"{critic_loss = :s}, \"\n          f\"{entropy_coef = :s}, \"\n          f\"rollout_stds = {rollout_action_stds:s}, \"\n          f\"{action_magnitude = :s}, \"\n          # f\"{expl_var = :.3f}, \"\n          # f\"{kl_div = :.4f}, \"\n          # f\"{ppo_epochs = }, \"\n          # f\"{ppo_updates = }, \"\n          # f\"{grad_norm = :s}, \"\n          f\"n_updates = {rl.gradient_steps_performed}, \"\n          # f\"{resets = :s}, \"\n          f\"time = {time_taken:4.1f}, \"\n          f\"total_time = {total_time:4.1f} \\n\"\n          )\n    logger.add_item({\n        'step': step,\n        'total_step': total_step,\n        'scores': maybe_compute_summary_statistics(episode_scores),\n        'actor_loss': maybe_compute_summary_statistics(info['final_actor_loss']),\n        'entropy_coef_loss': maybe_compute_summary_statistics(info['final_entropy_coef_loss']),\n        'critic_loss': maybe_compute_summary_statistics(info['final_critic_loss']),\n        'entropy_coef': maybe_compute_summary_statistics(info['entropy_coef']),\n        'action_stds': maybe_compute_summary_statistics(action_stds),\n        'action_magnitude': maybe_compute_summary_statistics(np.abs(rl.buffer.actions[tail_indices])),\n        'gradient_step': rl.gradient_steps_performed,\n        'time_taken': time_taken,\n        'total_time': total_time\n    })\n    if step % 10000 == 0:\n        logger.save_experiment()\n    print()\n    \n    if episode_scores is not None and len(episode_scores) > 0 and episode_scores.mean().item() < -500:\n        logger.save_experiment()\n        raise ValueError('Score too low, policy probably fucked :(')\n\ndevice = torch.device(\"cuda:0\") if True else torch.device('cpu')\nprint(f'using device {device}')\n\ndef create_env(render_mode: str | None):\n    return gym.make(env_name, render_mode=render_mode, **env_kwargs)\n\nwrap_env_source_code_source = inspect.getsource(wrap_env)\ninit_policy_source = inspect.getsource(init_policy)\n\nenv_name = 'HalfCheetah-v4'\n# env_kwargs = {'forward_reward_weight': 1.25, 'healthy_reward': 0.5, 'ctrl_cost_weight': 0.001 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.1 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.05 }\nenv_kwargs = {}\nnum_envs = 16\n    \n# policy_db = TinyModelDB[MitosisPolicyInfo](base_path=f'saved_models/rl/{env_name}')\npolicy_db = DummyModelDB[MitosisPolicyInfo]()\nprint(f'{policy_db = }')\n\nparent_policy_id=None  # '2024-04-28_20.57.23'\n\nenv = parallelize_env_async(lambda: create_env(render_mode=None), num_envs)\n\nlogger = ExperimentLogger('experiment_logs/sac/')\n\ntry:\n    policy_id, policy, optimizer, wrapped_env, steps_trained = get_policy(create_new_if_exists=True)\n    print(f'{count_parameters(policy) = }')\n    print(f'{env = }, {num_envs = } \\n\\n')\n        \n    with ((torch.autograd.set_detect_anomaly(False))):\n        algo = SAC(\n            env=wrapped_env,\n            policy=policy,\n            actor_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),  # (params, lr=3e-4, betas=(0.5, 0.999)),\n            critic_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),  # (params, lr=3e-4, betas=(0.5, 0.999)),\n            weigh_and_reduce_actor_loss=lambda l: 1 * l.mean(),\n            weigh_critic_loss=lambda l: 1 * l,\n            buffer_size=50_000,\n            gamma=0.99,\n            tau=0.005,\n            entropy_coef_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),\n            entropy_coef=1.0,\n            rollout_steps=1,\n            gradient_steps=1,\n            warmup_steps=100,\n            learning_starts=100,\n            optimization_batch_size=256,\n            target_update_interval=1,\n            # sde_noise_sample_freq=50,\n            callback=Callback(\n                on_rollout_done=on_rollout_done,\n                rollout_schedulers={},\n                on_optimization_done=on_optimization_done,\n                optimization_schedulers={},\n            ),\n            logging_config=SACLoggingConfig(log_rollout_infos=True, log_rollout_action_stds=True,\n                                            log_last_obs=True, log_entropy_coef=True,\n                                            entropy_coef_loss=LossLoggingConfig(log_final=True),\n                                            actor_loss=LossLoggingConfig(log_final=True, log_raw=True),\n                                            critic_loss=LossLoggingConfig(log_final=True)),\n            torch_device=device,\n        )\n        total_stopwatch.reset()\n        with log_experiment(\n            logger,\n            experiment_tags=[type(algo).__name__, env_name],\n            hyper_parameters=algo.collect_hyper_parameters(),\n            setup=get_setup(),\n        ) as x:\n            # import cProfile\n            # pr = cProfile.Profile()\n            # pr.enable()\n            algo.learn(1_000_000)\n            # pr.disable()  \n            # pr.dump_stats('profile_stats.pstat')\nexcept KeyboardInterrupt:\n    print('keyboard interrupt')\nfinally:\n    print('closing envs')\n    time.sleep(0.5)\n    env.close()\n    print('envs closed')\n    policy_db.close()\n    print('model db closed')\n    \n\nprint('done')"
+    },
+    "notes": [],
+    "logs_by_category": {
+        "__default": [
+            {
+                "step": 1000,
+                "total_step": 16000,
+                "scores": null,
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -356936576.0
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -529866432.0
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 5.436014693502157e+17
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.48593661189079285
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 7.3890557289123535,
+                    "std": 4.793402581526607e-07,
+                    "min_value": 7.389056205749512,
+                    "max_value": 7.389056205749512
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.9337158203125,
+                    "std": 0.1950499266386032,
+                    "min_value": 1.6933530787355267e-05,
+                    "max_value": 1.0
+                },
+                "gradient_step": 901,
+                "time_taken": 12.404096364974976,
+                "total_time": 9.921635150909424,
+                "__timestamp": "2024-09-24 21:28:33.322167"
+            },
+            {
+                "step": 2000,
+                "total_step": 32000,
+                "scores": {
+                    "n": 16,
+                    "mean": -599.285903300246,
+                    "std": 0.6649462494970302,
+                    "min_value": -600.8489870615304,
+                    "max_value": -597.8661943152547
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -7194809856.0
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -46288527360.0
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.013033191071883e+20
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.2290426790714264
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 7.3890557289123535,
+                    "std": 4.793402581526607e-07,
+                    "min_value": 7.389056205749512,
+                    "max_value": 7.389056205749512
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 1901,
+                "time_taken": 10.689339637756348,
+                "total_time": 20.61097478866577,
+                "__timestamp": "2024-09-24 21:28:44.012506"
+            }
+        ]
+    }
+}

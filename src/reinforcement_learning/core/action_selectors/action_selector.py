@@ -57,15 +57,12 @@ class ActionSelector(nn.Module, abc.ABC):
     def entropy(self) -> torch.Tensor | None:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def actions_from_distribution_params(self, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def log_prob_from_distribution_params(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
-        raise NotImplementedError
-
     def get_actions(self, deterministic: bool = False) -> torch.Tensor:
         if deterministic:
             return self.mode()
         return self.sample()
+
+    def get_actions_with_log_probs(self, latent_pi: torch.Tensor, deterministic: bool = False):
+        actions = self.update_latent_features(latent_pi).get_actions(deterministic=deterministic)
+        log_probs = self.log_prob(actions)
+        return actions, log_probs

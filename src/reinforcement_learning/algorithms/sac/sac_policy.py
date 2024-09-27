@@ -68,7 +68,7 @@ class SACPolicy(BasePolicy):
         with torch.no_grad():
             next_observations = replay_samples.next_observations
 
-            next_actions, next_actions_log_prob = self.actor.act_with_log_probs(
+            next_actions, next_actions_log_prob = self.actor.get_actions_with_log_probs(
                 self.shared_feature_extractor(next_observations)
             )
 

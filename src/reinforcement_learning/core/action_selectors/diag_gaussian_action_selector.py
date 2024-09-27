@@ -43,21 +43,3 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
 
     def mode(self) -> torch.Tensor:
         return self.distribution.mean
-
-    def actions_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-            deterministic: bool = False,
-    ) -> torch.Tensor:
-        self.update_distribution_params(mean_actions, log_stds)
-        return self.get_actions(deterministic=deterministic)
-
-    def log_prob_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        actions = self.actions_from_distribution_params(mean_actions, log_stds)
-        log_prob = self.log_prob(actions)
-        return actions, log_prob

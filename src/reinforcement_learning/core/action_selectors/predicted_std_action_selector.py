@@ -15,7 +15,7 @@ LogStdNetInitialization = ActionNetInitialization
 
 class PredictedStdActionSelector(ContinuousActionSelector):
 
-    output_bijector: Optional[TanhBijector]
+    # output_bijector: Optional[TanhBijector]
     base_log_std: float
 
     def __init__(
@@ -42,12 +42,12 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         self.base_log_std = math.log(base_std)
         self.log_std_clamp_range = log_std_clamp_range
 
-        if squash_output:
-            self.output_bijector = TanhBijector(epsilon)
-        else:
-            self.output_bijector = None
+        self.squash_output = squash_output
+        self.epsilon = epsilon
 
         self.distribution: Optional[torchdist.Normal] = None
+
+        self._last_gaussian_actions: Optional[torch.Tensor] = None
 
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
@@ -65,54 +65,45 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         return self
 
     def sample(self) -> torch.Tensor:
-        actions = self.distribution.rsample()
-        if self.output_bijector is not None:
-            return self.output_bijector.forward(actions)
-        return actions
+        gaussian_actions = self.distribution.rsample()
+        if self.squash_output is not None:
+            self._last_gaussian_actions = gaussian_actions
+            return TanhBijector.forward(gaussian_actions)
+        return gaussian_actions
 
     def mode(self) -> torch.Tensor:
-        actions = self.distribution.mean
-        if self.output_bijector is not None:
-            return self.output_bijector.forward(actions)
-        return actions
+        gaussian_actions = self.distribution.mean
+        if self.squash_output is not None:
+            self._last_gaussian_actions = gaussian_actions
+            return TanhBijector.forward(gaussian_actions)
+        return gaussian_actions
 
     @override
-    def log_prob(self, actions: torch.Tensor) -> torch.Tensor:
-        if self.output_bijector is not None:
-            unsquashed_actions = self.output_bijector.inverse(actions)
-        else:
-            unsquashed_actions = actions
+    def log_prob(self, actions: torch.Tensor, gaussian_actions: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if not self.squash_output:
+            return super().log_prob(actions)
 
-        log_prob = self.distribution.log_prob(unsquashed_actions)
-        log_prob = self.sum_action_dim(log_prob)
+        if gaussian_actions is None:
+            gaussian_actions = TanhBijector.inverse(actions)
 
-        if self.output_bijector is not None:
-            log_prob -= self.sum_action_dim(self.output_bijector.log_prob_correction(unsquashed_actions))
+        log_prob = super().log_prob(gaussian_actions)
+        log_prob -= self.sum_action_dim(torch.log(1 - actions ** 2 + self.epsilon))
+
         return log_prob
 
     @override
     def entropy(self) -> torch.Tensor | None:
-        if self.output_bijector is not None:
+        if self.squash_output is not None:
             return None
         return self.sum_action_dim(self.distribution.entropy())
 
-    def actions_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-            deterministic: bool = False,
-    ) -> torch.Tensor:
-        self.update_distribution_params(mean_actions, log_stds)
-        return self.get_actions(deterministic=deterministic)
-
-    def log_prob_from_distribution_params(
-            self,
-            mean_actions: torch.Tensor,
-            log_stds: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        actions = self.actions_from_distribution_params(mean_actions, log_stds)
-        log_prob = self.log_prob(actions)
-        return actions, log_prob
+    @override
+    def get_actions_with_log_probs(self, latent_pi: torch.Tensor, deterministic: bool = False):
+        # get_actions calls sample() or mode(), both of which set _last_gaussian_actions
+        # --> prevents squashing and unsquashing which can lead to numerical instability
+        actions = self.update_latent_features(latent_pi).get_actions(deterministic=deterministic)
+        log_probs = self.log_prob(actions, self._last_gaussian_actions)
+        return actions, log_probs
 
     def set_base_std(self, std: float):
         self.base_log_std = math.log(std)

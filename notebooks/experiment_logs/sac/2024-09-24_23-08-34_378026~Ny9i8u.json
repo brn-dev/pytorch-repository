@@ -1,0 +1,1070 @@
+{
+    "experiment_id": "2024-09-24_23-08-34_378026~Ny9i8u",
+    "experiment_tags": [
+        "SAC",
+        "HalfCheetah-v4"
+    ],
+    "start_time": "2024-09-24 23:08:34.378026",
+    "end_time": "2024-09-24 23:13:14.426730",
+    "end_exception": "Traceback (most recent call last):\n  File \"C:\\Users\\domin\\Git\\pytorch-repository\\src\\experiment_logging\\experiment_logger.py\", line 144, in log_experiment\n    yield experiment_logger\n  File \"C:\\Users\\domin\\AppData\\Local\\Temp\\ipykernel_37092\\3143523965.py\", line 332, in <module>\n    algo.learn(1_000_000)\n  File \"C:\\Users\\domin\\Git\\pytorch-repository\\src\\reinforcement_learning\\algorithms\\base\\base_algorithm.py\", line 134, in learn\n    self.callback.on_optimization_done(self, step, info)\n  File \"C:\\Users\\domin\\Git\\pytorch-repository\\src\\reinforcement_learning\\core\\callback.py\", line 42, in on_optimization_done\n    self._on_optimization_done(optim_algo, step, info, scheduler_values)\n  File \"C:\\Users\\domin\\AppData\\Local\\Temp\\ipykernel_37092\\3143523965.py\", line 256, in on_optimization_done\n    raise ValueError('Score too low, policy probably fucked :(')\nValueError: Score too low, policy probably fucked :(\n",
+    "model_db_reference": null,
+    "hyper_parameters": {
+        "__type": "SAC",
+        "env": "<RescaleAction<TransformRewardWrapper<AsyncVectorEnv instance>>>",
+        "num_envs": 16,
+        "policy": {
+            "__type": "SACPolicy",
+            "parameter_count": 217870,
+            "feature_extractor": {
+                "__type": "IdentityExtractor",
+                "parameter_count": 0
+            },
+            "actor": {
+                "__type": "Actor",
+                "parameter_count": 73484,
+                "feature_extractor": {
+                    "__type": "IdentityExtractor",
+                    "parameter_count": 0
+                },
+                "network": "Sequential(\n  (0): Linear(in_features=17, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ReLU()\n)",
+                "action_selector": "PredictedStdActionSelector(\n  (action_net): Linear(in_features=256, out_features=6, bias=True)\n  (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n)"
+            },
+            "critic": {
+                "__type": "QCritic",
+                "parameter_count": 144386,
+                "feature_extractor": {
+                    "__type": "IdentityExtractor",
+                    "parameter_count": 0
+                },
+                "n_critics": 2,
+                "q_network": "Sequential(\n  (0): Linear(in_features=23, out_features=256, bias=True)\n  (1): ReLU()\n  (2): Linear(in_features=256, out_features=256, bias=True)\n  (3): ReLU()\n  (4): Linear(in_features=256, out_features=1, bias=True)\n)"
+            }
+        },
+        "policy_parameter_count": 217870,
+        "policy_repr": "SACPolicy(\n  (feature_extractor): IdentityExtractor()\n  (actor): Actor(\n    (feature_extractor): IdentityExtractor()\n    (network): Sequential(\n      (0): Linear(in_features=17, out_features=256, bias=True)\n      (1): ReLU()\n      (2): Linear(in_features=256, out_features=256, bias=True)\n      (3): ReLU()\n    )\n    (action_selector): PredictedStdActionSelector(\n      (action_net): Linear(in_features=256, out_features=6, bias=True)\n      (log_std_net): Linear(in_features=256, out_features=6, bias=True)\n    )\n  )\n  (critic): QCritic(\n    (feature_extractor): IdentityExtractor()\n    (q_networks): ModuleList(\n      (0-1): 2 x Sequential(\n        (0): Linear(in_features=23, out_features=256, bias=True)\n        (1): ReLU()\n        (2): Linear(in_features=256, out_features=256, bias=True)\n        (3): ReLU()\n        (4): Linear(in_features=256, out_features=1, bias=True)\n      )\n    )\n  )\n  (target_critic): QCritic(\n    (feature_extractor): IdentityExtractor()\n    (q_networks): ModuleList(\n      (0-1): 2 x Sequential(\n        (0): Linear(in_features=23, out_features=256, bias=True)\n        (1): ReLU()\n        (2): Linear(in_features=256, out_features=256, bias=True)\n        (3): ReLU()\n        (4): Linear(in_features=256, out_features=1, bias=True)\n      )\n    )\n  )\n  (target_shared_feature_extractor): IdentityExtractor()\n)",
+        "buffer": {
+            "__type": "ReplayBuffer",
+            "buffer_size": 50000,
+            "num_envs": 16,
+            "total_buffer_size": 800000,
+            "torch_device": "cuda:0",
+            "torch_dtype": "torch.float32",
+            "np_dtype": "<class 'numpy.float32'>",
+            "optimize_memory_usage": false
+        },
+        "buffer_step_size": 50000,
+        "buffer_total_size": 800000,
+        "gamma": 0.99,
+        "sde_noise_sample_freq": null,
+        "torch_device": "cuda:0",
+        "torch_dtype": "torch.float32",
+        "tau": 0.005,
+        "rollout_steps": 1,
+        "gradient_steps": 1,
+        "optimization_batch_size": 256,
+        "action_noise": null,
+        "warmup_steps": 100,
+        "actor_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "critic_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "entropy_coef_optimizer": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    capturable: False\n    differentiable: False\n    eps: 1e-08\n    foreach: None\n    fused: None\n    lr: 0.0003\n    maximize: False\n    weight_decay: 0\n)",
+        "weigh_and_reduce_entropy_coef_loss": "<built-in method mean of type object at 0x00007FF833D262F0>",
+        "weigh_and_reduce_actor_loss": "<function <lambda> at 0x000001693794D260>",
+        "weigh_critic_loss": "<function <lambda> at 0x000001693794D1C0>",
+        "target_update_interval": 1,
+        "target_entropy": -6.0,
+        "entropy_coef": "dynamic"
+    },
+    "setup": {
+        "sac.py": "from typing import Any\n\nimport gymnasium\nimport torch\n\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction\n\npolicy_construction_hyper_parameter = {}\n\ndef init_action_selector(latent_dim: int, action_dim: int, hyper_parameters: dict[str, 'Any']) -> 'ActionSelector':\n    from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector \\\n        import PredictedStdActionSelector\n    from src.reinforcement_learning.core.action_selectors.squashed_diag_gaussian_action_selector import \\\n        SquashedDiagGaussianActionSelector\n    from src.weight_initialization import orthogonal_initialization\n\n    return PredictedStdActionSelector(\n        latent_dim=latent_dim,\n        action_dim=action_dim,\n        base_std=1.0,\n        squash_output=True,\n        # action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n        # log_std_net_initialization=lambda module: orthogonal_initialization(module, gain=0.1),\n    )\n    # return PredictedStdActionSelector(\n    #     latent_dim=latent_dim,\n    #     action_dim=action_dim,\n    #     std=1.0,\n    #     std_learnable=True,\n    #     action_net_initialization=lambda module: orthogonal_initialization(module, gain=0.01),\n    # )\n\n\n\ndef init_policy(\n        init_action_selector_: 'InitActionSelectorFunction',\n        hyper_parameters: dict[str, 'Any']\n) -> 'BasePolicy':\n    import torch\n    from torch import nn\n    import numpy as np\n\n    from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy\n    from src.reinforcement_learning.algorithms.sac.sac_crossq_policy import SACCrossQPolicy\n    from src.networks.core.seq_net import SeqNet\n    from src.networks.core.net import Net\n    from src.networks.skip_nets.additive_skip_connection import AdditiveSkipConnection\n    from src.weight_initialization import orthogonal_initialization\n    from src.reinforcement_learning.core.policies.components.actor import Actor\n    from src.reinforcement_learning.core.policies.components.q_critic import QCritic\n    from src.networks.normalization.batch_renorm import BatchRenorm\n\n    # in_size = 376\n    # action_size = 17\n    # actor_out_sizes = [512, 512, 256, 256, 256, 256, 256, 256]\n    # critic_out_sizes = [512, 512, 256, 256, 256, 1]\n\n    in_size = 17\n    action_size = 6\n\n    actor_layers = 3\n    actor_features = 96\n\n    critic_layers = 2\n    critic_features = 96\n\n    hidden_activation_function = nn.ELU\n\n    # actor_net = nn.Sequential(\n    #     nn.Linear(in_size, actor_features),\n    #     hidden_activation_function(),\n    #     SeqNet.from_layer_provider(\n    #         layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #         AdditiveSkipConnection(Net.seq_as_net(\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             hidden_activation_function(),\n    #             orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #             nn.Tanh() if is_last_layer else hidden_activation_function(),\n    #         )),\n    #         num_features=actor_features,\n    #         num_layers=actor_layers,\n    #     )\n    # )\n    #\n    # critic = QCritic(\n    #     n_critics=2,\n    #     create_q_network=lambda: nn.Sequential(\n    #         nn.Linear(in_size + action_size, critic_features),\n    #         hidden_activation_function(),\n    #         SeqNet.from_layer_provider(\n    #             layer_provider=lambda layer_nr, is_last_layer, in_features, out_features:\n    #             AdditiveSkipConnection(Net.seq_as_net(\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #                 orthogonal_initialization(nn.Linear(in_features, out_features), gain=np.sqrt(2)),\n    #                 hidden_activation_function(),\n    #             )),\n    #             num_features=critic_features,\n    #             num_layers=critic_layers,\n    #         ),\n    #         nn.Linear(critic_features, 1)\n    #     )\n    # )\n\n    actor_net = nn.Sequential(\n        nn.Linear(in_size, 256),\n        nn.ReLU(),\n        nn.Linear(256, 256),\n        nn.ReLU(),\n    )\n\n    critic = QCritic(\n        n_critics=2,\n        create_q_network=lambda: nn.Sequential(\n            nn.Linear(in_size + action_size, 256),\n            nn.ReLU(),\n            # BatchRenorm(256),\n            nn.Linear(256, 256),\n            nn.ReLU(),\n            # BatchRenorm(256),\n            nn.Linear(256, 1)\n        )\n    )\n\n    return SACPolicy(\n        actor=Actor(actor_net, init_action_selector_(\n            latent_dim=256,\n            action_dim=action_size,\n            hyper_parameters=hyper_parameters,\n        )),\n        critic=critic\n    )\n\ndef init_optimizer(pol: 'BasePolicy', hyper_parameters: dict[str, 'Any']) -> 'torch.optim.Optimizer':\n    import torch.optim\n    return torch.optim.AdamW(pol.parameters(), lr=3e-4, weight_decay=1e-4)\n\ndef wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'Any']) -> 'gymnasium.Env':\n    from src.reinforcement_learning.gym.wrappers.transform_reward_wrapper import TransformRewardWrapper\n    from gymnasium.wrappers import RescaleAction\n    from src.np_functions import symmetric_log\n\n\n    env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)\n    env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)\n    return env_\n",
+        "notebook": "import inspect\nimport os\nimport time\nfrom pathlib import Path\n\nimport gymnasium\nfrom gymnasium import Env\nfrom gymnasium.vector import VectorEnv\n\nfrom sac import init_action_selector, init_policy, init_optimizer, wrap_env, policy_construction_hyper_parameter\nfrom src.datetime import get_current_timestamp\nfrom src.experiment_logging.experiment_logger import ExperimentLogger, log_experiment\nfrom src.model_db.model_db import ModelDB\nfrom src.model_db.dummy_model_db import DummyModelDB\nfrom src.np_functions import inv_symmetric_log\nfrom src.reinforcement_learning.algorithms.policy_mitosis.mitosis_policy_info import MitosisPolicyInfo\nfrom src.model_db.tiny_model_db import TinyModelDB\nfrom src.module_analysis import count_parameters, get_gradients_per_parameter\nfrom src.moving_averages import ExponentialMovingAverage\nfrom src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector\nfrom src.reinforcement_learning.core.action_selectors.predicted_std_action_selector import PredictedStdActionSelector\nfrom src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \\\n    StateDependentNoiseActionSelector\nfrom src.reinforcement_learning.core.generalized_advantage_estimate import compute_episode_returns, compute_returns\nfrom src.reinforcement_learning.core.policies.base_policy import BasePolicy\nfrom src.reinforcement_learning.core.policy_construction import InitActionSelectorFunction, PolicyConstruction\nfrom src.reinforcement_learning.gym.envs.test_env import TestEnv\nfrom src.schedulers import FixedValueScheduler, OneStepRecursiveScheduler\nfrom src.stopwatch import Stopwatch\nfrom src.summary_statistics import format_summary_statics\nfrom src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy\nfrom typing import Any, SupportsFloat, Optional\nfrom gymnasium.wrappers import RecordVideo, AutoResetWrapper, NormalizeReward, TransformReward, TransformObservation, ClipAction\nfrom src.reinforcement_learning.core.callback import Callback\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SAC_DEFAULT_OPTIMIZER_PROVIDER\nfrom src.reinforcement_learning.algorithms.ppo.ppo import PPO, PPOLoggingConfig\nfrom src.reinforcement_learning.core.normalization import NormalizationType\nfrom src.torch_device import set_default_torch_device, optimizer_to_device\nfrom src.reinforcement_learning.gym.parallelize_env import parallelize_env_async\nfrom torch.distributions import Normal, Categorical\n\nimport torch\nfrom torch import optim, nn\nimport torch.distributions as dist\nimport gymnasium as gym\nimport numpy as np\n\nfrom src.torch_functions import antisymmetric_power\n\nget_ipython().run_line_magic('load_ext', 'autoreload')\nget_ipython().run_line_magic('autoreload', '2')\n\nfrom src.summary_statistics import maybe_compute_summary_statistics\nfrom src.reinforcement_learning.core.loss_config import LossLoggingConfig\nfrom src.reinforcement_learning.algorithms.sac.sac import SAC, SACLoggingConfig\ndef get_setup() -> dict[str, str]:\n    import inspect\n    import sac\n    return {\n        'sac.py': inspect.getsource(sac),\n        'notebook': _ih[1] + '\\n\\n' + _ih[-1], # first and last cell input (imports and this cell)\n    }\n\npolicy_id: str\npolicy: BasePolicy\noptimizer: optim.Optimizer\nwrapped_env: Env\nsteps_trained: int\ndef get_policy(create_new_if_exists: bool):\n    \n    global policy_id, policy, optimizer, wrapped_env, steps_trained\n    \n    policy_in_ram = 'policy' in globals()\n    if not policy_in_ram or create_new_if_exists:\n        if not policy_in_ram:\n            print('No policy in RAM, creating a new one')\n        \n        policy_id = get_current_timestamp()\n        policy, optimizer, wrapped_env = PolicyConstruction.init_from_info(\n            env=env,\n            info=PolicyConstruction.create_policy_initialization_info(\n                init_action_selector=init_action_selector,\n                init_policy=init_policy,\n                init_optimizer=init_optimizer,\n                wrap_env=wrap_env,\n                hyper_parameters=policy_construction_hyper_parameter,\n            ),\n        )\n        steps_trained = 0\n        print(f'New policy {policy_id} created')\n    \n    if parent_policy_id is not None:\n        model_entry = policy_db.load_model_state_dict(policy, parent_policy_id)\n        steps_trained = model_entry['model_info']['steps_trained']\n        print(f'Loading state dict from policy {parent_policy_id}')\n    \n    print(f'Using policy {policy_id} with parent policy {parent_policy_id}')\n    return policy_id, policy, optimizer, wrapped_env, steps_trained\n\nscore_mean_ema = ExponentialMovingAverage(alpha=0.25)\nstep_stopwatch = Stopwatch()\ntotal_stopwatch = Stopwatch()\nbest_iteration_score = -1e6\n\ndef on_rollout_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    \n    if step % 1000 != 0:\n        return\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    # rewards = rl.buffer.rewards[tail_indices]\n    # if 'raw_rewards' in info['rollout']:\n    #     rewards = info['rollout']['raw_rewards']\n    \n    # episode_scores = compute_episode_returns(\n    #     rewards=rewards,\n    #     episode_starts=np.repeat(np.arange(len(tail_indices)).reshape(-1, 1), num_envs, axis=1) % 1000 == 0,\n    #     last_episode_starts=info['last_episode_starts'],\n    #     gamma=1.0,\n    #     gae_lambda=1.0,\n    #     normalize_rewards=None,\n    #     remove_unfinished_episodes=True,\n    # )\n    \n    episode_scores = rl.buffer.compute_most_recent_episode_scores(rl.num_envs)\n    \n    if len(episode_scores) > 0:\n    \n        global best_iteration_score\n        iteration_score = episode_scores.mean()\n        score_moving_average = score_mean_ema.update(iteration_score)\n        if iteration_score >= best_iteration_score:\n            best_iteration_score = iteration_score\n            policy_db.save_model_state_dict(\n                model_id=policy_id,\n                parent_model_id=parent_policy_id,\n                model_info={\n                    'score': iteration_score.item(),\n                    'steps_trained': steps_trained,\n                    'wrap_env_source_code': wrap_env_source_code_source,\n                    'init_policy_source_code': init_policy_source\n                },\n                model=policy,\n                optimizer=optimizer,\n            )\n        info['score_moving_average'] = score_moving_average\n    \n    info['episode_scores'] = episode_scores\n        \ndef on_optimization_done(rl: SAC, step: int, info: dict[str, Any], scheduler_values: dict[str, Any]):\n    # global steps_trained\n    # steps_trained += rl.buffer.pos\n    \n    if step % 1000 != 0:\n        return\n    total_step = step * rl.num_envs\n    \n    time_taken = step_stopwatch.reset()\n    total_time = total_stopwatch.time_passed()\n    \n    tail_indices = rl.buffer.tail_indices(1000)\n    \n    episode_scores = info.get('episode_scores')\n    score_moving_average = info.get('score_moving_average') or 0.0\n    \n    scores = format_summary_statics(\n        episode_scores, \n        mean_format=' 6.3f',\n        std_format='4.3f',\n        min_value_format=' 6.3f',\n        max_value_format='5.3f',\n        n_format='>2'\n    )\n    # scores2 = format_summary_statics(\n    #     rl.buffer.compute_most_recent_episode_scores(rl.num_envs, lambda r: 1 * r), \n    #     mean_format=' 6.3f',\n    #     std_format='4.3f',\n    #     min_value_format=' 6.3f',\n    #     max_value_format='5.3f',\n    #     n_format='>2'\n    # )\n    # advantages = format_summary_statics(\n    #     rl.buffer.advantages, \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    actor_loss = format_summary_statics(\n        info['final_actor_loss'],  \n        mean_format=' 5.3f',\n        # std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # actor_loss_raw = format_summary_statics(\n    #     info['raw_actor_loss'],  \n    #     mean_format=' 5.3f',\n    #     std_format='5.3f',\n    #     min_value_format=None,\n    #     max_value_format=None,\n    # )\n    entropy_coef_loss = None if 'final_entropy_coef_loss' not in info else format_summary_statics(\n        info['final_entropy_coef_loss'], \n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    critic_loss = format_summary_statics(\n        info['final_critic_loss'], \n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    entropy_coef = format_summary_statics(\n        info['entropy_coef'],\n        mean_format='5.3f',\n#         std_format='5.3f',\n        std_format=None,\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # resets = format_summary_statics(\n    #     rl.buffer.dones.astype(int).sum(axis=0), \n    #     mean_format='.2f',\n    #     std_format=None,\n    #     min_value_format='1d',\n    #     max_value_format=None,\n    # )\n    # kl_div = info['actor_kl_divergence'][-1]\n    # grad_norm = format_summary_statics(\n    #     info['grad_norm'], \n    #     mean_format=' 6.3f',\n    #     std_format='.1f',\n    #     min_value_format=' 7.3f',\n    #     max_value_format='6.3f',\n    # )\n    action_stds = info['rollout'].get('action_stds')\n    if action_stds is not None:\n        rollout_action_stds = format_summary_statics(\n            action_stds,\n            mean_format='5.3f',\n            std_format='5.3f',\n            min_value_format=None,\n            max_value_format=None,\n        )\n    else:\n        rollout_action_stds = 'N/A'\n    action_magnitude = format_summary_statics(\n        np.abs(rl.buffer.actions[tail_indices]),\n        mean_format='5.3f',\n        std_format='5.3f',\n        min_value_format=None,\n        max_value_format=None,\n    )\n    # ppo_epochs = info['nr_ppo_epochs']\n    # ppo_updates = info['nr_ppo_updates']\n    # expl_var = rl.buffer.compute_critic_explained_variance()\n    print(f\"{step = : >7}, \"\n          f\"{total_step = : >7}, \"\n          f\"{scores = :s}, \"\n          # f\"{scores2 = :s}, \"\n          f'score_ema = {score_moving_average: 6.3f}, '\n          # f\"{advantages = :s}, \"\n          f\"{actor_loss = :s}, \"\n          # f\"{actor_loss_raw = :s}, \"\n          +(f\"{entropy_coef_loss = :s}, \" if entropy_coef_loss is not None else '')+\n          f\"{critic_loss = :s}, \"\n          f\"{entropy_coef = :s}, \"\n          f\"rollout_stds = {rollout_action_stds:s}, \"\n          f\"{action_magnitude = :s}, \"\n          # f\"{expl_var = :.3f}, \"\n          # f\"{kl_div = :.4f}, \"\n          # f\"{ppo_epochs = }, \"\n          # f\"{ppo_updates = }, \"\n          # f\"{grad_norm = :s}, \"\n          f\"n_updates = {rl.gradient_steps_performed}, \"\n          # f\"{resets = :s}, \"\n          f\"time = {time_taken:4.1f}, \"\n          f\"total_time = {total_time:4.1f} \\n\"\n          )\n    logger.add_item({\n        'step': step,\n        'total_step': total_step,\n        'scores': maybe_compute_summary_statistics(episode_scores),\n        'actor_loss': maybe_compute_summary_statistics(info['final_actor_loss']),\n        'entropy_coef_loss': maybe_compute_summary_statistics(info['final_entropy_coef_loss']),\n        'critic_loss': maybe_compute_summary_statistics(info['final_critic_loss']),\n        'entropy_coef': maybe_compute_summary_statistics(info['entropy_coef']),\n        'action_stds': maybe_compute_summary_statistics(action_stds),\n        'action_magnitude': maybe_compute_summary_statistics(np.abs(rl.buffer.actions[tail_indices])),\n        'gradient_step': rl.gradient_steps_performed,\n        'time_taken': time_taken,\n        'total_time': total_time\n    })\n    if step % 10000 == 0:\n        logger.save_experiment()\n    print()\n    \n    if episode_scores is not None and len(episode_scores) > 0 and episode_scores.mean().item() < -500:\n        logger.save_experiment()\n        raise ValueError('Score too low, policy probably fucked :(')\n\ndevice = torch.device(\"cuda:0\") if True else torch.device('cpu')\nprint(f'using device {device}')\n\ndef create_env(render_mode: str | None):\n    return gym.make(env_name, render_mode=render_mode, **env_kwargs)\n\nwrap_env_source_code_source = inspect.getsource(wrap_env)\ninit_policy_source = inspect.getsource(init_policy)\n\nenv_name = 'HalfCheetah-v4'\n# env_kwargs = {'forward_reward_weight': 1.25, 'healthy_reward': 0.5, 'ctrl_cost_weight': 0.001 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.1 }\n# env_kwargs = {'forward_reward_weight': 1.25, 'ctrl_cost_weight': 0.05 }\nenv_kwargs = {}\nnum_envs = 16\n    \n# policy_db = TinyModelDB[MitosisPolicyInfo](base_path=f'saved_models/rl/{env_name}')\npolicy_db = DummyModelDB[MitosisPolicyInfo]()\nprint(f'{policy_db = }')\n\nparent_policy_id=None  # '2024-04-28_20.57.23'\n\nenv = parallelize_env_async(lambda: create_env(render_mode=None), num_envs)\n\nlogger = ExperimentLogger('experiment_logs/sac/')\n\ntry:\n    policy_id, policy, optimizer, wrapped_env, steps_trained = get_policy(create_new_if_exists=True)\n    print(f'{count_parameters(policy) = }')\n    print(f'{env = }, {num_envs = } \\n\\n')\n        \n    with ((torch.autograd.set_detect_anomaly(False))):\n        algo = SAC(\n            env=wrapped_env,\n            policy=policy,\n            actor_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),  # (params, lr=3e-4, betas=(0.5, 0.999)),\n            critic_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),  # (params, lr=3e-4, betas=(0.5, 0.999)),\n            weigh_and_reduce_actor_loss=lambda l: 1 * l.mean(),\n            weigh_critic_loss=lambda l: 1 * l,\n            buffer_size=50_000,\n            gamma=0.99,\n            tau=0.005,\n            entropy_coef_optimizer_provider=lambda params: optim.Adam(params, lr=3e-4),\n            entropy_coef=1.0,\n            rollout_steps=1,\n            gradient_steps=1,\n            warmup_steps=100,\n            learning_starts=100,\n            optimization_batch_size=256,\n            target_update_interval=1,\n            # sde_noise_sample_freq=50,\n            callback=Callback(\n                on_rollout_done=on_rollout_done,\n                rollout_schedulers={},\n                on_optimization_done=on_optimization_done,\n                optimization_schedulers={},\n            ),\n            logging_config=SACLoggingConfig(log_rollout_infos=True, log_rollout_action_stds=True,\n                                            log_last_obs=True, log_entropy_coef=True,\n                                            entropy_coef_loss=LossLoggingConfig(log_final=True),\n                                            actor_loss=LossLoggingConfig(log_final=True, log_raw=True),\n                                            critic_loss=LossLoggingConfig(log_final=True)),\n            torch_device=device,\n        )\n        total_stopwatch.reset()\n        with log_experiment(\n            logger,\n            experiment_tags=[type(algo).__name__, env_name],\n            hyper_parameters=algo.collect_hyper_parameters(),\n            setup=get_setup(),\n        ) as x:\n            # import cProfile\n            # pr = cProfile.Profile()\n            # pr.enable()\n            algo.learn(1_000_000)\n            # pr.disable()  \n            # pr.dump_stats('profile_stats.pstat')\nexcept KeyboardInterrupt:\n    print('keyboard interrupt')\nfinally:\n    print('closing envs')\n    time.sleep(0.5)\n    env.close()\n    print('envs closed')\n    policy_db.close()\n    print('model db closed')\n    \n\nprint('done')"
+    },
+    "notes": [],
+    "logs_by_category": {
+        "__default": [
+            {
+                "step": 1000,
+                "total_step": 16000,
+                "scores": null,
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -16.56311798095703
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -2.7387208938598633
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.867879867553711
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.7629154920578003
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.9015653729438782,
+                    "std": 0.035678934305906296,
+                    "min_value": 0.7865532040596008,
+                    "max_value": 0.9965345859527588
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5202300548553467,
+                    "std": 0.28631821274757385,
+                    "min_value": 1.2140721082687378e-05,
+                    "max_value": 0.9999080896377563
+                },
+                "gradient_step": 901,
+                "time_taken": 13.133638143539429,
+                "total_time": 10.221158266067505,
+                "__timestamp": "2024-09-24 23:08:44.599184"
+            },
+            {
+                "step": 2000,
+                "total_step": 32000,
+                "scores": {
+                    "n": 16,
+                    "mean": -250.10131910542077,
+                    "std": 74.09647593621801,
+                    "min_value": -410.30313678609673,
+                    "max_value": -153.18927228322718
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -24.748117446899414
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -5.6396379470825195
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 3.9686198234558105
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.5654191374778748
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.8962109684944153,
+                    "std": 0.0379348061978817,
+                    "min_value": 0.7836496233940125,
+                    "max_value": 0.9819077849388123
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5320636630058289,
+                    "std": 0.28761836886405945,
+                    "min_value": 2.9023736715316772e-05,
+                    "max_value": 0.99954754114151
+                },
+                "gradient_step": 1901,
+                "time_taken": 11.503365516662598,
+                "total_time": 21.724523782730103,
+                "__timestamp": "2024-09-24 23:08:56.102549"
+            },
+            {
+                "step": 3000,
+                "total_step": 48000,
+                "scores": {
+                    "n": 16,
+                    "mean": -213.9516978656689,
+                    "std": 64.13363724375718,
+                    "min_value": -290.9273481310811,
+                    "max_value": -68.86141599219991
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -29.363414764404297
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -8.53028392791748
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.6976193189620972
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.41998839378356934
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.9071084856987,
+                    "std": 0.038917362689971924,
+                    "min_value": 0.7582139372825623,
+                    "max_value": 1.0024454593658447
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5359947681427002,
+                    "std": 0.28867772221565247,
+                    "min_value": 9.387731552124023e-07,
+                    "max_value": 0.9997240900993347
+                },
+                "gradient_step": 2901,
+                "time_taken": 12.207720279693604,
+                "total_time": 33.932244062423706,
+                "__timestamp": "2024-09-24 23:09:08.311269"
+            },
+            {
+                "step": 4000,
+                "total_step": 64000,
+                "scores": {
+                    "n": 16,
+                    "mean": -199.73727989768395,
+                    "std": 52.92514156351551,
+                    "min_value": -281.4271981875718,
+                    "max_value": -122.44069398648571
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -31.811323165893555
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -11.452630996704102
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.7507576942443848
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.31155669689178467
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.9001843333244324,
+                    "std": 0.04973146691918373,
+                    "min_value": 0.7302700877189636,
+                    "max_value": 1.0025910139083862
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.540677011013031,
+                    "std": 0.28937187790870667,
+                    "min_value": 8.48202034831047e-06,
+                    "max_value": 0.99922114610672
+                },
+                "gradient_step": 3901,
+                "time_taken": 12.059291124343872,
+                "total_time": 45.99153518676758,
+                "__timestamp": "2024-09-24 23:09:20.369592"
+            },
+            {
+                "step": 5000,
+                "total_step": 80000,
+                "scores": {
+                    "n": 16,
+                    "mean": -216.1403818825229,
+                    "std": 49.171357608519614,
+                    "min_value": -297.61035722300585,
+                    "max_value": -92.50525702908635
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -32.930946350097656
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -13.745000839233398
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.907881498336792
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.2315961718559265
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.9075942635536194,
+                    "std": 0.04447280243039131,
+                    "min_value": 0.7866668701171875,
+                    "max_value": 0.992354154586792
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5449791550636292,
+                    "std": 0.29088082909584045,
+                    "min_value": 3.9637088775634766e-06,
+                    "max_value": 0.9998292326927185
+                },
+                "gradient_step": 4901,
+                "time_taken": 13.81864619255066,
+                "total_time": 59.81018137931824,
+                "__timestamp": "2024-09-24 23:09:34.189207"
+            },
+            {
+                "step": 6000,
+                "total_step": 96000,
+                "scores": {
+                    "n": 16,
+                    "mean": -220.64628804469078,
+                    "std": 35.54643293997265,
+                    "min_value": -274.28194379486376,
+                    "max_value": -145.9721319005621
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -31.988605499267578
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -15.754051208496094
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.4500267505645752
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.1729709357023239
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.911695659160614,
+                    "std": 0.05319982394576073,
+                    "min_value": 0.7599475383758545,
+                    "max_value": 1.0217007398605347
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5486579537391663,
+                    "std": 0.2906387746334076,
+                    "min_value": 2.533942461013794e-05,
+                    "max_value": 0.9997372627258301
+                },
+                "gradient_step": 5901,
+                "time_taken": 14.478023529052734,
+                "total_time": 74.28820490837097,
+                "__timestamp": "2024-09-24 23:09:48.666230"
+            },
+            {
+                "step": 7000,
+                "total_step": 112000,
+                "scores": {
+                    "n": 16,
+                    "mean": -175.70217085498462,
+                    "std": 29.879728108488717,
+                    "min_value": -244.0468339924264,
+                    "max_value": -114.80717213079333
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -31.202165603637695
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -17.759580612182617
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.4783185720443726
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.1297275722026825
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.8727065920829773,
+                    "std": 0.06525271385908127,
+                    "min_value": 0.709709107875824,
+                    "max_value": 1.021801233291626
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5602868795394897,
+                    "std": 0.2923766076564789,
+                    "min_value": 1.1816620826721191e-05,
+                    "max_value": 0.9998288750648499
+                },
+                "gradient_step": 6901,
+                "time_taken": 15.075847148895264,
+                "total_time": 89.36405205726624,
+                "__timestamp": "2024-09-24 23:10:03.743078"
+            },
+            {
+                "step": 8000,
+                "total_step": 128000,
+                "scores": {
+                    "n": 16,
+                    "mean": -151.45707923094437,
+                    "std": 29.782778167982723,
+                    "min_value": -233.48512462363578,
+                    "max_value": -108.13340606412385
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -30.096895217895508
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -19.339405059814453
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.673248052597046
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.09756514430046082
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.8459883332252502,
+                    "std": 0.06110943853855133,
+                    "min_value": 0.6655185222625732,
+                    "max_value": 0.9583577513694763
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5741725564002991,
+                    "std": 0.29451897740364075,
+                    "min_value": 5.751848220825195e-06,
+                    "max_value": 0.9997763633728027
+                },
+                "gradient_step": 7901,
+                "time_taken": 14.72413945198059,
+                "total_time": 104.08819150924683,
+                "__timestamp": "2024-09-24 23:10:18.467217"
+            },
+            {
+                "step": 9000,
+                "total_step": 144000,
+                "scores": {
+                    "n": 16,
+                    "mean": -85.90195447036695,
+                    "std": 28.910225712933705,
+                    "min_value": -137.05222595673695,
+                    "max_value": -31.263503663241863
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -28.51711654663086
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -19.985733032226562
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.1863961219787598
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.07353462278842926
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.8491597175598145,
+                    "std": 0.08385879546403885,
+                    "min_value": 0.604331374168396,
+                    "max_value": 0.9969077706336975
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.5902829766273499,
+                    "std": 0.2945908308029175,
+                    "min_value": 1.7821788787841797e-05,
+                    "max_value": 0.9998165965080261
+                },
+                "gradient_step": 8901,
+                "time_taken": 13.235033750534058,
+                "total_time": 117.32322525978088,
+                "__timestamp": "2024-09-24 23:10:31.702251"
+            },
+            {
+                "step": 10000,
+                "total_step": 160000,
+                "scores": {
+                    "n": 16,
+                    "mean": -24.619112580758042,
+                    "std": 22.833971240280864,
+                    "min_value": -82.16568154894048,
+                    "max_value": 12.166717812709976
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -26.25637435913086
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -20.70870018005371
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 3.2720260620117188
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.055584266781806946
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.7895119190216064,
+                    "std": 0.0928117036819458,
+                    "min_value": 0.5933528542518616,
+                    "max_value": 0.9473841190338135
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6046560406684875,
+                    "std": 0.29487791657447815,
+                    "min_value": 4.029273986816406e-05,
+                    "max_value": 0.9995560646057129
+                },
+                "gradient_step": 9901,
+                "time_taken": 12.533976793289185,
+                "total_time": 129.85720205307007,
+                "__timestamp": "2024-09-24 23:10:44.235792"
+            },
+            {
+                "step": 11000,
+                "total_step": 176000,
+                "scores": {
+                    "n": 16,
+                    "mean": 23.61195300898953,
+                    "std": 31.62131621710379,
+                    "min_value": -19.309984126710333,
+                    "max_value": 86.1162996020721
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -25.159997940063477
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -20.21446990966797
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.036555290222168
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.042266249656677246
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.7724953293800354,
+                    "std": 0.09971201419830322,
+                    "min_value": 0.5494720935821533,
+                    "max_value": 0.9700295329093933
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6307231783866882,
+                    "std": 0.2946527898311615,
+                    "min_value": 8.13603401184082e-06,
+                    "max_value": 0.9998562335968018
+                },
+                "gradient_step": 10901,
+                "time_taken": 12.606648445129395,
+                "total_time": 142.46385049819946,
+                "__timestamp": "2024-09-24 23:10:56.841876"
+            },
+            {
+                "step": 12000,
+                "total_step": 192000,
+                "scores": {
+                    "n": 16,
+                    "mean": 74.24459445213859,
+                    "std": 37.48799471813394,
+                    "min_value": 21.72600416574278,
+                    "max_value": 137.21665251866943
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -23.887338638305664
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -19.036781311035156
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.0325754880905151
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.03246104344725609
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.7108226418495178,
+                    "std": 0.10920877009630203,
+                    "min_value": 0.47982221841812134,
+                    "max_value": 1.0017030239105225
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6583492755889893,
+                    "std": 0.29308074712753296,
+                    "min_value": 2.8014183044433594e-06,
+                    "max_value": 0.9998157024383545
+                },
+                "gradient_step": 11901,
+                "time_taken": 13.406091451644897,
+                "total_time": 155.86994194984436,
+                "__timestamp": "2024-09-24 23:11:10.247968"
+            },
+            {
+                "step": 13000,
+                "total_step": 208000,
+                "scores": {
+                    "n": 16,
+                    "mean": 158.28507549093683,
+                    "std": 36.58926483989533,
+                    "min_value": 75.70159110170789,
+                    "max_value": 208.96767158719013
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -22.571590423583984
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -12.207310676574707
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 3.0926058292388916
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.02514902502298355
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.677632749080658,
+                    "std": 0.10267557203769684,
+                    "min_value": 0.39347752928733826,
+                    "max_value": 0.9279350638389587
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6921620965003967,
+                    "std": 0.28838980197906494,
+                    "min_value": 4.3213367462158203e-07,
+                    "max_value": 0.9999575018882751
+                },
+                "gradient_step": 12901,
+                "time_taken": 12.37714171409607,
+                "total_time": 168.24708366394043,
+                "__timestamp": "2024-09-24 23:11:22.625109"
+            },
+            {
+                "step": 14000,
+                "total_step": 224000,
+                "scores": {
+                    "n": 16,
+                    "mean": 159.48886531911864,
+                    "std": 37.182005607713776,
+                    "min_value": 85.4743770431578,
+                    "max_value": 223.26179244392551
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -20.975845336914062
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -15.363292694091797
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.792609453201294
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.01980518363416195
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.6441395282745361,
+                    "std": 0.1019820049405098,
+                    "min_value": 0.43991848826408386,
+                    "max_value": 0.8742324113845825
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.717186450958252,
+                    "std": 0.2844385504722595,
+                    "min_value": 2.86102294921875e-06,
+                    "max_value": 0.9999240636825562
+                },
+                "gradient_step": 13901,
+                "time_taken": 12.424641132354736,
+                "total_time": 180.67172479629517,
+                "__timestamp": "2024-09-24 23:11:35.049749"
+            },
+            {
+                "step": 15000,
+                "total_step": 240000,
+                "scores": {
+                    "n": 16,
+                    "mean": 172.3358388937395,
+                    "std": 48.07513735844147,
+                    "min_value": 46.30726601695642,
+                    "max_value": 238.6915483327466
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -21.248594284057617
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -10.236896514892578
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.0288479328155518
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.01594339683651924
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.6144842505455017,
+                    "std": 0.10899695754051208,
+                    "min_value": 0.46368885040283203,
+                    "max_value": 0.940478503704071
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.7305424213409424,
+                    "std": 0.2830045223236084,
+                    "min_value": 7.525086402893066e-06,
+                    "max_value": 0.999883770942688
+                },
+                "gradient_step": 14901,
+                "time_taken": 12.497394323348999,
+                "total_time": 193.16911911964417,
+                "__timestamp": "2024-09-24 23:11:47.547676"
+            },
+            {
+                "step": 16000,
+                "total_step": 256000,
+                "scores": {
+                    "n": 16,
+                    "mean": 121.97016292606162,
+                    "std": 44.9141063993889,
+                    "min_value": 9.164657591143623,
+                    "max_value": 215.8234081240371
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -19.58991241455078
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -5.9832234382629395
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.4088878631591797
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.01318336185067892
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.5693885684013367,
+                    "std": 0.09685266762971878,
+                    "min_value": 0.4108259379863739,
+                    "max_value": 0.7954615354537964
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.7453379034996033,
+                    "std": 0.2785392701625824,
+                    "min_value": 7.984042167663574e-05,
+                    "max_value": 0.9999135732650757
+                },
+                "gradient_step": 15901,
+                "time_taken": 12.350878477096558,
+                "total_time": 205.51999759674072,
+                "__timestamp": "2024-09-24 23:11:59.898023"
+            },
+            {
+                "step": 17000,
+                "total_step": 272000,
+                "scores": {
+                    "n": 16,
+                    "mean": 22.95155353004361,
+                    "std": 56.69152200506691,
+                    "min_value": -32.070386443572716,
+                    "max_value": 207.36085025360808
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -18.747896194458008
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -3.5887632369995117
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 0.8862177133560181
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.010935635305941105
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.551664412021637,
+                    "std": 0.10980615019798279,
+                    "min_value": 0.29095181822776794,
+                    "max_value": 0.7863043546676636
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6681295037269592,
+                    "std": 0.29991355538368225,
+                    "min_value": 2.3543834686279297e-06,
+                    "max_value": 0.9999960660934448
+                },
+                "gradient_step": 16901,
+                "time_taken": 12.536696434020996,
+                "total_time": 218.05669403076172,
+                "__timestamp": "2024-09-24 23:12:12.434719"
+            },
+            {
+                "step": 18000,
+                "total_step": 288000,
+                "scores": {
+                    "n": 16,
+                    "mean": 322.95344542232124,
+                    "std": 62.06263806265916,
+                    "min_value": 220.08064991072752,
+                    "max_value": 455.3835539945867
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -18.939199447631836
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": 1.0399235486984253
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.322075605392456
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.009597399272024632
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.5185708999633789,
+                    "std": 0.10512673109769821,
+                    "min_value": 0.22482825815677643,
+                    "max_value": 0.8090057373046875
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.6828105449676514,
+                    "std": 0.29812976717948914,
+                    "min_value": 1.2733042240142822e-05,
+                    "max_value": 0.999945342540741
+                },
+                "gradient_step": 17901,
+                "time_taken": 12.345624685287476,
+                "total_time": 230.4023187160492,
+                "__timestamp": "2024-09-24 23:12:24.780344"
+            },
+            {
+                "step": 19000,
+                "total_step": 304000,
+                "scores": {
+                    "n": 16,
+                    "mean": 838.4336746500603,
+                    "std": 229.804308257263,
+                    "min_value": 309.5146353400778,
+                    "max_value": 1018.5083842619788
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -19.76398468017578
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": 2.3136839866638184
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.094208836555481
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.009808892384171486
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.4325821101665497,
+                    "std": 0.1270364224910736,
+                    "min_value": 0.216810405254364,
+                    "max_value": 0.7352156043052673
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.7210924625396729,
+                    "std": 0.2901054918766022,
+                    "min_value": 2.1360814571380615e-05,
+                    "max_value": 0.9999851584434509
+                },
+                "gradient_step": 18901,
+                "time_taken": 12.394169330596924,
+                "total_time": 242.79648804664612,
+                "__timestamp": "2024-09-24 23:12:37.174514"
+            },
+            {
+                "step": 20000,
+                "total_step": 320000,
+                "scores": {
+                    "n": 16,
+                    "mean": 963.5527954831682,
+                    "std": 264.6994004816859,
+                    "min_value": 395.79683619937714,
+                    "max_value": 1212.5621609570226
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -21.05913543701172
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": 0.8034175634384155
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": 1.3878535032272339
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.010996527969837189
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 0.4505113661289215,
+                    "std": 0.11152156442403793,
+                    "min_value": 0.16893883049488068,
+                    "max_value": 0.7075420618057251
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.7417174577713013,
+                    "std": 0.2857016324996948,
+                    "min_value": 6.12214207649231e-05,
+                    "max_value": 0.9999989867210388
+                },
+                "gradient_step": 19901,
+                "time_taken": 12.298837661743164,
+                "total_time": 255.09532570838928,
+                "__timestamp": "2024-09-24 23:12:49.474351"
+            },
+            {
+                "step": 21000,
+                "total_step": 336000,
+                "scores": {
+                    "n": 16,
+                    "mean": 583.6274477720199,
+                    "std": 102.35981134423365,
+                    "min_value": 347.03671944142843,
+                    "max_value": 712.7423001308925
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -8.36701977346968e+22
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -3.1848529615874444e+25
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": Infinity
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.011688491329550743
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.2321020166979203e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 0.8402052521705627,
+                    "std": 0.2588701546192169,
+                    "min_value": 0.00020688772201538086,
+                    "max_value": 1.0
+                },
+                "gradient_step": 20901,
+                "time_taken": 12.437139987945557,
+                "total_time": 267.53246569633484,
+                "__timestamp": "2024-09-24 23:13:01.910492"
+            },
+            {
+                "step": 22000,
+                "total_step": 352000,
+                "scores": {
+                    "n": 16,
+                    "mean": -597.4810867817869,
+                    "std": 3.0658291926367323,
+                    "min_value": -600.3683432489634,
+                    "max_value": -589.1965175066143
+                },
+                "actor_loss": {
+                    "n": 1,
+                    "mean": -1.9969421916362622e+23
+                },
+                "entropy_coef_loss": {
+                    "n": 1,
+                    "mean": -7.601234077134432e+25
+                },
+                "critic_loss": {
+                    "n": 1,
+                    "mean": Infinity
+                },
+                "entropy_coef": {
+                    "n": 1,
+                    "mean": 0.011688491329550743
+                },
+                "action_stds": {
+                    "n": 96,
+                    "mean": 2.06115324807854e-09,
+                    "std": 2.2321020166979203e-16,
+                    "min_value": 2.061153470123145e-09,
+                    "max_value": 2.061153470123145e-09
+                },
+                "action_magnitude": {
+                    "n": 96000,
+                    "mean": 1.0,
+                    "std": 0.0,
+                    "min_value": 1.0,
+                    "max_value": 1.0
+                },
+                "gradient_step": 21901,
+                "time_taken": 12.511236906051636,
+                "total_time": 280.0437026023865,
+                "__timestamp": "2024-09-24 23:13:14.421729"
+            }
+        ]
+    }
+}

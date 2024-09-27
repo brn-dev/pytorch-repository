@@ -78,7 +78,7 @@ class SACCrossQPolicy(SACPolicy):
         with torch.no_grad():
             next_observation_features = self.shared_feature_extractor(replay_samples.next_observations)
 
-            next_actions, next_actions_log_prob = self.actor.act_with_log_probs(next_observation_features)
+            next_actions, next_actions_log_prob = self.actor.get_actions_with_log_probs(next_observation_features)
 
             next_q_values = torch.cat(
                 self.critic(next_observation_features, next_actions),

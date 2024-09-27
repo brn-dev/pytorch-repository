@@ -72,7 +72,7 @@ class BaseAlgorithm(HasHyperParameters, Generic[Policy, Buffer, LogConf], abc.AB
         return self.update_hps(super().collect_hyper_parameters(), {
             'env': str(self.env),
             'num_envs': self.num_envs,
-            'policy': self.policy.collect_hyper_parameters(),
+            'policy': self.get_hps_or_str(self.policy),
             'policy_parameter_count': count_parameters(self.policy),
             'policy_repr': str(self.policy),
             'buffer': self.get_hps_or_str(self.buffer),

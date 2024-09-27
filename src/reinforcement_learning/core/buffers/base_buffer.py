@@ -39,14 +39,14 @@ class BaseBuffer(HasHyperParameters, Generic[BufferSamples], abc.ABC):
         self.full = False
 
     def collect_hyper_parameters(self) -> HyperParameters:
-        return {
+        return self.update_hps(super().collect_hyper_parameters(), {
             'buffer_size': self.buffer_size,
             'num_envs': self.num_envs,
             'total_buffer_size': self.buffer_size * self.num_envs,
             'torch_device': str(self.torch_device),
             'torch_dtype': str(self.torch_dtype),
             'np_dtype': str(self.np_dtype),
-        }
+        })
 
     @property
     def size(self):

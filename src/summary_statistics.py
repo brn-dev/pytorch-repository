@@ -16,7 +16,6 @@ class SummaryStatistics(TypedDict):
     max_value: NotRequired[float]
     data: NotRequired[list]
 
-
 def format_summary_statics(
         x: TensorOrNpArray | SummaryStatistics | None,
         mean_format: str | None = '.2f',
@@ -28,30 +27,33 @@ def format_summary_statics(
     if isinstance(x, dict):
         summary_statistics = x
     else:
-        summary_statistics = compute_summary_statistics(x)
+        summary_statistics = maybe_compute_summary_statistics(x)
 
     if summary_statistics is None:
         return 'N/A'
 
     n = summary_statistics['n']
     mean = summary_statistics['mean']
-    std = summary_statistics['std']
-    min_value = summary_statistics['min_value']
-    max_value = summary_statistics['max_value']
+    std = summary_statistics.get('std')
+    min_value = summary_statistics.get('min_value')
+    max_value = summary_statistics.get('max_value')
 
     representation = ''
 
     if mean_format:
         representation += mean.__format__(mean_format)
 
-    if std_format:
+    if std is not None and std_format:
         representation += f' ± {std.__format__(std_format)}'
 
-    if min_value_format and max_value_format:
+    min_val_available = min_value is not None and min_value_format
+    max_val_available = max_value is not None and max_value_format
+
+    if min_val_available and max_val_available:
         representation += f' [{min_value.__format__(min_value_format)}, {max_value.__format__(max_value_format)}]'
-    elif min_value_format:
+    elif min_val_available:
         representation += f' ≥ {min_value.__format__(min_value_format)}'
-    elif max_value_format:
+    elif max_val_available:
         representation += f' ≤ {max_value.__format__(max_value_format)}'
 
     if n_format:
@@ -62,7 +64,7 @@ def format_summary_statics(
 
 def compute_summary_statistics(
         arr: TensorOrNpArray,
-        small_data_threshold: int = SMALL_DATA_THRESHOLD
+        small_data_threshold: int = SMALL_DATA_THRESHOLD,
 ) -> Optional[SummaryStatistics]:
     if isinstance(arr, np.ndarray):
         n = arr.size
@@ -92,3 +94,11 @@ def compute_summary_statistics(
         summary_stats['data'] = arr.tolist()
 
     return summary_stats
+
+def maybe_compute_summary_statistics(
+        x: TensorOrNpArray | None,
+        small_data_threshold: int = SMALL_DATA_THRESHOLD,
+):
+    if x is None:
+        return None
+    return compute_summary_statistics(x, small_data_threshold)
