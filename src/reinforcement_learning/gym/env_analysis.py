@@ -1,6 +1,7 @@
 from typing import Union
 
 from gymnasium import Env, spaces
+from gymnasium.vector import VectorEnv
 
 
 def is_vector_env(env: Env) -> bool:
@@ -75,3 +76,16 @@ def get_action_shape(env: Env) -> tuple[int, ...]:
         return (action_space.n,)
     else:
         raise NotImplementedError(f"{action_space} action space is not supported")
+
+def get_unique_env_ids(env: VectorEnv) -> list[str]:
+    return list(set([s.id for s in env.get_attr('spec')]))
+
+IMPORTANT_SPEC_ATTRIBUTES = ['id', 'kwargs', 'max_episode_steps', 'additional_wrappers']
+def get_env_specs(env: VectorEnv):
+    return [
+        {
+            attr: getattr(s, attr)
+            for attr in IMPORTANT_SPEC_ATTRIBUTES
+        }
+        for s in env.get_attr('spec')
+    ]

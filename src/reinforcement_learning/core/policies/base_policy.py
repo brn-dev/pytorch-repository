@@ -6,6 +6,7 @@ from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.base_component import BasePolicyComponent
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor, IdentityExtractor
 from src.reinforcement_learning.core.type_aliases import TensorObs
+from src.tags import Tags
 
 
 class BasePolicy(BasePolicyComponent):
@@ -24,6 +25,9 @@ class BasePolicy(BasePolicyComponent):
         return self.update_hps(super().collect_hyper_parameters(), {
             'actor': self.actor.collect_hyper_parameters(),
         })
+
+    def collect_tags(self) -> Tags:
+        return super().collect_tags() + self.actor.collect_tags()
 
     @property
     def shared_feature_extractor(self):

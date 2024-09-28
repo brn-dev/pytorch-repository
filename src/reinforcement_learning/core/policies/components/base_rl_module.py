@@ -2,9 +2,10 @@ from torch import nn
 
 from src.hyper_parameters import HasHyperParameters, HyperParameters
 from src.module_analysis import count_parameters
+from src.tags import HasTags
 
 
-class BaseRLModule(nn.Module, HasHyperParameters):
+class BaseRLModule(nn.Module, HasHyperParameters, HasTags):
 
     def __init__(self):
         super().__init__()

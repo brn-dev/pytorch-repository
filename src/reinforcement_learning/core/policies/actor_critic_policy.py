@@ -10,6 +10,7 @@ from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor
 from src.reinforcement_learning.core.policies.components.v_critic import VCritic
 from src.reinforcement_learning.core.type_aliases import TensorObs
+from src.tags import Tags
 
 VALUE_ESTIMATES_KEY = 'value_estimates'
 
@@ -32,6 +33,9 @@ class ActorCriticPolicy(BasePolicy):
         return self.update_hps(super().collect_hyper_parameters(), {
             'critic': self.critic.collect_hyper_parameters(),
         })
+
+    def collect_tags(self) -> Tags:
+        return super().collect_tags() + self.critic.collect_tags()
 
     def forward(self, obs: TensorObs) -> tuple[ActionSelector, torch.Tensor]:
         obs = self.shared_feature_extractor(obs)

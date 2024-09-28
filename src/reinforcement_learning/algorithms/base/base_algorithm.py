@@ -16,7 +16,9 @@ from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
+from src.reinforcement_learning.gym.env_analysis import get_unique_env_ids, get_env_specs
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
+from src.tags import HasTags, Tags
 from src.torch_device import TorchDevice, get_torch_device
 
 LogConf = TypeVar('LogConf', bound=LoggingConfig)
@@ -27,7 +29,7 @@ Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class BaseAlgorithm(HasHyperParameters, Generic[Policy, Buffer, LogConf], abc.ABC):
+class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf], abc.ABC):
 
     def __init__(
             self,
@@ -71,6 +73,7 @@ class BaseAlgorithm(HasHyperParameters, Generic[Policy, Buffer, LogConf], abc.AB
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'env': str(self.env),
+            'env_specs': get_env_specs(self.env),
             'num_envs': self.num_envs,
             'policy': self.get_hps_or_str(self.policy),
             'policy_parameter_count': count_parameters(self.policy),
@@ -83,6 +86,15 @@ class BaseAlgorithm(HasHyperParameters, Generic[Policy, Buffer, LogConf], abc.AB
             'torch_device': str(self.torch_device),
             'torch_dtype': str(self.torch_dtype),
         })
+
+    def collect_tags(self) -> Tags:
+        return (
+            [type(self).__name__]
+            + get_unique_env_ids(self.env)
+            + self.policy.collect_tags()
+            + self.buffer.collect_tags()
+            + super().collect_tags()
+        )
 
     @abc.abstractmethod
     def optimize(

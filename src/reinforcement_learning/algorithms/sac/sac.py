@@ -23,6 +23,7 @@ from src.reinforcement_learning.core.logging import LoggingConfig, log_if_enable
 from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossLoggingConfig
 from src.reinforcement_learning.core.type_aliases import OptimizerProvider, TensorObs, detach_obs
 from src.reinforcement_learning.gym.env_analysis import get_single_action_space
+from src.tags import Tags
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
 

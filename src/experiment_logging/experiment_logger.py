@@ -5,7 +5,7 @@ from typing import Optional, Any
 
 from src.datetime import get_current_timestamp
 from src.experiment_logging.experiment_log import ExperimentLog, DEFAULT_CATEGORY_KEY, ExperimentLogItem, \
-    ModelDBReference
+    ModelDBReference, load_experiment_log, save_experiment_log
 from src.hyper_parameters import HyperParameters
 from src.id_generation import generate_timestamp_id
 from src.system_info import get_system_info
@@ -94,20 +94,15 @@ class ExperimentLogger:
         return item
 
     def load_experiment_log(self, file_path: str):
-        with open(file_path, 'r') as file:
-            self.experiment_log = json.load(file)
+        self.experiment_log = load_experiment_log(file_path)
 
     def save_experiment_log(self, file_path: Optional[str] = None):
         if file_path is None:
             file_path = self.experiment_file_path
 
-        dir_name = os.path.dirname(file_path)
-        os.makedirs(dir_name, exist_ok=True)
+        save_experiment_log(file_path, self._experiment_log, 2 if self.log_pretty else None)
 
         print(f'saved experiment log {self.experiment_log["experiment_id"]} at {file_path}')
-
-        with open(file_path, 'w') as file:
-            json.dump(self.experiment_log, file, indent=2 if self.log_pretty else None)
 
     def end_experiment_log(
             self,

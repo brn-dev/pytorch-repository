@@ -15,6 +15,7 @@ from src.reinforcement_learning.core.policies.components.feature_extractors impo
 from src.reinforcement_learning.core.policies.components.q_critic import QCritic
 from src.reinforcement_learning.core.polyak_update import polyak_update
 from src.reinforcement_learning.core.type_aliases import TensorObs, detach_obs
+from src.tags import Tags
 
 """
         
@@ -44,6 +45,9 @@ class SACPolicy(BasePolicy):
         return self.update_hps(super().collect_hyper_parameters(), {
             'critic': self.critic.collect_hyper_parameters()
         })
+
+    def collect_tags(self) -> Tags:
+        return super().collect_tags() + self.critic.collect_tags()
 
     def _check_action_selector(self):
         if not isinstance(self.actor.action_selector, (PredictedStdActionSelector, StateDependentNoiseActionSelector)):

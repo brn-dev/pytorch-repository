@@ -7,13 +7,14 @@ from gymnasium import Env
 
 from src.hyper_parameters import HasHyperParameters, HyperParameters
 from src.reinforcement_learning.gym.env_analysis import get_obs_shape, get_action_shape, get_num_envs
+from src.tags import HasTags
 from src.torch_device import TorchDevice, get_torch_device
 from src.reinforcement_learning.core.type_aliases import ShapeDict
 
 BufferSamples = TypeVar('BufferSamples', bound=NamedTuple)
 
 
-class BaseBuffer(HasHyperParameters, Generic[BufferSamples], abc.ABC):
+class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
     def __init__(
             self,

@@ -1,8 +1,8 @@
+import json
+import os
 from typing import TypedDict, Optional, Any
 
 from src.hyper_parameters import HyperParameters
-from src.model_db.model_db import ModelEntry
-
 
 DEFAULT_CATEGORY_KEY = '__default'
 
@@ -32,3 +32,20 @@ class ExperimentLog(TypedDict):
     notes: list[str]
 
     logs_by_category: dict[str, list[ExperimentLogItem]]
+
+
+def load_experiment_log(file_path: str) -> ExperimentLog:
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+
+def save_experiment_log(
+        file_path: str,
+        log: ExperimentLog,
+        indent: Optional[int] = None
+):
+    dir_name = os.path.dirname(file_path)
+    os.makedirs(dir_name, exist_ok=True)
+
+    with open(file_path, 'w') as file:
+        json.dump(log, file, indent=indent if indent is not None else None)

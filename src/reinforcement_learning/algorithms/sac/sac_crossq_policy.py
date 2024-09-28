@@ -10,6 +10,7 @@ from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor
 from src.reinforcement_learning.core.policies.components.q_critic import QCritic
 from src.reinforcement_learning.core.type_aliases import TensorObs, detach_obs
+from src.tags import Tags
 
 """
 
@@ -34,6 +35,9 @@ class SACCrossQPolicy(SACPolicy):
 
         if not critic_has_normalization:
             print_warning('A CrossQ critic should include normalization!')
+
+    def collect_tags(self) -> Tags:
+        return ['CrossQ', 'SAC-CrossQ'] + super().collect_tags()
 
     def _build_target(self):
         # target_critic is not used by CrossQ
