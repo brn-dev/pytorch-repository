@@ -26,6 +26,7 @@ from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.tags import Tags
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
+from src.utils import func_repr
 
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.AdamW(params, lr=3e-4, weight_decay=1e-4)
 AUTO_TARGET_ENTROPY = 'auto'
@@ -76,6 +77,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             buffer_type: Type[ReplayBuf] = ReplayBuffer,
             buffer_size: int = 100_000,
             buffer_kwargs: dict[str, Any] = None,
+            reward_scale: float = 1.0,
             gamma: float = 0.99,
             tau: float = 0.005,
             rollout_steps: int = 100,
@@ -98,7 +100,14 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
         super().__init__(
             env=env,
             policy=policy,
-            buffer=buffer_type.for_env(env, buffer_size, torch_device, torch_dtype, **(buffer_kwargs or {})),
+            buffer=buffer_type.for_env(
+                env=env,
+                buffer_size=buffer_size,
+                torch_device=torch_device,
+                torch_dtype=torch_dtype,
+                reward_scale=reward_scale,
+                **(buffer_kwargs or {})
+            ),
             gamma=gamma,
             tau=tau,
             rollout_steps=rollout_steps,
@@ -140,12 +149,12 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
-            'actor_optimizer': str(self.actor_optimizer),
-            'critic_optimizer': str(self.critic_optimizer),
-            'entropy_coef_optimizer': str(self.entropy_coef_optimizer),
-            'weigh_and_reduce_entropy_coef_loss': str(self.weigh_and_reduce_entropy_coef_loss),
-            'weigh_and_reduce_actor_loss': str(self.weigh_and_reduce_actor_loss),
-            'weigh_critic_loss': str(self.weigh_critic_loss),
+            'actor_optimizer': self.get_optimizer_hps(self.actor_optimizer),
+            'critic_optimizer': self.get_optimizer_hps(self.critic_optimizer),
+            'entropy_coef_optimizer': self.maybe_get_optimizer_hps(self.entropy_coef_optimizer),
+            'weigh_and_reduce_entropy_coef_loss': func_repr(self.weigh_and_reduce_entropy_coef_loss),
+            'weigh_and_reduce_actor_loss': func_repr(self.weigh_and_reduce_actor_loss),
+            'weigh_critic_loss': func_repr(self.weigh_critic_loss),
             'target_update_interval': self.target_update_interval,
             'target_entropy': self.target_entropy,
             'entropy_coef': self.entropy_coef_tensor.item() if self.entropy_coef_tensor is not None else 'dynamic',

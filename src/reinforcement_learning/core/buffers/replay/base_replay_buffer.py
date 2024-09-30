@@ -24,6 +24,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             num_envs: int,
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
+            reward_scale: float,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype,
             np_dtype: np.dtype,
@@ -33,6 +34,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
+            reward_scale=reward_scale,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -64,7 +66,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             dones: np.ndarray
     ):
         self.actions[self.pos] = actions
-        self.rewards[self.pos] = rewards
+        self.rewards[self.pos] = self.scale_rewards(rewards)
         self.dones[self.pos] = dones
 
         self.pos += 1
@@ -91,7 +93,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
     def compute_most_recent_episode_scores(
             self,
             n_episodes: int,
-            transform_rewards: Callable[[np.ndarray], np.ndarray] = lambda r: r,
+            compensate_for_reward_scaling: bool = True,
     ):
         whole_episode = np.zeros((self.num_envs,), dtype=bool)
 
@@ -108,7 +110,11 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             whole_episode[step_dones] = True
             running_sum[step_dones] = 0.0
 
-            running_sum += transform_rewards(self.rewards[step_index])
+            step_rewards = self.rewards[step_index]
+            if compensate_for_reward_scaling:
+                step_rewards = self.unscale_rewards(step_rewards)
+
+            running_sum += step_rewards
 
         return np.array(episode_scores)
 

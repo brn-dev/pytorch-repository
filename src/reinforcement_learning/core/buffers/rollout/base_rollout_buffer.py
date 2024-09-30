@@ -47,14 +47,19 @@ class BaseRolloutBuffer(BaseBuffer[BufferSamples], abc.ABC):
             gae_lambda: float,
             normalize_rewards: NormalizationType | None,
             normalize_advantages: NormalizationType | None,
+            compensate_for_reward_scaling: bool = True,
     ) -> None:
         assert self.returns is None and self.advantages is None, 'returns and gae already computed'
 
         last_values = last_values.squeeze(-1).detach().clone().cpu().numpy()
 
+        rewards = self.rewards[:self.pos]
+        if compensate_for_reward_scaling:
+            rewards = self.unscale_rewards(rewards)
+
         self.returns, self.advantages = compute_returns_and_gae(
             value_estimates=self.value_estimates[:self.pos],
-            rewards=self.rewards[:self.pos],
+            rewards=rewards,
             episode_starts=self.episode_starts[:self.pos],
             last_values=last_values,
             last_episode_starts=last_episode_starts,

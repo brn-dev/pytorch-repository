@@ -23,6 +23,7 @@ from src.reinforcement_learning.core.type_aliases import OptimizerProvider
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 from src.type_aliases import KwArgs
+from src.utils import func_repr
 
 
 @dataclass
@@ -123,10 +124,10 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         return self.update_hps(super().collect_hyper_parameters(), {
             'normalize_rewards': self.normalize_rewards,
             'normalize_advantages': self.normalize_advantages,
-            'weigh_and_reduce_actor_loss': str(self.weigh_and_reduce_actor_loss),
-            'weigh_and_reduce_entropy_loss': str(self.weigh_and_reduce_entropy_loss),
-            'critic_loss_fn': str(self.critic_loss_fn),
-            'weigh_and_reduce_critic_loss': str(self.weigh_and_reduce_critic_loss),
+            'weigh_and_reduce_actor_loss': func_repr(self.weigh_and_reduce_actor_loss),
+            'weigh_and_reduce_entropy_loss': func_repr(self.weigh_and_reduce_entropy_loss),
+            'critic_loss_fn': func_repr(self.critic_loss_fn),
+            'weigh_and_reduce_critic_loss': func_repr(self.weigh_and_reduce_critic_loss),
             'ppo_max_epochs': self.ppo_max_epochs,
             'ppo_kl_target': self.ppo_kl_target,
             'ppo_batch_size': self.ppo_batch_size,

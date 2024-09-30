@@ -16,7 +16,7 @@ from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
 from src.reinforcement_learning.core.logging import LoggingConfig
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
-from src.reinforcement_learning.gym.env_analysis import get_unique_env_ids, get_env_specs
+from src.reinforcement_learning.gym.env_analysis import get_unique_env_ids, get_unique_env_specs
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.tags import HasTags, Tags
 from src.torch_device import TorchDevice, get_torch_device
@@ -73,14 +73,15 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'env': str(self.env),
-            'env_specs': get_env_specs(self.env),
             'num_envs': self.num_envs,
-            'policy': self.get_hps_or_str(self.policy),
+            'env_specs': get_unique_env_specs(self.env),
+            'policy': self.get_hps_or_repr(self.policy),
             'policy_parameter_count': count_parameters(self.policy),
             'policy_repr': str(self.policy),
-            'buffer': self.get_hps_or_str(self.buffer),
+            'buffer': self.get_hps_or_repr(self.buffer),
             'buffer_step_size': self.buffer.buffer_size,
             'buffer_total_size': self.buffer.buffer_size * self.num_envs,
+            'reward_scaling': self.buffer.reward_scale,
             'gamma': self.gamma,
             'sde_noise_sample_freq': self.sde_noise_sample_freq,
             'torch_device': str(self.torch_device),
@@ -88,12 +89,12 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         })
 
     def collect_tags(self) -> Tags:
-        return (
-            [type(self).__name__]
-            + get_unique_env_ids(self.env)
-            + self.policy.collect_tags()
-            + self.buffer.collect_tags()
-            + super().collect_tags()
+        return self.combine_tags(
+            [type(self).__name__],
+            get_unique_env_ids(self.env),
+            self.policy.collect_tags(),
+            self.buffer.collect_tags(),
+            super().collect_tags(),
         )
 
     @abc.abstractmethod

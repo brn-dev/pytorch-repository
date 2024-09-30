@@ -17,4 +17,4 @@ class BasePolicyComponent(BaseRLModule):
         })
 
     def collect_tags(self) -> Tags:
-        return super().collect_tags() + self.feature_extractor.collect_tags()
+        return self.combine_tags(super().collect_tags(), self.feature_extractor.collect_tags())

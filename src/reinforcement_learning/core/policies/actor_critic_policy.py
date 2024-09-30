@@ -35,7 +35,7 @@ class ActorCriticPolicy(BasePolicy):
         })
 
     def collect_tags(self) -> Tags:
-        return super().collect_tags() + self.critic.collect_tags()
+        return self.combine_tags(super().collect_tags(), self.critic.collect_tags())
 
     def forward(self, obs: TensorObs) -> tuple[ActionSelector, torch.Tensor]:
         obs = self.shared_feature_extractor(obs)

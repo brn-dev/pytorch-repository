@@ -1,7 +1,6 @@
-import json
 import os.path
 from contextlib import contextmanager
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 
 from src.datetime import get_current_timestamp
 from src.experiment_logging.experiment_log import ExperimentLog, DEFAULT_CATEGORY_KEY, ExperimentLogItem, \
@@ -9,7 +8,7 @@ from src.experiment_logging.experiment_log import ExperimentLog, DEFAULT_CATEGOR
 from src.hyper_parameters import HyperParameters
 from src.id_generation import generate_timestamp_id
 from src.system_info import get_system_info
-from src.utils import default_fn, format_current_exception
+from src.utils import default_fn, format_current_exception, remove_duplicates_keep_order
 
 
 class ExperimentLogger:
@@ -48,11 +47,11 @@ class ExperimentLogger:
             experiment_id: Optional[str] = None,
             experiment_tags: Optional[list[str]] = None,
             start_time: Optional[str] = None,
-            model_db_reference: Optional[ModelDBReference] = None,
             hyper_parameters: Optional[HyperParameters] = None,
             system_info: Optional[dict[str, Any]] = None,
             setup: Optional[dict[str, str]] = None,
             notes: Optional[list[str]] = None,
+            model_db_references: list[ModelDBReference] = None,
     ):
         experiment_log: ExperimentLog = {
             'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
@@ -60,11 +59,11 @@ class ExperimentLogger:
             'start_time': default_fn(start_time, lambda: get_current_timestamp()),
             'end_time': None,
             'end_exception': None,
-            'model_db_reference': model_db_reference,
             'hyper_parameters': default_fn(hyper_parameters, lambda: {}),
             'system_info': default_fn(system_info, get_system_info),
             'setup': default_fn(setup, lambda: {}),
             'notes': default_fn(notes, lambda: []),
+            'model_db_references': model_db_references or [],
             'logs_by_category': {}
         }
         self.experiment_log = experiment_log
@@ -108,14 +107,26 @@ class ExperimentLogger:
             self,
             exception_str: Optional[str] = None,
             save_experiment: bool = True,
-            file_path: Optional[str] = None
+            file_path: Optional[str] = None,
+            hyper_parameters_update: Optional[HyperParameters] = None,
+            setup_update: Optional[dict[str, str]] = None,
+            notes_update: Optional[list[str]] = None,
+            model_db_references_update: list[ModelDBReference] = None,
     ):
-        assert save_experiment or file_path is None, 'file_path must be None when save_experiment is True'
+        assert save_experiment or file_path is None, 'file_path must be None when save_experiment is False'
 
         self.experiment_log['end_time'] = get_current_timestamp()
 
         if exception_str:
             self.experiment_log['end_exception'] = exception_str
+        if hyper_parameters_update:
+            self.experiment_log['hyper_parameters'].update(hyper_parameters_update)
+        if setup_update:
+            self.experiment_log['setup'].update(setup_update)
+        if notes_update:
+            remove_duplicates_keep_order(self.experiment_log['notes'] + notes_update)
+        if hyper_parameters_update:
+            remove_duplicates_keep_order(self.experiment_log['model_db_references'] + model_db_references_update)
 
         if save_experiment:
             self.save_experiment_log(file_path)
@@ -127,21 +138,23 @@ def log_experiment(
         experiment_id: Optional[str] = None,
         experiment_tags: Optional[list[str]] = None,
         start_time: Optional[str] = None,
-        model_db_reference: Optional[ModelDBReference] = None,
         hyper_parameters: Optional[HyperParameters] = None,
         system_info: Optional[dict[str, Any]] = None,
         setup: Optional[dict[str, str]] = None,
         notes: Optional[list[str]] = None,
+        model_db_references: list[ModelDBReference] = None,
+        on_end: Callable[[ExperimentLog], dict[str, Any]] = lambda _: {},
 ):
+
     experiment_logger.start_experiment_log(
         experiment_id=experiment_id,
         experiment_tags=experiment_tags,
         start_time=start_time,
-        model_db_reference=model_db_reference,
         hyper_parameters=hyper_parameters,
         system_info=system_info,
         setup=setup,
         notes=notes,
+        model_db_references=model_db_references,
     )
     exception_str: Optional[str] = None
     try:
@@ -150,4 +163,5 @@ def log_experiment(
         exception_str = format_current_exception()
         raise e
     finally:
-        experiment_logger.end_experiment_log(exception_str=exception_str)
+        end_kwargs = on_end(experiment_logger.experiment_log)
+        experiment_logger.end_experiment_log(exception_str=exception_str, **end_kwargs)

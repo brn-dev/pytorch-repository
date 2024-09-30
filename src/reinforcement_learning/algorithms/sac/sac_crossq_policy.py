@@ -37,7 +37,7 @@ class SACCrossQPolicy(SACPolicy):
             print_warning('A CrossQ critic should include normalization!')
 
     def collect_tags(self) -> Tags:
-        return ['CrossQ', 'SAC-CrossQ'] + super().collect_tags()
+        return self.combine_tags(['CrossQ', 'SAC-CrossQ'], super().collect_tags())
 
     def _build_target(self):
         # target_critic is not used by CrossQ

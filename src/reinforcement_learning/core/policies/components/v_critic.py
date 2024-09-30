@@ -21,7 +21,7 @@ class VCritic(BasePolicyComponent):
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
-            'network': self.get_hps_or_str(self.network),
+            'network': self.get_hps_or_repr(self.network),
         })
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:

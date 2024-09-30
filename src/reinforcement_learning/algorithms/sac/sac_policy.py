@@ -47,7 +47,7 @@ class SACPolicy(BasePolicy):
         })
 
     def collect_tags(self) -> Tags:
-        return super().collect_tags() + self.critic.collect_tags()
+        return self.combine_tags(super().collect_tags(), self.critic.collect_tags())
 
     def _check_action_selector(self):
         if not isinstance(self.actor.action_selector, (PredictedStdActionSelector, StateDependentNoiseActionSelector)):

@@ -33,6 +33,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
             num_envs: int,
             obs_shape: tuple[int, ...],
             action_shape: tuple[int, ...],
+            reward_scale: float,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
@@ -42,6 +43,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
+            reward_scale=reward_scale,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -76,7 +78,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
         assert not self.full
 
         self.observations[self.pos] = observations
-        self.rewards[self.pos] = rewards
+        self.rewards[self.pos] = self.scale_rewards(rewards)
         self.episode_starts[self.pos] = episode_starts
 
         self.actions[self.pos] = actions.cpu().numpy()

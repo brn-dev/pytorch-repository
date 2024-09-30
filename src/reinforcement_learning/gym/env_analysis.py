@@ -1,7 +1,10 @@
+import warnings
 from typing import Union
 
 from gymnasium import Env, spaces
 from gymnasium.vector import VectorEnv
+
+from src.utils import deep_equals
 
 
 def is_vector_env(env: Env) -> bool:
@@ -78,14 +81,34 @@ def get_action_shape(env: Env) -> tuple[int, ...]:
         raise NotImplementedError(f"{action_space} action space is not supported")
 
 def get_unique_env_ids(env: VectorEnv) -> list[str]:
-    return list(set([s.id for s in env.get_attr('spec')]))
+    with warnings.catch_warnings(action='ignore'):
+        return list(set([s.id for s in env.get_attr('spec')]))
 
 IMPORTANT_SPEC_ATTRIBUTES = ['id', 'kwargs', 'max_episode_steps', 'additional_wrappers']
-def get_env_specs(env: VectorEnv):
-    return [
-        {
-            attr: getattr(s, attr)
-            for attr in IMPORTANT_SPEC_ATTRIBUTES
-        }
-        for s in env.get_attr('spec')
-    ]
+def get_unique_env_specs(env: VectorEnv) -> list[dict]:
+    collected_specs_with_count: list[list[dict | int]] = []
+
+    with warnings.catch_warnings(action='ignore'):
+        specs = env.get_attr('spec')
+
+    for spec in specs:
+        spec = spec.__dict__
+        duplicate = False
+
+        for collected_spec_with_count in collected_specs_with_count:
+            if deep_equals(spec, collected_spec_with_count[0]):
+                collected_spec_with_count[1] += 1
+                duplicate = True
+                break
+
+        if not duplicate:
+            collected_specs_with_count.append([spec, 1])
+
+    unique_specs: list[dict] = []
+
+    for collected_spec, count in collected_specs_with_count:
+        new_spec = {'_count': count}  # putting count to the front of the dict
+        new_spec.update(collected_spec)
+        unique_specs.append(new_spec)
+
+    return unique_specs

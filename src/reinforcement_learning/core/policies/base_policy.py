@@ -27,7 +27,7 @@ class BasePolicy(BasePolicyComponent):
         })
 
     def collect_tags(self) -> Tags:
-        return super().collect_tags() + self.actor.collect_tags()
+        return self.combine_tags(super().collect_tags(), self.actor.collect_tags())
 
     @property
     def shared_feature_extractor(self):

@@ -55,7 +55,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'gae_lambda': self.gae_lambda,
-            'policy_optimizer': str(self.policy_optimizer),
+            'policy_optimizer': self.get_optimizer_hps(self.policy_optimizer),
         })
 
     def rollout_step(

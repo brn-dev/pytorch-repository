@@ -3,6 +3,7 @@ import os
 from typing import TypedDict, Optional, Any
 
 from src.hyper_parameters import HyperParameters
+from src.scientific_float_json_encoder import ScientificFloatJsonEncoder
 
 DEFAULT_CATEGORY_KEY = '__default'
 
@@ -24,14 +25,17 @@ class ExperimentLog(TypedDict):
     end_time: Optional[str]
     end_exception: Optional[str]
 
-    model_db_reference: Optional[ModelDBReference]
-
     hyper_parameters: HyperParameters
     system_info: dict[str, Any]
     setup: dict[str, str]
     notes: list[str]
+    model_db_references: list[ModelDBReference]
 
     logs_by_category: dict[str, list[ExperimentLogItem]]
+
+
+def get_log_items(log: ExperimentLog, category: str = DEFAULT_CATEGORY_KEY):
+    return log['logs_by_category'][category]
 
 
 def load_experiment_log(file_path: str) -> ExperimentLog:
@@ -42,10 +46,25 @@ def load_experiment_log(file_path: str) -> ExperimentLog:
 def save_experiment_log(
         file_path: str,
         log: ExperimentLog,
-        indent: Optional[int] = None
+        indent: Optional[int] = None,
+        float_precision: Optional[int] = 4,
 ):
     dir_name = os.path.dirname(file_path)
     os.makedirs(dir_name, exist_ok=True)
 
+
     with open(file_path, 'w') as file:
-        json.dump(log, file, indent=indent if indent is not None else None)
+        if float_precision is None:
+            json.dump(
+                obj=log,
+                fp=file,
+                indent=indent if indent is not None else None,
+            )
+        else:
+            json.dump(
+                obj=log,
+                fp=file,
+                indent=indent if indent is not None else None,
+                cls=ScientificFloatJsonEncoder,
+                decimal_precision=float_precision
+            )
