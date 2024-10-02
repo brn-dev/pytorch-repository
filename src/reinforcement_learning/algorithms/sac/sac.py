@@ -26,7 +26,7 @@ from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.tags import Tags
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
-from src.utils import func_repr
+from src.repr_utils import func_repr
 
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.AdamW(params, lr=3e-4, weight_decay=1e-4)
 AUTO_TARGET_ENTROPY = 'auto'
@@ -80,7 +80,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             reward_scale: float = 1.0,
             gamma: float = 0.99,
             tau: float = 0.005,
-            rollout_steps: int = 100,
+            rollout_steps: int = 1,
             gradient_steps: int = 1,
             optimization_batch_size: int = 256,
             target_update_interval: int = 1,
@@ -152,9 +152,9 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             'actor_optimizer': self.get_optimizer_hps(self.actor_optimizer),
             'critic_optimizer': self.get_optimizer_hps(self.critic_optimizer),
             'entropy_coef_optimizer': self.maybe_get_optimizer_hps(self.entropy_coef_optimizer),
-            'weigh_and_reduce_entropy_coef_loss': func_repr(self.weigh_and_reduce_entropy_coef_loss),
-            'weigh_and_reduce_actor_loss': func_repr(self.weigh_and_reduce_actor_loss),
-            'weigh_critic_loss': func_repr(self.weigh_critic_loss),
+            'weigh_and_reduce_entropy_coef_loss': self.maybe_get_func_repr(self.weigh_and_reduce_entropy_coef_loss),
+            'weigh_and_reduce_actor_loss': self.get_func_repr(self.weigh_and_reduce_actor_loss),
+            'weigh_critic_loss': self.get_func_repr(self.weigh_critic_loss),
             'target_update_interval': self.target_update_interval,
             'target_entropy': self.target_entropy,
             'entropy_coef': self.entropy_coef_tensor.item() if self.entropy_coef_tensor is not None else 'dynamic',

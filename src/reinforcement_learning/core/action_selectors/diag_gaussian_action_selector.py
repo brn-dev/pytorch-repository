@@ -1,10 +1,12 @@
 import math
 from typing import Optional, Self, Callable
 
+import numpy as np
 import torch
 import torch.distributions as torchdist
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 
@@ -26,6 +28,7 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
             action_dim=action_dim,
             action_net_initialization=action_net_initialization,
         )
+        self.std_learnable = std_learnable
 
         self.log_stds = nn.Parameter(
             torch.ones((self.action_dim,)) * math.log(std),
@@ -33,6 +36,12 @@ class DiagGaussianActionSelector(ContinuousActionSelector):
         )
 
         self.distribution: Optional[torchdist.Normal] = None
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'std': np.exp(self.log_stds[0].item()),
+            'std_learnable': self.std_learnable
+        })
 
     def update_distribution_params(self, means: torch.Tensor, log_stds: torch.Tensor) -> Self:
         self.distribution = torchdist.Normal(loc=means, scale=torch.exp(log_stds))

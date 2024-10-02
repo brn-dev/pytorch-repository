@@ -6,6 +6,7 @@ import torch.distributions as torchdist
 from overrides import override
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
@@ -37,6 +38,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             action_dim=action_dim,
             action_net_initialization=action_net_initialization,
         )
+        self.initial_std = initial_std
 
         self.use_individual_action_stds = use_individual_action_stds
         if self.use_individual_action_stds:
@@ -53,14 +55,26 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
         self.latent_pi: Optional[torch.Tensor] = None
 
         assert clip_mean >= 0.0
-        self.clip_mean = clip_mean
+        self.clip_mean = clip_mean if clip_mean > 0 else None
 
         self.epsilon = epsilon
 
+        self.squash_output = squash_output
         if squash_output:
             self.output_bijector = TanhBijector(epsilon)
         else:
             self.output_bijector = None
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'initial_std': self.initial_std,
+            'use_individual_action_stds': self.use_individual_action_stds,
+            'use_stds_expln': self.use_stds_expln,
+            'squash_output': self.squash_output,
+            'learn_sde_features': self.learn_sde_features,
+            'clip_mean': 0 if self.clip_mean is None else self.clip_mean,
+            'epsilon': self.epsilon,
+        })
 
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
@@ -82,7 +96,7 @@ class StateDependentNoiseActionSelector(ContinuousActionSelector):
             variance = torch.mm(flat_latent_pi ** 2, self.get_stds(self.log_stds) ** 2)
             variance = variance.reshape(batch_shape + (self.action_dim,))
 
-        if self.clip_mean > 0.0:
+        if self.clip_mean is not None:
             mean_actions = nn.functional.hardtanh(mean_actions, -self.clip_mean, self.clip_mean)
 
         self.distribution = torchdist.Normal(mean_actions, torch.sqrt(variance + self.epsilon))

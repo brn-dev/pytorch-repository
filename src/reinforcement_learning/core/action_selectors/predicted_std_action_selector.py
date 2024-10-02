@@ -1,11 +1,13 @@
 import math
 from typing import Optional, Self
 
+import numpy as np
 import torch
 import torch.distributions as torchdist
 from overrides import override
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.continuous_action_selector import ContinuousActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
@@ -36,10 +38,11 @@ class PredictedStdActionSelector(ContinuousActionSelector):
         )
 
         self.log_std_net = nn.Linear(latent_dim, action_dim)
+        self.log_std_net_initialization = log_std_net_initialization
         if log_std_net_initialization is not None:
             log_std_net_initialization(self.log_std_net)
 
-        self.base_log_std = math.log(base_std)
+        self.base_log_std = math.log(base_std) if base_std != 1 else None
         self.log_std_clamp_range = log_std_clamp_range
 
         self.squash_output = squash_output
@@ -49,10 +52,21 @@ class PredictedStdActionSelector(ContinuousActionSelector):
 
         self._last_gaussian_actions: Optional[torch.Tensor] = None
 
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'base_std': np.exp(self.base_log_std) if self.base_log_std is not None else 1.0,
+            'squash_output': self.squash_output,
+            'epsilon': self.epsilon,
+            'log_std_clamp_range': self.log_std_clamp_range,
+            'log_std_net_initialization': self.maybe_get_func_repr(self.log_std_net_initialization),
+        })
+
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         mean_actions = self.action_net(latent_pi)
-        log_stds = self.log_std_net(latent_pi) + self.base_log_std
+        log_stds = self.log_std_net(latent_pi)
+        if self.base_log_std is not None:
+            log_stds = log_stds + self.base_log_std
         return self.update_distribution_params(mean_actions, log_stds)
 
     def update_distribution_params(

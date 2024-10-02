@@ -33,8 +33,8 @@ class Actor(BasePolicyComponent):
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
-            'network': self.get_hps_or_repr(self.network),
-            'action_selector': self.get_hps_or_repr(self._action_selector),
+            'network': self.get_module_hps(self.network),
+            'action_selector': self._action_selector.collect_hyper_parameters(),
         })
 
     def forward(self, obs: TensorObs) -> ActionSelector:

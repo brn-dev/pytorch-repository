@@ -1,8 +1,6 @@
 import sys
 import traceback
 from typing import Any, TypeVar, Optional, Callable
-import re
-import inspect
 
 T = TypeVar('T')
 
@@ -64,7 +62,7 @@ def deep_equals(a, b):
         return a == b
 
 
-def dict_diff(dict1, dict2):
+def dict_diff(dict1: dict, dict2: dict):
     result = {}
     all_keys = set(dict1.keys()).union(dict2.keys())
     for key in all_keys:
@@ -84,7 +82,7 @@ def dict_diff(dict1, dict2):
     return result
 
 
-def list_diff(list1, list2):
+def list_diff(list1: list, list2: list):
     result = []
     differences_found = False
     max_len = max(len(list1), len(list2))
@@ -110,46 +108,3 @@ def list_diff(list1, list2):
     return result if differences_found else None
 
 
-def func_repr(f: Callable) -> str:
-    if f.__name__ == '<lambda>':
-        return lambda_repr_from_source(f)
-    return re.sub(' at 0x[^>]*', '', repr(f))
-
-
-def lambda_repr_from_source(lambda_: Callable):
-    try:
-        # Get the source code of the lambda function
-        source = inspect.getsource(lambda_)
-    except OSError:
-        return "<Source code not available>"
-
-    # Remove leading and trailing whitespace
-    source = source.strip()
-
-    # Find the index where 'lambda' starts
-    lambda_index = source.find('lambda')
-    if lambda_index == -1:
-        return "<Not a lambda function>"
-
-    # Extract the substring starting from 'lambda'
-    lambda_str = source[lambda_index:]
-
-    # Define a regex pattern to match the lambda expression
-    pattern = r'^lambda\s*(?P<params>[^:]*):\s*(?P<body>.*)(,|\)|$)'
-    match = re.match(pattern, lambda_str, re.DOTALL)
-
-    if match:
-        params = match.group('params').strip()
-        body = match.group('body').strip()
-
-        # Remove enclosing parentheses if they exist
-        if body.startswith('(') and body.endswith(')'):
-            body = body[1:-1].strip()
-
-        # Return the formatted representation
-        if len(params) == 0:
-            return f'lambda: {body}'
-        else:
-            return f'lambda {params}: {body}'
-    else:
-        return "<Could not parse lambda>"

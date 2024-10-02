@@ -3,17 +3,32 @@ from typing import Any, Optional, Union, Callable
 
 from torch import nn, optim
 
+from src.repr_utils import func_repr
+from src.torch_nn_modules import is_nn_activation_module
 from src.torch_utils import get_lr
 from src.utils import get_fully_qualified_class_name
 
 HyperParameters = dict[str, Any]
 
+TYPE_KEY = '_type'
+FQ_TYPE_KEY = '_type_fq'
+
+
 class HasHyperParameters(abc.ABC):
 
     def collect_hyper_parameters(self) -> HyperParameters:
+        return HasHyperParameters.get_type_hps(self)
+
+    #
+    # making static methods instead of function so one doesn't have to import them manually
+    # TODO: pull out as separate functions and alias
+    #
+
+    @staticmethod
+    def get_type_hps(obj: Any) -> HyperParameters:
         return {
-            '_type': type(self).__name__,
-            '_type_fq': get_fully_qualified_class_name(self)
+            TYPE_KEY: type(obj).__name__,
+            FQ_TYPE_KEY: get_fully_qualified_class_name(obj)
         }
 
     @staticmethod
@@ -26,10 +41,15 @@ class HasHyperParameters(abc.ABC):
         return hyper_parameters
 
     @staticmethod
-    def get_hps_or_repr(obj: Union['HasHyperParameters', nn.Module]) -> HyperParameters | str:
-        if isinstance(obj, HasHyperParameters):
-            return obj.collect_hyper_parameters()
-        return repr(obj)
+    def maybe_get_func_repr(f: Optional[Callable]) -> Optional[str]:
+        if f is None:
+            return None
+
+        return func_repr(f)
+
+    @staticmethod
+    def get_func_repr(f: Callable) -> str:
+        return func_repr(f)
 
     @staticmethod
     def maybe_get_optimizer_hps(optimizer: Optional[optim.Optimizer]) -> Optional[HyperParameters]:
@@ -39,10 +59,7 @@ class HasHyperParameters(abc.ABC):
 
     @staticmethod
     def get_optimizer_hps(optimizer: optim.Optimizer) -> HyperParameters:
-        hps: HyperParameters = {
-            '_type': type(optimizer).__name__,
-            '_type_fq': get_fully_qualified_class_name(optimizer)
-        }
+        hps: HyperParameters = HasHyperParameters.get_type_hps(optimizer)
 
         if isinstance(optimizer, (optim.SGD, optim.Adam, optim.AdamW)):
             hps['lr'] = get_lr(optimizer)
@@ -67,6 +84,35 @@ class HasHyperParameters(abc.ABC):
 
         hps['repr'] = repr(optimizer)
         return hps
+
+    @staticmethod
+    def get_module_hps(module: Union['HasHyperParameters', nn.Module], add_repr: bool = True) -> HyperParameters:
+        hps = HasHyperParameters.get_type_hps(module)
+        known_type = True
+        if isinstance(module, HasHyperParameters):
+            hps = HasHyperParameters.update_hps(hps, module.collect_hyper_parameters())
+        elif isinstance(module, nn.Linear):
+            hps = HasHyperParameters.update_hps(hps, {
+                'in_features': module.in_features,
+                'out_features': module.out_features,
+                'bias': module.bias is not None,
+            })
+        elif isinstance(module, nn.Sequential):
+            hps = HasHyperParameters.update_hps(hps, {
+                'num_layers': len(module),
+                'layers': [
+                    HasHyperParameters.get_module_hps(layer, add_repr=False)
+                    for layer in module
+                ]
+            })
+        else:
+            known_type = False
+
+        if not known_type or add_repr:
+            hps['repr'] = repr(module)
+
+        return hps
+
 
 
 

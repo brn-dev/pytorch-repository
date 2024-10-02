@@ -6,12 +6,15 @@ import torch
 import torch.distributions as torchdist
 from torch import nn
 
+from src.hyper_parameters import HasHyperParameters, HyperParameters
+from src.tags import HasTags
+
 SelfActionDistribution = TypeVar('SelfActionDistribution', bound='ActionDistribution')
 
 ActionNetInitialization = Callable[[nn.Linear], None]
 
 
-class ActionSelector(nn.Module, abc.ABC):
+class ActionSelector(nn.Module, HasHyperParameters, HasTags, abc.ABC):
 
     def __init__(
             self,
@@ -23,6 +26,8 @@ class ActionSelector(nn.Module, abc.ABC):
         self.latent_dim = latent_dim
         self.action_dim = action_dim
 
+        self.action_net_initialization = action_net_initialization
+
         if latent_dim == action_dim:
             self.action_net = nn.Identity()
         else:
@@ -32,6 +37,13 @@ class ActionSelector(nn.Module, abc.ABC):
                 action_net_initialization(self.action_net)
 
         self.distribution: Optional[torchdist.Distribution] = None
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'latent_dim': self.latent_dim,
+            'action_dim': self.action_dim,
+            'action_net_initialization': self.maybe_get_func_repr(self.action_net_initialization)
+        })
 
     @abc.abstractmethod
     def update_latent_features(self: SelfActionDistribution, latent_pi: torch.Tensor) -> SelfActionDistribution:

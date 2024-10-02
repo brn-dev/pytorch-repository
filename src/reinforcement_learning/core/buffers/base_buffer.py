@@ -45,9 +45,9 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
-            'buffer_size': self.buffer_size,
+            'step_size': self.buffer_size,
             'num_envs': self.num_envs,
-            'total_buffer_size': self.buffer_size * self.num_envs,
+            'total_size': self.buffer_size * self.num_envs,
             'reward_scale': self.reward_scale,
             'torch_device': str(self.torch_device),
             'torch_dtype': str(self.torch_dtype),

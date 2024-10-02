@@ -32,7 +32,7 @@ class QCritic(BasePolicyComponent):
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'n_critics': self.n_critics,
-            'q_network': self.get_hps_or_repr(self.q_networks[0]),
+            'q_network': self.get_module_hps(self.q_networks[0]),
         })
 
     def forward(self, obs: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, ...]:

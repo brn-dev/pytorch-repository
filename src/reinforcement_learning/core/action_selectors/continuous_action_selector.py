@@ -5,6 +5,7 @@ import torch
 import torch.distributions as torchdist
 
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector, ActionNetInitialization
+from src.tags import Tags
 
 
 class ContinuousActionSelector(ActionSelector, abc.ABC):
@@ -22,6 +23,9 @@ class ContinuousActionSelector(ActionSelector, abc.ABC):
         )
 
         self.distribution: Optional[torchdist.Distribution] = None
+
+    def collect_tags(self) -> Tags:
+        return self.combine_tags(super().collect_tags(), ['Continuous Action Space'])
 
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
         action_means = self.action_net(latent_pi)

@@ -4,6 +4,7 @@ import torch
 from overrides import override
 from torch import nn
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionNetInitialization
 from src.reinforcement_learning.core.action_selectors.diag_gaussian_action_selector import DiagGaussianActionSelector
 from src.reinforcement_learning.core.action_selectors.tanh_bijector import TanhBijector
@@ -32,6 +33,11 @@ class SquashedDiagGaussianActionSelector(DiagGaussianActionSelector):
 
         self.epsilon = epsilon
         self._last_gaussian_actions: Optional[torch.Tensor] = None
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'epsilon': self.epsilon,
+        })
 
     @override
     def update_latent_features(self, latent_pi: torch.Tensor) -> Self:
