@@ -70,6 +70,8 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         self.torch_device = get_torch_device(torch_device)
         self.torch_dtype = torch_dtype
 
+        self.steps_performed = 0
+
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'env': str(self.env),
@@ -110,7 +112,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
             obs: np.ndarray,
             episode_starts: np.ndarray,
             info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         raise NotImplementedError
 
     # noinspection PyMethodMayBeStatic
@@ -122,26 +124,24 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         obs, _ = self.env.reset()
         episode_starts = np.ones(self.num_envs, dtype=bool)
 
-        step = 0
-        while step < total_timesteps:
+        while self.steps_performed < total_timesteps:
             info: InfoDict = {}
 
             self.policy.set_train_mode(False)
             with torch.no_grad():
-                steps_performed, obs, episode_starts = self.perform_rollout(
-                    max_steps=total_timesteps - step,
+                obs, episode_starts = self.perform_rollout(
+                    max_steps=total_timesteps - self.steps_performed,
                     obs=obs,
                     episode_starts=episode_starts,
                     info=info
                 )
-            step += steps_performed
-            self.callback.on_rollout_done(self, step, info)
+            self.callback.on_rollout_done(self, self.steps_performed, info)
 
             if self._should_optimize():
                 self.policy.set_train_mode(True)
                 self.optimize(obs, episode_starts, info)
 
-                self.callback.on_optimization_done(self, step, info)
+                self.callback.on_optimization_done(self, self.steps_performed, info)
 
         return self
 

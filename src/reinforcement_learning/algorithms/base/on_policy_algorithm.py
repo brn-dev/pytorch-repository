@@ -89,18 +89,19 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             obs: np.ndarray,
             episode_starts: np.ndarray,
             info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         self.buffer.reset()
         self.policy.reset_sde_noise(self.num_envs)
 
         infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
-        step = 0
-        for step in range(min(self.buffer.buffer_size, max_steps)):
-            if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
+        for _ in range(min(self.buffer.buffer_size, max_steps)):
+            if self.sde_noise_sample_freq is not None and self.steps_performed % self.sde_noise_sample_freq == 0:
                 self.policy.reset_sde_noise(self.num_envs)
 
             obs, episode_starts, step_info = self.rollout_step(obs, episode_starts)
             infos.append(step_info)
+
+            self.steps_performed += 1
 
         if self.logging_config.log_rollout_infos:
             info['rollout'] = stack_infos(infos)
@@ -109,4 +110,4 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             info['last_obs'] = obs
             info['last_episode_starts'] = episode_starts
 
-        return step + 1, obs, episode_starts
+        return obs, episode_starts

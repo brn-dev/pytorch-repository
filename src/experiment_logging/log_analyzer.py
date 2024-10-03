@@ -135,7 +135,7 @@ class LogAnalyzer:
 
             xs = list(points.keys())
 
-            line = ax.plot(xs, means, label=group, **mean_plot_kwargs)[0]
+            line = ax.plot(xs, means, label=f'({len(group_logs)}x) {group}', **mean_plot_kwargs)[0]
             ax.fill_between(xs, mins, maxs, **fill_plot_kwargs)
 
             if plot_individual:

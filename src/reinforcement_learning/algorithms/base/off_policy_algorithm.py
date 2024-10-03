@@ -31,7 +31,6 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             gradient_steps: int,
             optimization_batch_size: int,
             action_noise: Optional[ActionNoise],
-            warmup_steps: int,
             learning_starts: int,
             sde_noise_sample_freq: Optional[int],
             callback: Callback,
@@ -61,11 +60,8 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         self.optimization_batch_size = optimization_batch_size
 
         self.action_noise = action_noise
-        self.warmup_steps = warmup_steps
 
         self.learning_starts = learning_starts
-
-        self.steps_performed = 0
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
@@ -74,7 +70,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             'gradient_steps': self.gradient_steps,
             'optimization_batch_size': self.optimization_batch_size,
             'action_noise': self.action_noise,
-            'warmup_steps': self.warmup_steps,
+            'learning_starts': self.learning_starts,
         })
 
     def _on_step(self):
@@ -84,7 +80,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         return self.steps_performed >= self.learning_starts
 
     def sample_actions(self, obs: np.ndarray, info: InfoDict):
-        if self.steps_performed < self.warmup_steps:
+        if self.steps_performed < self.learning_starts:
             actions = np.array([self.action_space.sample() for _ in range(self.num_envs)])
         else:
             action_selector = self.policy.act(
@@ -138,7 +134,6 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
 
         self._on_step()
 
-        self.steps_performed += 1
         return new_obs, np.logical_or(terminated, truncated), info
 
     def perform_rollout(
@@ -147,14 +142,13 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             obs: np.ndarray,
             episode_starts: np.ndarray,
             info: InfoDict
-    ) -> tuple[int, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         self.policy.reset_sde_noise(self.num_envs)
 
         rollout_infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
-        step = 0
 
-        for step in range(min(self.rollout_steps, max_steps)):
-            if self.sde_noise_sample_freq is not None and step % self.sde_noise_sample_freq == 0:
+        for _ in range(min(self.rollout_steps, max_steps)):
+            if self.sde_noise_sample_freq is not None and self.steps_performed % self.sde_noise_sample_freq == 0:
                 self.policy.reset_sde_noise(self.num_envs)
 
             obs, episode_starts, step_info = self.rollout_step(obs)
@@ -163,6 +157,8 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             if np.any(episode_starts) and self.action_noise is not None:
                 self.action_noise.reset(np.where(episode_starts)[0])
 
+            self.steps_performed += 1
+
         if self.logging_config.log_rollout_infos:
             info['rollout'] = stack_infos(rollout_infos)
 
@@ -170,4 +166,4 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             info['last_obs'] = obs
             info['last_episode_starts'] = episode_starts
 
-        return step + 1, obs, episode_starts
+        return obs, episode_starts

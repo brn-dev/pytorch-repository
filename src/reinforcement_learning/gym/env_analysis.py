@@ -102,6 +102,8 @@ def get_unique_env_specs(env: VectorEnv) -> list[dict]:
                 break
 
         if not duplicate:
+            if (wrapper_specs := spec.get('additional_wrappers')) is not None:
+                spec['additional_wrappers'] = tuple(str(wrapper_spec) for wrapper_spec in wrapper_specs)
             collected_specs_with_count.append([spec, 1])
 
     unique_specs: list[dict] = []

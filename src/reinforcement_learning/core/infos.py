@@ -47,7 +47,7 @@ def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'c
                     case _:
                         raise ValueError(combination_method)
             else:
-                raise ValueError
+                raise ValueError(values[0])
 
     return stacked_info
 

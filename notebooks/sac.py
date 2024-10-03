@@ -143,6 +143,6 @@ def wrap_env(env_: 'gymnasium.vector.VectorEnv', hyper_parameters: dict[str, 'An
     from src.np_functions import symmetric_log
 
 
-    env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)
-    env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)
+    # env_ = TransformRewardWrapper(env_, lambda reward_: 1 * reward_)
+    # env_ = RescaleAction(env_, min_action=-1.0, max_action=1.0)
     return env_

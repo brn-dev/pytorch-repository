@@ -156,6 +156,23 @@ def log_experiment(
         notes=notes,
         model_db_references=model_db_references,
     )
+    with end_experiment_on_exit(experiment_logger, on_end=on_end):
+        yield experiment_logger
+
+@contextmanager
+def save_experiment_on_exit(experiment_logger: ExperimentLogger):
+    try:
+        yield experiment_logger
+    except Exception as e:
+        raise e
+    finally:
+        experiment_logger.save_experiment_log()
+
+@contextmanager
+def end_experiment_on_exit(
+        experiment_logger: ExperimentLogger,
+        on_end: Callable[[ExperimentLog], dict[str, Any]] = lambda _: {}
+):
     exception_str: Optional[str] = None
     try:
         yield experiment_logger
