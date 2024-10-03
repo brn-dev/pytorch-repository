@@ -6,7 +6,9 @@ from itertools import groupby
 from typing import Callable, Any, Optional, Iterable
 
 import matplotlib.axes
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 
 from src.experiment_logging.experiment_log import ExperimentLog, ExperimentLogItem, DEFAULT_CATEGORY_KEY, \
     load_experiment_log, get_log_items
@@ -135,7 +137,13 @@ class LogAnalyzer:
 
             xs = list(points.keys())
 
-            line = ax.plot(xs, means, label=f'({len(group_logs)}x) {group}', **mean_plot_kwargs)[0]
+            mean_line = self._plot(
+                x=xs,
+                y=means,
+                ax=ax,
+                label=f'({len(group_logs)}x) {group}',
+                **mean_plot_kwargs
+            )[0]
             ax.fill_between(xs, mins, maxs, **fill_plot_kwargs)
 
             if plot_individual:
@@ -145,7 +153,7 @@ class LogAnalyzer:
                     get_y=get_y,
                     ax=ax,
                     category=category,
-                    color=line.get_color(),
+                    color=mean_line.get_color(),
                     **individual_plot_kwargs
                 )
 
@@ -182,6 +190,8 @@ class LogAnalyzer:
             get_label: Callable[[ExperimentLog], str] = lambda log: None,
             category: str = DEFAULT_CATEGORY_KEY,
             item_filter: Callable[[ExperimentLogItem], bool] = lambda item: True,
+            moving_average_window_size: Optional[int] = None,
+            moving_average_plot_kwargs: dict[str, Any] = None,
             **plot_kwargs,
     ):
         for log in logs:
@@ -190,8 +200,41 @@ class LogAnalyzer:
             x = np.array([get_x(item) for item in log_items])
             y = np.array([get_y(item) for item in log_items])
 
-            ax.plot(x, y, label=get_label(log), **plot_kwargs)
+            LogAnalyzer._plot(
+                x=x, y=y, ax=ax,
+                label=get_label(log),
+                moving_average_window_size=moving_average_window_size,
+                moving_average_plot_kwargs=moving_average_plot_kwargs,
+                **plot_kwargs
+            )
 
+    @staticmethod
+    def _plot(
+            x: np.ndarray | list[float],
+            y: np.ndarray | list[float],
+            ax: plt.Axes,
+            label: Optional[str] = None,
+            moving_average_window_size: Optional[int] = None,
+            moving_average_plot_kwargs: dict[str, Any] = None,
+            **plot_kwargs
+    ):
+
+        plot_line = ax.plot(x, y, label=label, **plot_kwargs)[0]
+        lines: list[Line2D] = [plot_line]
+
+        if moving_average_window_size is not None:
+            cumsum_vec = np.cumsum(np.insert(y, 0, 0))
+            ma_vec = (
+                        cumsum_vec[moving_average_window_size:] - cumsum_vec[:-moving_average_window_size]
+                     ) / moving_average_window_size
+            lines.append(ax.plot(
+                x[moving_average_window_size - 1:],
+                ma_vec,
+                color=plot_line.get_color(),
+                **(moving_average_plot_kwargs or {})
+            )[0])
+
+        return lines
 
     @staticmethod
     def get_log_items(log: ExperimentLog, category: str = DEFAULT_CATEGORY_KEY):
