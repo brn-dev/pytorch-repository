@@ -43,30 +43,16 @@ class DictReplayBuffer(BaseReplayBuffer):
         }
         self.obs_keys = set(self.obs_shape.keys())
 
-    def add(
+    def _add_obs(
         self,
         observations: NpArrayDict,
         next_observations: NpArrayDict,
-        actions: np.ndarray,
-        rewards: np.ndarray,
-        dones: np.ndarray,
     ) -> None:
         for key in self.obs_keys:
             self.observations[key][self.pos] = observations[key]
             self.next_observations[key][self.pos] = next_observations[key]
 
-        self._add(
-            actions=actions,
-            rewards=rewards,
-            dones=dones,
-        )
-
-    def sample(self, batch_size: int) -> ReplayBufferSamples:
-        env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
-        step_indices = np.random.choice(self.size, batch_size)
-        return self.get_batch(step_indices, env_indices)
-
-    def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
+    def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         obs = {key: self.to_torch(_obs[step_indices, env_indices, :]) for key, _obs in self.observations.items()}
         next_obs = {
             key: self.to_torch(_next_obs[step_indices, env_indices, :])

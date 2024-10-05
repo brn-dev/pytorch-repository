@@ -1,3 +1,5 @@
+from typing import override
+
 import numpy as np
 import torch
 
@@ -43,36 +45,25 @@ class ReplayBuffer(BaseReplayBuffer):
             'optimize_memory_usage': self.optimize_memory_usage,
         })
 
-    def add(
+    def _add_obs(
         self,
         observations: np.ndarray,
         next_observations: np.ndarray,
-        actions: np.ndarray,
-        rewards: np.ndarray,
-        dones: np.ndarray,
     ) -> None:
         self.observations[self.pos] = observations
 
-        # TODO: using this simple logic when optimize_memory_usage=True stores and samples the transition
-        # TODO: last obs before terminal -> first obs of new episode
-        # TODO: which preferably should not happen
         if self.optimize_memory_usage:
             self.observations[(self.pos + 1) % self.buffer_size] = next_observations
         else:
             self.next_observations[self.pos] = next_observations
 
-        self._add(
-            actions=actions,
-            rewards=rewards,
-            dones=dones,
-        )
-
+    @override
     def sample(self, batch_size: int) -> ReplayBufferSamples:
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
 
         if not self.optimize_memory_usage:
             step_indices = np.random.choice(self.size, batch_size)
-            return self.get_batch(step_indices, env_indices)
+            return self._get_batch(step_indices, env_indices)
 
         # Do not sample the element with index `self.pos` as the transitions is invalid
         # (we use only one array to store `obs` and `next_obs`)
@@ -83,9 +74,9 @@ class ReplayBuffer(BaseReplayBuffer):
         else:
             step_indices = np.random.choice(self.pos, batch_size)
 
-        return self.get_batch(step_indices, env_indices)
+        return self._get_batch(step_indices, env_indices)
 
-    def get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
+    def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         if self.optimize_memory_usage:
             next_obs = self.observations[(step_indices + 1) % self.buffer_size, env_indices, :]
         else:

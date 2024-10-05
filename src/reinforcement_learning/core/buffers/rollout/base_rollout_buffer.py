@@ -10,6 +10,7 @@ from src.reinforcement_learning.core.normalization import NormalizationType
 from src.reinforcement_learning.core.type_aliases import NpObs
 
 
+# TODO
 class BaseRolloutBuffer(BaseBuffer[BufferSamples], abc.ABC):
 
     rewards: np.ndarray

@@ -48,7 +48,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
         # TODO: maybe introduce truncation logic
         # https://github.com/DLR-RM/stable-baselines3/blob/9a3b28bb9f24a1646479500fb23be55ba652a30d/stable_baselines3/common/buffers.py#L321
 
-    @abc.abstractmethod
+
     def add(
             self,
             observations: NpObs,
@@ -57,14 +57,8 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             rewards: np.ndarray,
             dones: np.ndarray,
     ) -> None:
-        raise NotImplementedError
+        self._add_obs(observations=observations, next_observations=next_observations)
 
-    def _add(
-            self,
-            actions: np.ndarray,
-            rewards: np.ndarray,
-            dones: np.ndarray
-    ):
         self.actions[self.pos] = actions
         self.rewards[self.pos] = self.scale_rewards(rewards)
         self.dones[self.pos] = dones
@@ -75,7 +69,20 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             self.pos = 0
 
     @abc.abstractmethod
+    def _add_obs(
+            self,
+            observations: NpObs,
+            next_observations: NpObs,
+    ) -> None:
+        raise NotImplementedError
+
     def sample(self, batch_size: int) -> ReplayBufferSamples:
+        env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
+        step_indices = np.random.choice(self.size, batch_size)
+        return self._get_batch(step_indices, env_indices)
+
+    @abc.abstractmethod
+    def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         raise NotImplementedError
 
     def tail_indices(self, tail_length: int):
