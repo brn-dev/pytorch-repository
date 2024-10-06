@@ -113,7 +113,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
 
         self.ppo_max_epochs = ppo_max_epochs
         self.ppo_kl_target = ppo_kl_target
-        self.ppo_batch_size = ppo_batch_size if ppo_batch_size is not None else self.buffer.buffer_size
+        self.ppo_batch_size = ppo_batch_size if ppo_batch_size is not None else self.buffer.step_size
 
         self.action_ratio_clip_range = action_ratio_clip_range
         self.value_function_clip_range_factor = value_function_clip_range_factor

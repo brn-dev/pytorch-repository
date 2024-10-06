@@ -7,7 +7,7 @@ from gymnasium.core import ObsType, ActType
 
 class TestEnv(gymnasium.Env):
 
-    def __init__(self, obs_size: int, dict_obs: bool, action_in_obs: int, episode_length: int):
+    def __init__(self, obs_size: int, dict_obs: bool, action_in_obs: bool, episode_length: int):
         self.counter = 0
 
         self.action_size = 2

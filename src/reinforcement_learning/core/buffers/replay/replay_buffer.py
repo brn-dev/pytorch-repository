@@ -1,7 +1,7 @@
-from typing import override
 
 import numpy as np
 import torch
+from overrides import override
 
 from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
@@ -12,7 +12,7 @@ class ReplayBuffer(BaseReplayBuffer):
 
     def __init__(
             self,
-            buffer_size: int,
+            step_size: int,
             num_envs: int,
             obs_shape: tuple[int, ...],
             action_shape: tuple[int, ...],
@@ -23,7 +23,7 @@ class ReplayBuffer(BaseReplayBuffer):
             np_dtype: np.dtype = np.float32,
     ):
         super().__init__(
-            buffer_size=buffer_size,
+            step_size=step_size,
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
@@ -35,9 +35,9 @@ class ReplayBuffer(BaseReplayBuffer):
 
         self.optimize_memory_usage = optimize_memory_usage
 
-        self.observations = np.zeros((self.buffer_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
+        self.observations = np.zeros((self.step_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
         if not optimize_memory_usage:
-            self.next_observations = np.zeros((self.buffer_size, self.num_envs, *obs_shape), dtype=self.np_dtype)
+            self.next_observations = np.zeros((self.step_size, self.num_envs, *obs_shape), dtype=self.np_dtype)
 
 
     def collect_hyper_parameters(self) -> HyperParameters:
@@ -53,7 +53,7 @@ class ReplayBuffer(BaseReplayBuffer):
         self.observations[self.pos] = observations
 
         if self.optimize_memory_usage:
-            self.observations[(self.pos + 1) % self.buffer_size] = next_observations
+            self.observations[(self.pos + 1) % self.step_size] = next_observations
         else:
             self.next_observations[self.pos] = next_observations
 
@@ -69,8 +69,8 @@ class ReplayBuffer(BaseReplayBuffer):
         # (we use only one array to store `obs` and `next_obs`)
         if self.full:
             step_indices = (
-               np.random.choice(self.buffer_size - 1, batch_size) + self.pos + 1
-            ) % self.buffer_size
+                                   np.random.choice(self.step_size - 1, batch_size) + self.pos + 1
+            ) % self.step_size
         else:
             step_indices = np.random.choice(self.pos, batch_size)
 
@@ -78,7 +78,7 @@ class ReplayBuffer(BaseReplayBuffer):
 
     def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
         if self.optimize_memory_usage:
-            next_obs = self.observations[(step_indices + 1) % self.buffer_size, env_indices, :]
+            next_obs = self.observations[(step_indices + 1) % self.step_size, env_indices, :]
         else:
             next_obs = self.next_observations[step_indices, env_indices, :]
 

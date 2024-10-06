@@ -29,7 +29,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
 
     def __init__(
             self,
-            buffer_size: int,
+            step_size: int,
             num_envs: int,
             obs_shape: tuple[int, ...],
             action_shape: tuple[int, ...],
@@ -39,7 +39,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
             np_dtype: np.dtype = np.float32,
     ):
         super().__init__(
-            buffer_size=buffer_size,
+            step_size=step_size,
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
@@ -49,16 +49,14 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
             np_dtype=np_dtype,
         )
 
-        self.observations = np.zeros((self.buffer_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
-        self.rewards = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
-        self.episode_starts = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
+        self.observations = np.zeros((self.step_size, self.num_envs, *self.obs_shape), dtype=self.np_dtype)
+        self.rewards = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
+        self.episode_starts = np.zeros((self.step_size, self.num_envs), dtype=bool)
 
-        self.actions = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
-        self.action_log_probs = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
+        self.actions = np.zeros((self.step_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
+        self.action_log_probs = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
 
-        self.value_estimates = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
-
-        self.reset()
+        self.value_estimates = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
 
     def reset(self):
         super().reset()
@@ -87,7 +85,7 @@ class RolloutBuffer(BaseRolloutBuffer[RolloutBufferSamples]):
         self.value_estimates[self.pos] = value_estimates.squeeze(-1).cpu().numpy()
 
         self.pos += 1
-        if self.pos == self.buffer_size:
+        if self.pos == self.step_size:
             self.full = True
 
     def get_samples(

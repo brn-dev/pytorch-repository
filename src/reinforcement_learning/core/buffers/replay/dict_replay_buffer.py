@@ -12,7 +12,7 @@ class DictReplayBuffer(BaseReplayBuffer):
 
     def __init__(
             self,
-            buffer_size: int,
+            step_size: int,
             num_envs: int,
             obs_shape: ShapeDict,
             action_shape: tuple[int, ...],
@@ -22,7 +22,7 @@ class DictReplayBuffer(BaseReplayBuffer):
             np_dtype: np.dtype = np.float32,
     ):
         super().__init__(
-            buffer_size=buffer_size,
+            step_size=step_size,
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
@@ -34,11 +34,11 @@ class DictReplayBuffer(BaseReplayBuffer):
         assert isinstance(self.obs_shape, dict), "DictReplayBuffer must be used with dict obs shape only"
 
         self.observations = {
-            key: np.zeros((self.buffer_size, self.num_envs, *_obs_shape), dtype=np_dtype)
+            key: np.zeros((self.step_size, self.num_envs, *_obs_shape), dtype=np_dtype)
             for key, _obs_shape in self.obs_shape.items()
         }
         self.next_observations = {
-            key: np.zeros((self.buffer_size, self.num_envs, *_obs_shape), dtype=np_dtype)
+            key: np.zeros((self.step_size, self.num_envs, *_obs_shape), dtype=np_dtype)
             for key, _obs_shape in self.obs_shape.items()
         }
         self.obs_keys = set(self.obs_shape.keys())

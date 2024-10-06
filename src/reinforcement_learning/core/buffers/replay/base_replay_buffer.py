@@ -20,7 +20,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
     def __init__(
             self,
-            buffer_size: int,
+            step_size: int,
             num_envs: int,
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
@@ -30,7 +30,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             np_dtype: np.dtype,
     ):
         super().__init__(
-            buffer_size=buffer_size,
+            step_size=step_size,
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
@@ -40,10 +40,10 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             np_dtype=np_dtype,
         )
 
-        self.actions = np.zeros((self.buffer_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
+        self.actions = np.zeros((self.step_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
 
-        self.rewards = np.zeros((self.buffer_size, self.num_envs), dtype=self.np_dtype)
-        self.dones = np.zeros((self.buffer_size, self.num_envs), dtype=bool)
+        self.rewards = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
+        self.dones = np.zeros((self.step_size, self.num_envs), dtype=bool)
 
         # TODO: maybe introduce truncation logic
         # https://github.com/DLR-RM/stable-baselines3/blob/9a3b28bb9f24a1646479500fb23be55ba652a30d/stable_baselines3/common/buffers.py#L321
@@ -64,7 +64,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
         self.dones[self.pos] = dones
 
         self.pos += 1
-        if self.pos == self.buffer_size:
+        if self.pos == self.step_size:
             self.full = True
             self.pos = 0
 

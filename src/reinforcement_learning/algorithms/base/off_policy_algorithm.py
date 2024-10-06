@@ -31,7 +31,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             gradient_steps: int,
             optimization_batch_size: int,
             action_noise: Optional[ActionNoise],
-            learning_starts: int,
+            warmup_steps: int,
             sde_noise_sample_freq: Optional[int],
             callback: Callback,
             logging_config: LogConf,
@@ -61,7 +61,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
 
         self.action_noise = action_noise
 
-        self.learning_starts = learning_starts
+        self.warmup_steps = warmup_steps
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
@@ -70,17 +70,17 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             'gradient_steps': self.gradient_steps,
             'optimization_batch_size': self.optimization_batch_size,
             'action_noise': self.action_noise,
-            'learning_starts': self.learning_starts,
+            'warmup_steps': self.warmup_steps,
         })
 
     def _on_step(self):
         pass
 
     def _should_optimize(self):
-        return self.steps_performed >= self.learning_starts
+        return self.steps_performed >= self.warmup_steps
 
     def sample_actions(self, obs: np.ndarray, info: InfoDict):
-        if self.steps_performed < self.learning_starts:
+        if self.steps_performed < self.warmup_steps:
             actions = np.array([self.action_space.sample() for _ in range(self.num_envs)])
         else:
             action_selector = self.policy.act(

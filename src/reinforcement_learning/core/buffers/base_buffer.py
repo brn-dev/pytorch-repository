@@ -16,9 +16,12 @@ BufferSamples = TypeVar('BufferSamples', bound=NamedTuple)
 
 class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
+    pos: int
+    full: bool
+
     def __init__(
             self,
-            buffer_size: int,
+            step_size: int,
             num_envs: int,
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
@@ -27,7 +30,7 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
     ):
-        self.buffer_size = buffer_size
+        self.step_size = step_size
         self.num_envs = num_envs
 
         self.obs_shape = obs_shape
@@ -40,14 +43,13 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
         self.np_dtype = np_dtype
 
-        self.pos = 0
-        self.full = False
+        self.reset()
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
-            'step_size': self.buffer_size,
+            'step_size': self.step_size,
             'num_envs': self.num_envs,
-            'total_size': self.buffer_size * self.num_envs,
+            'total_size': self.step_size * self.num_envs,
             'reward_scale': self.reward_scale,
             'torch_device': str(self.torch_device),
             'torch_dtype': str(self.torch_dtype),
@@ -60,7 +62,7 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
     @property
     def size(self):
-        return self.buffer_size if self.full else self.pos
+        return self.step_size if self.full else self.pos
 
     def reset(self):
         self.pos = 0
@@ -114,7 +116,7 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
 
         # noinspection PyArgumentList
         return cls(
-            buffer_size=buffer_size,
+            step_size=buffer_size,
             num_envs=num_envs,
             obs_shape=obs_shape,
             action_shape=action_shape,
