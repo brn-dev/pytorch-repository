@@ -16,6 +16,7 @@ class ReplayBufferSamples(NamedTuple):
     dones: torch.Tensor
     rewards: torch.Tensor
 
+
 class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
     def __init__(
@@ -47,7 +48,6 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
         # TODO: maybe introduce truncation logic
         # https://github.com/DLR-RM/stable-baselines3/blob/9a3b28bb9f24a1646479500fb23be55ba652a30d/stable_baselines3/common/buffers.py#L321
-
 
     def add(
             self,

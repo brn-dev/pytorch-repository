@@ -10,7 +10,7 @@ from torch import nn, optim
 from src.function_types import TorchLossFn, TorchTensorFn
 from src.module_analysis import calculate_grad_norm
 from src.hyper_parameters import HyperParameters
-from src.reinforcement_learning.core.logging import LoggingConfig
+from src.reinforcement_learning.core.logging import LoggingConfig, log_if_enabled
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, RolloutBuf
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
@@ -23,7 +23,6 @@ from src.reinforcement_learning.core.type_aliases import OptimizerProvider
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.torch_device import TorchDevice
 from src.type_aliases import KwArgs
-from src.repr_utils import func_repr
 
 
 @dataclass
@@ -49,6 +48,7 @@ class PPOLoggingConfig(LoggingConfig):
             self.critic_loss = LossLoggingConfig()
 
         super().__post_init__()
+
 
 """
 

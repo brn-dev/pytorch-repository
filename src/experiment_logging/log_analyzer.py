@@ -1,5 +1,6 @@
 import copy
 import glob
+import itertools
 import numbers
 import os.path
 from itertools import groupby
@@ -8,6 +9,7 @@ from typing import Callable, Any, Optional, Iterable
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objs as go
 from matplotlib.lines import Line2D
 
 from src.experiment_logging.experiment_log import ExperimentLog, ExperimentLogItem, DEFAULT_CATEGORY_KEY, \
@@ -62,7 +64,6 @@ class LogAnalyzer:
                 ]
             return elem
 
-
         if reference_log_id is None:
             reference_log = self.logs[0]
         else:
@@ -84,7 +85,6 @@ class LogAnalyzer:
             if collapse_to_none_dicts:
                 diff = find_and_replace_to_none_dicts(diff)
 
-
             differences.append((log_id, diff))
 
         return differences
@@ -95,11 +95,13 @@ class LogAnalyzer:
             get_y: Callable[[ExperimentLogItem], float],
             get_log_group: Callable[[ExperimentLog], str],
             ax: matplotlib.axes.Axes,
+            filter_log: Callable[[ExperimentLog], bool] = lambda log: True,
             category: str = DEFAULT_CATEGORY_KEY,
             plot_individual: bool = False,
             mean_plot_kwargs: dict[str, Any] = None,
             fill_plot_kwargs: dict[str, Any] = None,
             individual_plot_kwargs: dict[str, Any] = None,
+            latest_individual_plot_kwargs: dict[str, Any] = None,
     ):
         mean_plot_kwargs = mean_plot_kwargs or {}
         fill_plot_kwargs = fill_plot_kwargs or {'alpha': 0.2}
@@ -107,11 +109,17 @@ class LogAnalyzer:
 
         logs_by_group: dict[str, list[ExperimentLog]] = {}
         for log in self.logs:
+            if not filter_log(log):
+                continue
+
             group = get_log_group(log)
+
             if group in logs_by_group:
                 logs_by_group[group].append(log)
             else:
                 logs_by_group[group] = [log]
+
+        latest_log = max((l for logs in logs_by_group.values() for l in logs), key=lambda l: l['start_time'])
 
         for group, group_logs in logs_by_group.items():
             points: dict[float, list[float]] = {}
@@ -147,17 +155,37 @@ class LogAnalyzer:
             ax.fill_between(xs, mins, maxs, **fill_plot_kwargs)
 
             if plot_individual:
-                self._plot_logs(
-                    logs=group_logs,
-                    get_x=get_x,
-                    get_y=get_y,
-                    ax=ax,
-                    category=category,
-                    color=mean_line.get_color(),
-                    **individual_plot_kwargs
-                )
-
-
+                if latest_individual_plot_kwargs is None:
+                    self._plot_logs(
+                        logs=group_logs,
+                        get_x=get_x,
+                        get_y=get_y,
+                        ax=ax,
+                        category=category,
+                        color=mean_line.get_color(),
+                        **individual_plot_kwargs
+                    )
+                else:
+                    non_latest_logs = [l for l in group_logs if l != latest_log]
+                    self._plot_logs(
+                        logs=non_latest_logs,
+                        get_x=get_x,
+                        get_y=get_y,
+                        ax=ax,
+                        category=category,
+                        color=mean_line.get_color(),
+                        **individual_plot_kwargs
+                    )
+                    if len(non_latest_logs) != len(group_logs):
+                        self._plot_logs(
+                            logs=[latest_log],
+                            get_x=get_x,
+                            get_y=get_y,
+                            ax=ax,
+                            category=category,
+                            color=mean_line.get_color(),
+                            **latest_individual_plot_kwargs
+                        )
 
     def plot_logs(
             self,
@@ -179,7 +207,6 @@ class LogAnalyzer:
             item_filter=item_filter,
             **plot_kwargs
         )
-
 
     @staticmethod
     def _plot_logs(
@@ -212,7 +239,7 @@ class LogAnalyzer:
     def _plot(
             x: np.ndarray | list[float],
             y: np.ndarray | list[float],
-            ax: plt.Axes,
+            ax: plt.Axes | go.Figure,
             label: Optional[str] = None,
             moving_average_window_size: Optional[int] = None,
             moving_average_plot_kwargs: dict[str, Any] = None,
@@ -242,24 +269,3 @@ class LogAnalyzer:
         return get_log_items(log, category)
 
 
-# import glob
-# import matplotlib.pyplot as plt
-# from src.experiment_logging.log_analyzer import LogAnalyzer
-# from src.experiment_logging.experiment_log import *
-# from src.datetime import get_current_timestamp
-# la = LogAnalyzer()
-# la.load_log_folder('notebooks/experiment_logs/HalfCheetah-v4/sac/')
-# fig: plt.Figure
-# ax: plt.Axes
-# fig, ax = plt.subplots(figsize=(20, 12))
-# fig.text(.85, .95, get_current_timestamp())
-# ax.grid()
-# # ax.set(xlabel='steps', ylabel='step_time')
-# la.plot_logs(
-#     lambda item: item['step'],
-#     lambda item: item['scores']['mean'] if item['scores'] is not None else 0 ,
-#     ax=ax,
-#     linewidth=1,
-# )
-# ax.legend()
-# fig.show()

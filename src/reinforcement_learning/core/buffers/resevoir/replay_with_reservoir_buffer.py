@@ -9,7 +9,9 @@ from src.reinforcement_learning.core.buffers.resevoir.reservoir_buffer import Re
 from src.reinforcement_learning.core.type_aliases import NpObs
 from src.torch_device import TorchDevice
 
+
 ReservoirBuf = TypeVar('ReservoirBuf', bound=ReservoirBuffer)
+
 
 class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
 
@@ -22,6 +24,7 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
             obs_shape: tuple[int, ...],
             action_shape: tuple[int, ...],
             reward_scale: float,
+            min_reservoir_size: int = None,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
@@ -40,6 +43,7 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
 
         self.reservoir = reservoir
         self.reservoir_ratio = reservoir_ratio
+        self.min_reservoir_size = min_reservoir_size
 
     def add(
             self,
@@ -70,11 +74,11 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
             self,
             batch_size: int
     ) -> ReplayBufferSamples:
+        num_reservoir_samples = round(self.reservoir_ratio * batch_size)
 
-        if not self.full:
+        if self.reservoir.size < (self.min_reservoir_size or num_reservoir_samples):
             return super().sample(batch_size)
 
-        num_reservoir_samples = min(round(self.reservoir_ratio * batch_size), self.reservoir.size)
         num_replay_samples = batch_size - num_reservoir_samples
 
         replay_samples = super().sample(num_replay_samples)

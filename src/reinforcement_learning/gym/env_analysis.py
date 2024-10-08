@@ -80,11 +80,15 @@ def get_action_shape(env: Env) -> tuple[int, ...]:
     else:
         raise NotImplementedError(f"{action_space} action space is not supported")
 
+
 def get_unique_env_ids(env: VectorEnv) -> list[str]:
     with warnings.catch_warnings(action='ignore'):
         return list(set([s.id for s in env.get_attr('spec')]))
 
+
 IMPORTANT_SPEC_ATTRIBUTES = ['id', 'kwargs', 'max_episode_steps', 'additional_wrappers']
+
+
 def get_unique_env_specs(env: VectorEnv) -> list[dict]:
     collected_specs_with_count: list[list[dict | int]] = []
 

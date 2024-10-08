@@ -4,12 +4,21 @@ import subprocess
 import re
 
 
+def safe_del(d: dict, key: str):
+    if key in d:
+        del d[key]
+
+
 # written by ChatGPT
 # hopefully no security risks, too lazy to check
 
 
 def get_nvidia_gpu_info():
-    import pynvml
+    try:
+        import pynvml
+    except ImportError:
+        print('Warning: pynvml module not installed! ')
+        raise ImportError
     pynvml.nvmlInit()
     driver_version = pynvml.nvmlSystemGetDriverVersion()
     cuda_version = "Unknown"
@@ -86,7 +95,7 @@ def get_system_info(print_status: str = True, include_sensitive_stuff: bool = Fa
                     'video_processor': gpu.VideoProcessor.strip(),
                     'adapter_ram': f"{int(gpu.AdapterRAM) // (1024 ** 2)} MB" if gpu.AdapterRAM else 'Unknown',
                     'adapter_dac_type': gpu.AdapterDACType.strip(),
-                    'video_mode_description': gpu.VideoModeDescription.strip(),
+                    # 'video_mode_description': gpu.VideoModeDescription.strip(),
                     'manufacturer': gpu.AdapterCompatibility.strip(),
                 }
                 gpu_info_list.append(gpu_info)
@@ -115,6 +124,7 @@ def get_system_info(print_status: str = True, include_sensitive_stuff: bool = Fa
             else:
                 info['ram_speed'] = "Unknown"
         except ImportError:
+            print('Warning: wmi module not installed! ', end='')
             info['processor'] = 'Requires wmi module'
             info['gpu'] = [{'name': 'Requires wmi module', 'adapter_ram': 'Unknown'}]
             info['ram_speed'] = 'Requires wmi module'
@@ -190,17 +200,16 @@ def get_system_info(print_status: str = True, include_sensitive_stuff: bool = Fa
     total_ram = psutil.virtual_memory().total
     info['ram'] = f"{round(total_ram / (1024.0 ** 3))} GB"
 
-
     if not include_sensitive_stuff:
         del info['hostname']
         del info['platform_version']
 
     for gpu in info['gpu']:
-        del gpu['video_mode_description']
+        safe_del(gpu, 'video_mode_description')
         if not include_sensitive_stuff:
-            del gpu['driver_version']
-            del gpu['cuda_driver_version']
-            del gpu['cuda_runtime_version']
+            safe_del(gpu, 'driver_version')
+            safe_del(gpu, 'cuda_driver_version')
+            safe_del(gpu, 'cuda_runtime_version')
 
     if print_status:
         print(' done!')

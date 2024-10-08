@@ -50,6 +50,7 @@ class SACLoggingConfig(LoggingConfig):
 
         super().__post_init__()
 
+
 """
 
         Soft Actor-Critic:
@@ -143,7 +144,6 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
         if isinstance(self.policy, SACCrossQPolicy):
             self.tau = 0
             self.target_update_interval = 0
-
 
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
@@ -259,11 +259,13 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
         for gradient_step in range(self.gradient_steps):
             step_info: InfoDict = {}
             replay_samples = self.buffer.sample(self.optimization_batch_size)
-
-            self.actor.reset_sde_noise()  # TODO: set batch size?
+            
+            # TODO!!!
+            # self.actor.reset_sde_noise()  # TODO: set batch size?
 
             observation_features = self.shared_feature_extractor(replay_samples.observations)
-            actions_pi, actions_pi_log_prob = self.actor.get_actions_with_log_probs(observation_features)
+            # TODO!!!
+            actions_pi, actions_pi_log_prob = self.actor.action_log_prob(observation_features)
             actions_pi_log_prob = actions_pi_log_prob.reshape(-1, 1)
 
             entropy_coef = self.get_and_optimize_entropy_coef(actions_pi_log_prob, step_info)
