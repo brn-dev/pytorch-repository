@@ -83,19 +83,14 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         if self.steps_performed < self.warmup_steps:
             actions = np.array([self.action_space.sample() for _ in range(self.num_envs)])
         else:
-            # TODO!!!
-            # action_selector = self.policy.act(
-            #     torch.tensor(obs, device=self.torch_device, dtype=self.torch_dtype)
-            # )
-            #
-            # if self.logging_config.log_rollout_action_stds:
-            #     info['action_stds'] = action_selector.distribution.stddev
-            #
-            # actions = action_selector.get_actions().cpu().numpy()
-            actions = self.policy.act(
+            action_selector = self.policy.act(
                 torch.tensor(obs, device=self.torch_device, dtype=self.torch_dtype)
-            ).cpu().numpy()
+            )
 
+            if self.logging_config.log_rollout_action_stds:
+                info['action_stds'] = action_selector.distribution.stddev
+
+            actions = action_selector.get_actions().cpu().numpy()
         if self.action_noise is not None:
             actions = self.clip_actions(actions + self.action_noise())
 
@@ -128,14 +123,12 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         else:
             next_obs = new_obs
 
-        # TODO!!!
         self.buffer.add(
-            obs=obs,
-            next_obs=next_obs,
-            action=actions,
-            reward=rewards,
-            done=dones,
-            infos=[{}],
+            observations=obs,
+            next_observations=next_obs,
+            actions=actions,
+            rewards=rewards,
+            dones=dones,
         )
 
         self._on_step()

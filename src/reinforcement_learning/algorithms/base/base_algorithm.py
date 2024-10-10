@@ -61,10 +61,10 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         self.sde_noise_sample_freq = sde_noise_sample_freq
 
         self.logging_config = logging_config
-        # TODO!!
-        # if (self.logging_config.log_rollout_action_stds
-        #         and not isinstance(policy.actor.action_selector, ContinuousActionSelector)):
-        #     raise ValueError('Cannot log action distribution stds with non continuous action selector')
+
+        if (self.logging_config.log_rollout_action_stds
+                and not isinstance(policy.actor.action_selector, ContinuousActionSelector)):
+            raise ValueError('Cannot log action distribution stds with non continuous action selector')
 
         self.callback = callback
 
@@ -81,9 +81,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
             'policy': self.policy.collect_hyper_parameters(),
             'policy_parameter_count': count_parameters(self.policy),
             'policy_repr': str(self.policy),
-            # TODO!!!
-            # 'buffer': self.buffer.collect_hyper_parameters(),
-            'buffer': {},
+            'buffer': self.buffer.collect_hyper_parameters(),
             'gamma': self.gamma,
             'sde_noise_sample_freq': self.sde_noise_sample_freq,
             'torch_device': str(self.torch_device),
@@ -95,8 +93,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
             [type(self).__name__],
             get_unique_env_ids(self.env),
             self.policy.collect_tags(),
-            # TODO!!!
-            # self.buffer.collect_tags(),
+            self.buffer.collect_tags(),
             super().collect_tags(),
         )
 
