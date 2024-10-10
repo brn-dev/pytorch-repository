@@ -26,7 +26,10 @@ def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'c
 
             for info in infos:
                 if key in info:
-                    values.append(info[key])
+                    val = info[key]
+                    if isinstance(val, (float, bool)):
+                        val = np.array([val])
+                    values.append(val)
 
             if isinstance(values[0], torch.Tensor):
                 match combination_method:
@@ -38,7 +41,7 @@ def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'c
                         stacked_info[key] = torch.cat(values, dim=0).cpu()
                     case _:
                         raise ValueError(combination_method)
-            elif isinstance(values[0], np.ndarray):
+            elif isinstance(values[0], (float, np.ndarray)):
                 match combination_method:
                     case 'stack':
                         stacked_info[key] = np.stack(values)
@@ -47,7 +50,7 @@ def combine_infos(infos: list[InfoDict], combination_method: Literal['stack', 'c
                     case _:
                         raise ValueError(combination_method)
             else:
-                raise ValueError(values[0])
+                raise ValueError(key, values[0])
 
     return stacked_info
 

@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torch import optim
 
 from src.function_types import TorchTensorFn
-from src.module_analysis import calculate_grad_norm
 from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.algorithms.base.base_algorithm import PolicyProvider
 from src.reinforcement_learning.algorithms.base.off_policy_algorithm import OffPolicyAlgorithm, ReplayBuf
@@ -23,12 +22,10 @@ from src.reinforcement_learning.core.logging import LoggingConfig, log_if_enable
 from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossLoggingConfig
 from src.reinforcement_learning.core.type_aliases import OptimizerProvider, TensorObs, detach_obs
 from src.reinforcement_learning.gym.env_analysis import get_single_action_space
-from src.tags import Tags
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
-from src.repr_utils import func_repr
 
-SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.AdamW(params, lr=3e-4, weight_decay=1e-4)
+SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.Adam(params, lr=3e-4)
 AUTO_TARGET_ENTROPY = 'auto'
 
 

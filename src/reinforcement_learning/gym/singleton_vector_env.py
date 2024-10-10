@@ -77,6 +77,6 @@ class SingletonVectorEnv(VectorEnv):
     @staticmethod
     def _vectorize_info(info: InfoDict):
         return {
-            k: np.asarray(v)
+            k: np.expand_dims(np.asarray(v), axis=0)
             for k, v in info.items()
         }
