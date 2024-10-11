@@ -1,10 +1,10 @@
-
 import numpy as np
 import torch
 from overrides import override
 
 from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
+from src.reinforcement_learning.core.type_aliases import TensorObs
 from src.torch_device import TorchDevice
 
 
@@ -18,6 +18,7 @@ class ReplayBuffer(BaseReplayBuffer):
             action_shape: tuple[int, ...],
             reward_scale: float,
             optimize_memory_usage: bool = False,
+            consider_truncated_as_done: bool = False,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
@@ -28,6 +29,7 @@ class ReplayBuffer(BaseReplayBuffer):
             obs_shape=obs_shape,
             action_shape=action_shape,
             reward_scale=reward_scale,
+            consider_truncated_as_done=consider_truncated_as_done,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -39,16 +41,15 @@ class ReplayBuffer(BaseReplayBuffer):
         if not optimize_memory_usage:
             self.next_observations = np.zeros((self.step_size, self.num_envs, *obs_shape), dtype=self.np_dtype)
 
-
     def collect_hyper_parameters(self) -> HyperParameters:
         return self.update_hps(super().collect_hyper_parameters(), {
             'optimize_memory_usage': self.optimize_memory_usage,
         })
 
     def _add_obs(
-        self,
-        observations: np.ndarray,
-        next_observations: np.ndarray,
+            self,
+            observations: np.ndarray,
+            next_observations: np.ndarray,
     ) -> None:
         self.observations[self.pos] = observations
 
@@ -68,25 +69,19 @@ class ReplayBuffer(BaseReplayBuffer):
         # Do not sample the element with index `self.pos` as the transitions is invalid
         # (we use only one array to store `obs` and `next_obs`)
         if self.full:
-            step_indices = (
-                                   np.random.choice(self.step_size - 1, batch_size) + self.pos + 1
-            ) % self.step_size
+            step_indices = (np.random.choice(self.step_size - 1, batch_size) + self.pos + 1) % self.step_size
         else:
             step_indices = np.random.choice(self.pos, batch_size)
 
         return self._get_batch(step_indices, env_indices)
 
-    def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
+    def _get_batch_obs(self, step_indices: np.ndarray, env_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
+        obs = self.to_torch(self.observations[step_indices, env_indices, :])
+
         if self.optimize_memory_usage:
             next_obs = self.observations[(step_indices + 1) % self.step_size, env_indices, :]
         else:
             next_obs = self.next_observations[step_indices, env_indices, :]
+        next_obs = self.to_torch(next_obs)
 
-        data = (
-            self.observations[step_indices, env_indices, :],
-            self.actions[step_indices, env_indices, :],
-            next_obs,
-            self.dones[step_indices, env_indices].reshape(-1, 1),
-            self.rewards[step_indices, env_indices].reshape(-1, 1),
-        )
-        return ReplayBufferSamples(*self.all_to_torch(data))
+        return obs, next_obs

@@ -105,10 +105,9 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
         actions = self.sample_actions(obs, info)
 
         new_obs, rewards, terminated, truncated, step_info = self.env.step(actions)
-        dones = np.logical_or(terminated, truncated)
         info.update(step_info)
 
-        done_indices = np.where(dones)[0]
+        done_indices = np.where(np.logical_or(terminated, truncated))[0]
         if len(done_indices) > 0:
             next_obs = deepcopy(new_obs)
 
@@ -128,7 +127,8 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             next_observations=next_obs,
             actions=actions,
             rewards=rewards,
-            dones=dones,
+            terminated=terminated,
+            truncated=truncated,
         )
 
         self._on_step()

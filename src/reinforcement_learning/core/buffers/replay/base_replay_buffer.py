@@ -1,9 +1,10 @@
 import abc
-from typing import NamedTuple, Callable
+from typing import NamedTuple
 
 import numpy as np
 import torch
 
+from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
 from src.reinforcement_learning.core.type_aliases import ShapeDict, NpObs, TensorObs
 from src.torch_device import TorchDevice
@@ -26,6 +27,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
             reward_scale: float,
+            consider_truncated_as_done: bool,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype,
             np_dtype: np.dtype,
@@ -45,9 +47,14 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
         self.rewards = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
         self.dones = np.zeros((self.step_size, self.num_envs), dtype=bool)
+        self.truncated = np.zeros((self.step_size, self.num_envs), dtype=bool)
 
-        # TODO: maybe introduce truncation logic
-        # https://github.com/DLR-RM/stable-baselines3/blob/9a3b28bb9f24a1646479500fb23be55ba652a30d/stable_baselines3/common/buffers.py#L321
+        self.consider_truncated_as_done = consider_truncated_as_done
+
+    def collect_hyper_parameters(self) -> HyperParameters:
+        return self.update_hps(super().collect_hyper_parameters(), {
+            'consider_truncated_as_done': self.consider_truncated_as_done,
+        })
 
     def add(
             self,
@@ -55,13 +62,15 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             next_observations: NpObs,
             actions: np.ndarray,
             rewards: np.ndarray,
-            dones: np.ndarray,
+            terminated: np.ndarray,
+            truncated: np.ndarray,
     ) -> None:
         self._add_obs(observations=observations, next_observations=next_observations)
 
         self.actions[self.pos] = actions
         self.rewards[self.pos] = self.scale_rewards(rewards)
-        self.dones[self.pos] = dones
+        self.dones[self.pos] = np.logical_or(terminated, truncated)
+        self.truncated[self.pos] = truncated
 
         self.pos += 1
         if self.pos == self.step_size:
@@ -76,14 +85,37 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
     ) -> None:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def _get_batch_obs(self, step_indices: np.ndarray, env_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
+        raise NotImplementedError
+
+    def _get_batch(
+            self,
+            step_indices: np.ndarray,
+            env_indices: np.ndarray,
+    ) -> ReplayBufferSamples:
+        tensor_obs, next_tensor_obs = self._get_batch_obs(step_indices, env_indices)
+
+        if self.consider_truncated_as_done:
+            dones = self.dones[step_indices, env_indices]
+        else:
+            dones = np.logical_and(
+                self.dones[step_indices, env_indices],
+                np.logical_not(self.truncated[step_indices, env_indices])
+            )
+
+        return ReplayBufferSamples(
+            observations=tensor_obs,
+            actions=self.to_torch(self.actions[step_indices, env_indices, :]),
+            next_observations=next_tensor_obs,
+            dones=self.to_torch(dones.reshape(-1, 1)),
+            rewards=self.to_torch(self.rewards[step_indices, env_indices].reshape(-1, 1))
+        )
+
     def sample(self, batch_size: int) -> ReplayBufferSamples:
         env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
         step_indices = np.random.choice(self.size, batch_size)
         return self._get_batch(step_indices, env_indices)
-
-    @abc.abstractmethod
-    def _get_batch(self, step_indices: np.ndarray, env_indices: np.ndarray) -> ReplayBufferSamples:
-        raise NotImplementedError
 
     def tail_indices(self, tail_length: int):
         if tail_length > self.size:
@@ -124,9 +156,3 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             running_sum += step_rewards
 
         return np.array(episode_scores)
-
-
-
-
-
-

@@ -17,6 +17,8 @@ from src.experiment_logging.experiment_log import ExperimentLog, ExperimentLogIt
 from src.hyper_parameters import TYPE_KEY, FQ_TYPE_KEY
 from src.utils import dict_diff
 
+DONT_SHOW = {'dont': 'show'}
+SAME_COLOR = '___same_color___'
 
 class LogAnalyzer:
 
@@ -102,6 +104,7 @@ class LogAnalyzer:
             fill_plot_kwargs: dict[str, Any] = None,
             individual_plot_kwargs: dict[str, Any] = None,
             latest_individual_plot_kwargs: dict[str, Any] = None,
+            latest_n_individual_plots: int = 1
     ):
         mean_plot_kwargs = mean_plot_kwargs or {}
         fill_plot_kwargs = fill_plot_kwargs or {'alpha': 0.2}
@@ -119,7 +122,9 @@ class LogAnalyzer:
             else:
                 logs_by_group[group] = [log]
 
-        latest_log = max((l for logs in logs_by_group.values() for l in logs), key=lambda l: l['start_time'])
+        filtered_logs = [l for logs in logs_by_group.values() for l in logs]
+
+        latest_logs = sorted(filtered_logs, key=lambda l: l['start_time'], reverse=True)[:latest_n_individual_plots]
 
         for group, group_logs in logs_by_group.items():
             points: dict[float, list[float]] = {}
@@ -145,14 +150,19 @@ class LogAnalyzer:
 
             xs = list(points.keys())
 
-            mean_line = self._plot(
-                x=xs,
-                y=means,
-                ax=ax,
-                label=f'({len(group_logs)}x) {group}',
-                **mean_plot_kwargs
-            )[0]
-            ax.fill_between(xs, mins, maxs, **fill_plot_kwargs)
+            label = f'({len(group_logs)}x) {group}'
+            prev_color = None
+
+            if mean_plot_kwargs is not DONT_SHOW:
+                prev_color = self._plot(
+                    x=xs,
+                    y=means,
+                    ax=ax,
+                    label=label,
+                    **mean_plot_kwargs
+                )[0].get_color()
+            if fill_plot_kwargs is not DONT_SHOW:
+                prev_color = ax.fill_between(xs, mins, maxs, **fill_plot_kwargs).get_facecolor()
 
             if plot_individual:
                 if latest_individual_plot_kwargs is None:
@@ -161,29 +171,34 @@ class LogAnalyzer:
                         get_x=get_x,
                         get_y=get_y,
                         ax=ax,
+                        get_label=lambda _: label,
                         category=category,
-                        color=mean_line.get_color(),
+                        color=prev_color or SAME_COLOR,
                         **individual_plot_kwargs
-                    )
+                    )[0].get_color()
                 else:
-                    non_latest_logs = [l for l in group_logs if l != latest_log]
-                    self._plot_logs(
+                    non_latest_logs = [l for l in group_logs if l not in latest_logs]
+                    lines = self._plot_logs(
                         logs=non_latest_logs,
                         get_x=get_x,
                         get_y=get_y,
                         ax=ax,
+                        get_label=lambda _: label,
                         category=category,
-                        color=mean_line.get_color(),
+                        color=prev_color or SAME_COLOR,
                         **individual_plot_kwargs
                     )
-                    if len(non_latest_logs) != len(group_logs):
+                    if len(lines) > 0:
+                        prev_color = lines[0].get_color()
+                    if len(latest_logs) > 0:
                         self._plot_logs(
-                            logs=[latest_log],
+                            logs=latest_logs,
                             get_x=get_x,
                             get_y=get_y,
                             ax=ax,
+                            get_label=lambda _: label,
                             category=category,
-                            color=mean_line.get_color(),
+                            color=prev_color or SAME_COLOR,
                             **latest_individual_plot_kwargs
                         )
 
@@ -219,21 +234,34 @@ class LogAnalyzer:
             item_filter: Callable[[ExperimentLogItem], bool] = lambda item: True,
             moving_average_window_size: Optional[int] = None,
             moving_average_plot_kwargs: dict[str, Any] = None,
+            color: Any = None,
             **plot_kwargs,
     ):
+        lines: list[Line2D] = []
+
         for log in logs:
             log_items = [item for item in log['logs_by_category'][category] if item_filter(item)]
 
             x = np.array([get_x(item) for item in log_items])
             y = np.array([get_y(item) for item in log_items])
 
-            LogAnalyzer._plot(
+            col = color
+            if color == SAME_COLOR:
+                if len(lines) > 0:
+                    col = lines[-1].get_color()
+                else:
+                    col = None
+
+            lines.extend(LogAnalyzer._plot(
                 x=x, y=y, ax=ax,
                 label=get_label(log),
                 moving_average_window_size=moving_average_window_size,
                 moving_average_plot_kwargs=moving_average_plot_kwargs,
+                color=col,
                 **plot_kwargs
-            )
+            ))
+
+        return lines
 
     @staticmethod
     def _plot(
@@ -245,7 +273,6 @@ class LogAnalyzer:
             moving_average_plot_kwargs: dict[str, Any] = None,
             **plot_kwargs
     ):
-
         plot_line = ax.plot(x, y, label=label, **plot_kwargs)[0]
         lines: list[Line2D] = [plot_line]
 
