@@ -177,9 +177,9 @@ class LogAnalyzer:
                         **individual_plot_kwargs
                     )[0].get_color()
                 else:
-                    non_latest_logs = [l for l in group_logs if l not in latest_logs]
+                    group_non_latest_logs = [l for l in group_logs if l not in latest_logs]
                     lines = self._plot_logs(
-                        logs=non_latest_logs,
+                        logs=group_non_latest_logs,
                         get_x=get_x,
                         get_y=get_y,
                         ax=ax,
@@ -190,9 +190,11 @@ class LogAnalyzer:
                     )
                     if len(lines) > 0:
                         prev_color = lines[0].get_color()
-                    if len(latest_logs) > 0:
+
+                    group_latest_logs = [l for l in group_logs if l in latest_logs]
+                    if len(group_latest_logs) > 0:
                         self._plot_logs(
-                            logs=latest_logs,
+                            logs=group_latest_logs,
                             get_x=get_x,
                             get_y=get_y,
                             ax=ax,

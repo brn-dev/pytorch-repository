@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional, NotRequired
+from typing import TypedDict, Optional, NotRequired, Any
 
 import numpy as np
 import torch
@@ -16,7 +16,13 @@ class SummaryStatistics(TypedDict):
     max_value: NotRequired[float]
     data: NotRequired[list]
 
-def format_summary_statics(
+
+def is_summary_statistics(obj: Any):
+    return isinstance(obj, dict) and 'n' in obj and 'mean' in obj
+
+
+
+def format_summary_statistics(
         x: TensorOrNpArray | SummaryStatistics | None,
         mean_format: str | None = '.2f',
         std_format: str | None = '.2f',

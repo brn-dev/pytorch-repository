@@ -7,6 +7,7 @@ from src.experiment_logging.experiment_log import ExperimentLog, DEFAULT_CATEGOR
     ModelDBReference, load_experiment_log, save_experiment_log
 from src.hyper_parameters import HyperParameters
 from src.id_generation import generate_timestamp_id
+from src.summary_statistics import format_summary_statistics, is_summary_statistics
 from src.system_info import get_system_info
 from src.utils import default_fn, format_current_exception, remove_duplicates_keep_order
 
@@ -68,13 +69,15 @@ class ExperimentLogger:
         }
         self.experiment_log = experiment_log
 
-    def add_item(self, item: ExperimentLogItem, category: str = DEFAULT_CATEGORY_KEY):
+    def add_item(self, item: ExperimentLogItem, category: str = DEFAULT_CATEGORY_KEY) -> ExperimentLogItem:
         if category not in self.experiment_log['logs_by_category']:
             self.experiment_log['logs_by_category'][category] = []
 
         item['__timestamp'] = get_current_timestamp()
 
         self.experiment_log['logs_by_category'][category].append(item)
+
+        return item
 
     def item_start(self, category: str = DEFAULT_CATEGORY_KEY):
         self.current_items_by_category[category] = {}
@@ -130,6 +133,52 @@ class ExperimentLogger:
 
         if save_experiment:
             self.save_experiment_log(file_path)
+
+    def format_current_log_item(
+            self,
+            category: str = DEFAULT_CATEGORY_KEY,
+            mean_format: str | None = '.3f',
+            std_format: str | None = '.3f',
+            min_value_format: str | None = None,
+            max_value_format: str | None = None,
+            n_format: str | None = None,
+    ):
+        self.format_log_item(
+            self.current_items_by_category[category],
+            mean_format=mean_format,
+            std_format=std_format,
+            min_value_format=min_value_format,
+            max_value_format=max_value_format,
+            n_format=n_format,
+        )
+
+    @staticmethod
+    def format_log_item(
+            item: ExperimentLogItem,
+            mean_format: str | None = '.3f',
+            std_format: str | None = '.3f',
+            min_value_format: str | None = None,
+            max_value_format: str | None = None,
+            n_format: str | None = None,
+    ) -> str:
+        metrics: list[str] = []
+
+        for name, metric in item.items():
+            if is_summary_statistics(metric):
+                formatted_metric = format_summary_statistics(
+                    metric,
+                    mean_format=mean_format,
+                    std_format=std_format,
+                    min_value_format=min_value_format,
+                    max_value_format=max_value_format,
+                    n_format=n_format
+                )
+            else:
+                formatted_metric = metric
+
+            metrics.append(formatted_metric)
+
+        return ', '.join(metrics)
 
 
 @contextmanager

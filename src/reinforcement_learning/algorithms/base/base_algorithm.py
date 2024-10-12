@@ -1,8 +1,11 @@
 import abc
 import itertools
-from typing import TypeVar, Callable, Generic, Self, Iterable
+import json
+import os
+from typing import TypeVar, Callable, Generic, Self, Iterable, Any
 
 import gymnasium
+import joblib
 import numpy as np
 import torch
 from torch import nn
@@ -20,6 +23,11 @@ from src.reinforcement_learning.gym.env_analysis import get_unique_env_ids, get_
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
 from src.tags import HasTags, Tags
 from src.torch_device import TorchDevice, get_torch_device
+
+
+POLICY_FILE_SUFFIX = '.policy.state_dict.pth'
+BUFFER_FILE_SUFFIX = '.buffer.pkl'
+META_DATA_FILE_SUFFIX = '.meta.json'
 
 LogConf = TypeVar('LogConf', bound=LoggingConfig)
 
@@ -163,6 +171,31 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
 
     def to_tensor(self, arr: np.ndarray) -> torch.Tensor:
         return torch.tensor(arr, dtype=self.torch_dtype, device=self.torch_device)
+
+    def save(self, folder_location: str, name: str, **meta_data):
+        os.makedirs(folder_location, exist_ok=True)
+
+        torch.save(self.policy.state_dict(), os.path.join(folder_location, name + POLICY_FILE_SUFFIX))
+        joblib.dump(self.buffer, os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
+
+        with open(os.path.join(folder_location, META_DATA_FILE_SUFFIX)) as f:
+            json.dump({
+                'steps_performed': self.steps_performed,
+                **meta_data
+            }, f)
+
+    def load(self, folder_location: str, name: str) -> dict[str, Any]:
+        os.makedirs(folder_location, exist_ok=True)
+
+        self.policy.load_state_dict(torch.load(os.path.join(folder_location, name + POLICY_FILE_SUFFIX)))
+        self.buffer = joblib.load(os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
+
+        with open(os.path.join(folder_location, META_DATA_FILE_SUFFIX)) as f:
+            meta_data = json.load(f)
+
+        self.steps_performed = meta_data.get('steps_performed') or self.steps_performed
+        return meta_data
+
 
     @staticmethod
     def chain_parameters(*modules: nn.Module) -> Iterable[torch.Tensor]:

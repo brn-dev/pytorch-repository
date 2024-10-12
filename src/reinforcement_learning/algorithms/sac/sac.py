@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Type, Optional, Any, Literal
 
@@ -24,6 +25,12 @@ from src.reinforcement_learning.core.type_aliases import OptimizerProvider, Tens
 from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
+
+
+ACTOR_OPTIMIZER_FILE_SUFFIX = '.actor_optimizer.state_dict.pth'
+CRITIC_OPTIMIZER_FILE_SUFFIX = '.critic_optimizer.state_dict.pth'
+ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX = '.entropy_coef_optimizer.state_dict.pth'
+
 
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.Adam(params, lr=3e-4)
 AUTO_TARGET_ENTROPY = 'auto'
@@ -297,5 +304,35 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             gradient_step_infos.append(step_info)
         info.update(concat_infos(gradient_step_infos))
 
+    def save(self, folder_location: str, name: str, **meta_data):
+        super().save(folder_location, name, gradient_steps_performed=self.gradient_steps_performed, **meta_data)
 
+        torch.save(
+            self.actor_optimizer.state_dict(),
+            os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
+        )
+        torch.save(
+            self.critic_optimizer.state_dict(),
+            os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
+        )
+        torch.save(
+            self.entropy_coef_optimizer.state_dict(),
+            os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
+        )
+
+    def load(self, folder_location: str, name: str) -> dict[str, Any]:
+        meta_data = super().load(folder_location, name)
+        
+        self.actor_optimizer.load_state_dict(
+            torch.load(os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX))
+        )
+        self.critic_optimizer.load_state_dict(
+            torch.load(os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX))
+        )
+        self.entropy_coef_optimizer.load_state_dict(
+            torch.load(os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX))
+        )
+
+        self.gradient_steps_performed = meta_data.get('gradient_steps_performed') or self.gradient_steps_performed
+        return meta_data
 
