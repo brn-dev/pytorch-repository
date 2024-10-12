@@ -178,7 +178,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         torch.save(self.policy.state_dict(), os.path.join(folder_location, name + POLICY_FILE_SUFFIX))
         joblib.dump(self.buffer, os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
 
-        with open(os.path.join(folder_location, META_DATA_FILE_SUFFIX)) as f:
+        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'w') as f:
             json.dump({
                 'steps_performed': self.steps_performed,
                 **meta_data
@@ -190,7 +190,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
         self.policy.load_state_dict(torch.load(os.path.join(folder_location, name + POLICY_FILE_SUFFIX)))
         self.buffer = joblib.load(os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
 
-        with open(os.path.join(folder_location, META_DATA_FILE_SUFFIX)) as f:
+        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'r') as f:
             meta_data = json.load(f)
 
         self.steps_performed = meta_data.get('steps_performed') or self.steps_performed
