@@ -7,9 +7,12 @@ from src.reinforcement_learning.core.infos import InfoDict
 
 
 @dataclass
-class LossLoggingConfig:
-    log_raw: bool = False
-    log_final: bool = False
+class LossInfoStashConfig:
+    stash_raw: bool = False
+    stash_final: bool = False
+
+    def __post_init__(self):
+        self.stash_anything = self.stash_raw or self.stash_final
 
 
 # TODO: add flag to put log tensors on cpu right here (otherwise will be done in concat_infos)
@@ -19,13 +22,13 @@ def weigh_and_reduce_loss(
         weigh_and_reduce_function: TorchTensorFn,
         info: InfoDict,
         loss_name: str,
-        logging_config: LossLoggingConfig
+        stash_config: LossInfoStashConfig
 ):
     reduced_loss = weigh_and_reduce_function(raw_loss)
 
-    if logging_config.log_raw:
+    if stash_config.stash_raw:
         info[f'raw_{loss_name}'] = raw_loss.detach()
-    if logging_config.log_final:
+    if stash_config.stash_final:
         info[f'final_{loss_name}'] = reduced_loss.detach()
 
     return reduced_loss

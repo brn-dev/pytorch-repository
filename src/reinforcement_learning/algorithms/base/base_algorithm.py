@@ -17,7 +17,7 @@ from src.reinforcement_learning.core.action_selectors.continuous_action_selector
 from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict
-from src.reinforcement_learning.core.logging import LoggingConfig
+from src.reinforcement_learning.core.info_stash import InfoStashConfig
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.gym.env_analysis import get_unique_env_ids, get_unique_env_specs
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
@@ -29,7 +29,7 @@ POLICY_FILE_SUFFIX = '.policy.state_dict.pth'
 BUFFER_FILE_SUFFIX = '.buffer.pkl'
 META_DATA_FILE_SUFFIX = '.meta.json'
 
-LogConf = TypeVar('LogConf', bound=LoggingConfig)
+StashConf = TypeVar('StashConf', bound=InfoStashConfig)
 
 Buffer = TypeVar('Buffer', bound=BaseBuffer)
 
@@ -37,7 +37,7 @@ Policy = TypeVar('Policy', bound=BasePolicy)
 PolicyProvider = Callable[[], Policy]
 
 
-class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf], abc.ABC):
+class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, StashConf], abc.ABC):
 
     def __init__(
             self,
@@ -47,7 +47,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
             gamma: float,
             sde_noise_sample_freq: int | None,
             callback: Callback,
-            logging_config: LogConf,
+            stash_config: StashConf,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype,
     ):
@@ -68,9 +68,9 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, LogConf
 
         self.sde_noise_sample_freq = sde_noise_sample_freq
 
-        self.logging_config = logging_config
+        self.stash_config = stash_config
 
-        if (self.logging_config.log_rollout_action_stds
+        if (self.stash_config.stash_rollout_action_stds
                 and not isinstance(policy.actor.action_selector, ContinuousActionSelector)):
             raise ValueError('Cannot log action distribution stds with non continuous action selector')
 

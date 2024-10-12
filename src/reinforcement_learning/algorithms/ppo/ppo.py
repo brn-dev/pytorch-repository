@@ -10,14 +10,14 @@ from torch import nn, optim
 from src.function_types import TorchLossFn, TorchTensorFn
 from src.module_analysis import calculate_grad_norm
 from src.hyper_parameters import HyperParameters
-from src.reinforcement_learning.core.logging import LoggingConfig, log_if_enabled
+from src.reinforcement_learning.core.info_stash import InfoStashConfig, stash_if_enabled
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, PolicyProvider, RolloutBuf
 from src.reinforcement_learning.core.action_selectors.action_selector import ActionSelector
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.normalization import NormalizationType
-from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossLoggingConfig
+from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossInfoStashConfig
 from src.reinforcement_learning.core.policies.actor_critic_policy import ActorCriticPolicy
 from src.reinforcement_learning.core.type_aliases import OptimizerProvider
 from src.reinforcement_learning.gym.singleton_vector_env import as_vec_env
@@ -26,7 +26,7 @@ from src.type_aliases import KwArgs
 
 
 @dataclass
-class PPOLoggingConfig(LoggingConfig):
+class PPOInfoStashConfig(InfoStashConfig):
     log_returns: bool = False
     log_advantages: bool = False
 
@@ -35,17 +35,17 @@ class PPOLoggingConfig(LoggingConfig):
     log_actor_kl_divergence: bool = False
     log_optimization_action_stds: bool = False
 
-    actor_loss: LossLoggingConfig = None
-    entropy_loss: LossLoggingConfig = None
-    critic_loss: LossLoggingConfig = None
+    actor_loss: LossInfoStashConfig = None
+    entropy_loss: LossInfoStashConfig = None
+    critic_loss: LossInfoStashConfig = None
 
     def __post_init__(self):
         if self.actor_loss is None:
-            self.actor_loss = LossLoggingConfig()
+            self.actor_loss = LossInfoStashConfig()
         if self.entropy_loss is None:
-            self.entropy_loss = LossLoggingConfig()
+            self.entropy_loss = LossInfoStashConfig()
         if self.critic_loss is None:
-            self.critic_loss = LossLoggingConfig()
+            self.critic_loss = LossInfoStashConfig()
 
         super().__post_init__()
 
@@ -56,7 +56,7 @@ class PPOLoggingConfig(LoggingConfig):
         https://arxiv.org/abs/1707.06347
 
 """
-class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig]):
+class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOInfoStashConfig]):
 
     def __init__(
             self,
@@ -82,7 +82,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             grad_norm_clip_value: float | None = None,
             sde_noise_sample_freq: int | None = None,
             callback: Callback['PPO'] = None,
-            logging_config: PPOLoggingConfig = None,
+            stash_config: PPOInfoStashConfig = None,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
     ):
@@ -97,7 +97,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
             callback=callback or Callback(),
-            logging_config=logging_config or PPOLoggingConfig(),
+            stash_config=stash_config or PPOInfoStashConfig(),
             torch_device=torch_device,
             torch_dtype=torch_dtype,
         )
@@ -183,7 +183,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
 
                 total_loss = torch.stack(losses).sum()
 
-                if self.logging_config.log_ppo_loss:
+                if self.stash_config.log_ppo_loss:
                     batch_info['ppo_loss'] = total_loss
 
                 self.policy_optimizer.zero_grad()
@@ -193,7 +193,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
                 grad_norm: float | None = None
                 if self.grad_norm_clip_value:
                     grad_norm = nn.utils.clip_grad_norm_(self.policy.parameters(), self.grad_norm_clip_value).item()
-                if self.logging_config.log_grad_norm:
+                if self.stash_config.log_grad_norm:
                     if grad_norm is None:
                         grad_norm = calculate_grad_norm(self.policy)
 
@@ -228,7 +228,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
     ) -> Optional[list[torch.Tensor]]:
         new_action_selector, value_estimates = self.policy(observations)
 
-        if self.logging_config.log_optimization_action_stds:
+        if self.stash_config.log_optimization_action_stds:
             info['action_stds'] = new_action_selector.distribution.stddev
 
         value_estimates = value_estimates.squeeze(dim=-1)
@@ -266,12 +266,12 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
         action_log_prob_ratios = new_action_log_probs - old_action_log_probs
         action_prob_ratios = torch.exp(action_log_prob_ratios)
 
-        if self.ppo_kl_target is not None or self.logging_config.log_actor_kl_divergence:
+        if self.ppo_kl_target is not None or self.stash_config.log_actor_kl_divergence:
             # https://github.com/DLR-RM/stable-baselines3/blob/285e01f64aa8ba4bd15aa339c45876d56ed0c3b4/stable_baselines3/ppo/ppo.py#L266
             with torch.no_grad():
                 approx_kl_div = torch.mean((action_prob_ratios - 1) - action_log_prob_ratios).cpu().unsqueeze(0).numpy()
 
-            log_if_enabled(info, 'actor_kl_divergence', approx_kl_div, self.logging_config.log_actor_kl_divergence)
+            stash_if_enabled(info, 'actor_kl_divergence', approx_kl_div, self.stash_config.log_actor_kl_divergence)
 
             if self.ppo_kl_target is not None and approx_kl_div > 1.5 * self.ppo_kl_target:
                 return None, None
@@ -289,7 +289,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             weigh_and_reduce_function=self.weigh_and_reduce_actor_loss,
             info=info,
             loss_name='actor_loss',
-            logging_config=self.logging_config.actor_loss,
+            stash_config=self.stash_config.actor_loss,
         )
 
         if self.weigh_and_reduce_entropy_loss is not None:
@@ -305,7 +305,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
                 weigh_and_reduce_function=self.weigh_and_reduce_entropy_loss,
                 info=info,
                 loss_name='entropy_loss',
-                logging_config=self.logging_config.entropy_loss
+                stash_config=self.stash_config.entropy_loss
             )
         else:
             entropy_loss = torch.zeros_like(actor_loss)
@@ -336,7 +336,7 @@ class PPO(OnPolicyAlgorithm[ActorCriticPolicy, RolloutBuffer, PPOLoggingConfig])
             weigh_and_reduce_function=self.weigh_and_reduce_critic_loss,
             info=info,
             loss_name='critic_loss',
-            logging_config=self.logging_config.critic_loss
+            stash_config=self.stash_config.critic_loss
         )
 
         return critic_loss

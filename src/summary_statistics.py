@@ -5,7 +5,7 @@ import torch
 
 TensorOrNpArray = torch.Tensor | np.ndarray
 
-SMALL_DATA_THRESHOLD = 8
+SMALL_DATA_THRESHOLD = 0
 
 
 class SummaryStatistics(TypedDict):

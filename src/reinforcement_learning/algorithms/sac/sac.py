@@ -19,8 +19,8 @@ from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import Ba
 from src.reinforcement_learning.core.buffers.replay.replay_buffer import ReplayBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
-from src.reinforcement_learning.core.logging import LoggingConfig, log_if_enabled
-from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossLoggingConfig
+from src.reinforcement_learning.core.info_stash import InfoStashConfig, stash_if_enabled, create_stash_list
+from src.reinforcement_learning.core.loss_config import weigh_and_reduce_loss, LossInfoStashConfig
 from src.reinforcement_learning.core.type_aliases import OptimizerProvider, TensorObs, detach_obs
 from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.torch_device import TorchDevice
@@ -37,20 +37,27 @@ AUTO_TARGET_ENTROPY = 'auto'
 
 
 @dataclass
-class SACLoggingConfig(LoggingConfig):
+class SACInfoStashConfig(InfoStashConfig):
 
-    log_entropy_coef: bool = False
-    entropy_coef_loss: LossLoggingConfig = None
-    actor_loss: LossLoggingConfig = None
-    critic_loss: LossLoggingConfig = None
+    stash_entropy_coef: bool = False
+    entropy_coef_loss: LossInfoStashConfig = None
+    actor_loss: LossInfoStashConfig = None
+    critic_loss: LossInfoStashConfig = None
 
     def __post_init__(self):
         if self.actor_loss is None:
-            self.actor_loss = LossLoggingConfig()
+            self.actor_loss = LossInfoStashConfig()
         if self.entropy_coef_loss is None:
-            self.entropy_loss = LossLoggingConfig()
+            self.entropy_loss = LossInfoStashConfig()
         if self.critic_loss is None:
-            self.critic_loss = LossLoggingConfig()
+            self.critic_loss = LossInfoStashConfig()
+
+        self.stash_during_optimization = (
+            self.stash_entropy_coef
+            or self.actor_loss.stash_anything
+            or self.critic_loss.stash_anything
+            or self.entropy_coef_loss.stash_anything
+        )
 
         super().__post_init__()
 
@@ -63,7 +70,7 @@ class SACLoggingConfig(LoggingConfig):
         https://arxiv.org/pdf/1801.01290
 
 """
-class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
+class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
 
     buffer: BaseReplayBuffer
     target_entropy: float
@@ -97,7 +104,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             warmup_steps: int = 100,
             sde_noise_sample_freq: Optional[int] = None,
             callback: Callback['SAC'] = None,
-            logging_config: SACLoggingConfig = None,
+            stash_config: SACInfoStashConfig = None,
             torch_device: TorchDevice = 'auto',
             torch_dtype: torch.dtype = torch.float32,
     ):
@@ -121,7 +128,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             warmup_steps=warmup_steps,
             sde_noise_sample_freq=sde_noise_sample_freq,
             callback=callback or Callback(),
-            logging_config=logging_config or LoggingConfig(),
+            stash_config=stash_config or InfoStashConfig(),
             torch_device=torch_device,
             torch_dtype=torch_dtype,
         )
@@ -197,7 +204,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
                 weigh_and_reduce_function=self.weigh_and_reduce_entropy_coef_loss,
                 info=info,
                 loss_name='entropy_coef_loss',
-                logging_config=self.logging_config.entropy_coef_loss
+                stash_config=self.stash_config.entropy_coef_loss
             )
             self.entropy_coef_optimizer.zero_grad()
             entropy_coef_loss.backward()
@@ -231,7 +238,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             weigh_and_reduce_function=self.weigh_critic_loss,
             info=info,
             loss_name='critic_loss',
-            logging_config=self.logging_config.critic_loss,
+            stash_config=self.stash_config.critic_loss,
         )
         return critic_loss
 
@@ -252,13 +259,13 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             weigh_and_reduce_function=self.weigh_and_reduce_actor_loss,
             info=info,
             loss_name='actor_loss',
-            logging_config=self.logging_config.actor_loss,
+            stash_config=self.stash_config.actor_loss,
         )
 
         return actor_loss
 
     def optimize(self, last_obs: np.ndarray, last_episode_starts: np.ndarray, info: InfoDict) -> None:
-        gradient_step_infos: list[InfoDict] = []
+        gradient_step_infos: list[InfoDict] = create_stash_list(self.stash_config.stash_during_optimization)
 
         for gradient_step in range(self.gradient_steps):
             step_info: InfoDict = {}
@@ -272,7 +279,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACLoggingConfig]):
             actions_pi_log_prob = actions_pi_log_prob.reshape(-1, 1)
 
             entropy_coef = self.get_and_optimize_entropy_coef(actions_pi_log_prob, step_info)
-            log_if_enabled(step_info, 'entropy_coef', entropy_coef, self.logging_config.log_entropy_coef)
+            stash_if_enabled(step_info, 'entropy_coef', entropy_coef, self.stash_config.stash_entropy_coef)
 
             critic_loss = self.calculate_critic_loss(
                 observation_features=observation_features,

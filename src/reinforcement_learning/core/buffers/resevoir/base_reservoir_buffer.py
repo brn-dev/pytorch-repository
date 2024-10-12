@@ -30,6 +30,7 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
             reward_scale: float,
+            consider_truncated_as_done: bool,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype,
             np_dtype: np.dtype,
@@ -50,7 +51,10 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
         self.actions = np.zeros((self.total_size, *self.action_shape), dtype=self.np_dtype)
 
         self.rewards = np.zeros(self.total_size, dtype=self.np_dtype)
-        self.dones = np.zeros(self.total_size, dtype=bool)
+        self.terminated = np.zeros(self.total_size, dtype=bool)
+        self.truncated = np.zeros(self.total_size, dtype=bool)
+
+        self.consider_truncated_as_done = consider_truncated_as_done
 
         self.rng = np.random.default_rng(None)
 
@@ -64,7 +68,8 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
             next_observations: NpObs,
             actions: np.ndarray,
             rewards: np.ndarray,
-            dones: np.ndarray,
+            terminated: np.ndarray,
+            truncated: np.ndarray,
     ) -> None:
         if not self.full:
             self._add_at(
@@ -73,7 +78,8 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
                 next_observations=next_observations,
                 actions=actions,
                 rewards=rewards,
-                dones=dones,
+                terminated=terminated,
+                truncated=truncated,
             )
         else:
             indices = self.rng.integers(0, self.pos + 1 + np.arange(self.num_envs))
@@ -85,7 +91,8 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
                     next_observations=next_observations[accepted],
                     actions=actions[accepted],
                     rewards=rewards[accepted],
-                    dones=dones[accepted],
+                    terminated=terminated[accepted],
+                    truncated=truncated[accepted],
                 )
 
         self.pos += self.num_envs
@@ -99,13 +106,15 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
             next_observations: NpObs,
             actions: np.ndarray,
             rewards: np.ndarray,
-            dones: np.ndarray,
+            terminated: np.ndarray,
+            truncated: np.ndarray,
     ):
         self._add_obs_at(indices, observations=observations, next_observations=next_observations)
 
         self.actions[indices] = actions
         self.rewards[indices] = self.scale_rewards(rewards)
-        self.dones[indices] = dones
+        self.terminated[indices] = terminated
+        self.truncated[indices] = truncated
 
     @abc.abstractmethod
     def _add_obs_at(
@@ -121,6 +130,21 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
         return self._get_batch(batch_indices)
 
     @abc.abstractmethod
-    def _get_batch(self, batch_indices: np.ndarray) -> ReservoirBufferSamples:
+    def _get_batch_obs(self, batch_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
         raise NotImplementedError
 
+    def _get_batch(self, batch_indices: np.ndarray) -> ReservoirBufferSamples:
+        tensor_obs, next_tensor_obs = self._get_batch_obs(batch_indices)
+
+        if self.consider_truncated_as_done:
+            dones = np.logical_or(self.terminated[batch_indices], self.truncated[batch_indices])
+        else:
+            dones = self.terminated[batch_indices]
+
+        return ReservoirBufferSamples(
+            observations=tensor_obs,
+            actions=self.to_torch(self.actions[batch_indices, :]),
+            next_observations=next_tensor_obs,
+            dones=self.to_torch(dones.reshape(-1, 1)),
+            rewards=self.to_torch(self.rewards[batch_indices].reshape(-1, 1))
+        )

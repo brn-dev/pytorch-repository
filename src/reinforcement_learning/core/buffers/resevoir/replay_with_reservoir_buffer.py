@@ -25,6 +25,7 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
             action_shape: tuple[int, ...],
             reward_scale: float,
             min_reservoir_size: int = None,
+            consider_truncated_as_done: bool = False,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
@@ -36,6 +37,7 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
             action_shape=action_shape,
             reward_scale=reward_scale,
             optimize_memory_usage=False,  # TODO
+            consider_truncated_as_done=consider_truncated_as_done,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -45,13 +47,16 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
         self.reservoir_ratio = reservoir_ratio
         self.min_reservoir_size = min_reservoir_size
 
+        assert self.consider_truncated_as_done == self.reservoir.consider_truncated_as_done
+
     def add(
             self,
             observations: NpObs,
             next_observations: NpObs,
             actions: np.ndarray,
             rewards: np.ndarray,
-            dones: np.ndarray,
+            terminated: np.ndarray,
+            truncated: np.ndarray,
     ) -> None:
         if self.full:
             self.reservoir.add(
@@ -59,7 +64,8 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
                 next_observations=self.next_observations[self.pos],
                 actions=self.actions[self.pos],
                 rewards=self.rewards[self.pos],
-                dones=self.dones[self.pos],
+                terminated=self.terminated[self.pos],
+                truncated=self.truncated[self.pos]
             )
 
         super().add(
@@ -67,7 +73,8 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
             next_observations=next_observations,
             actions=actions,
             rewards=rewards,
-            dones=dones,
+            terminated=terminated,
+            truncated=truncated,
         )
 
     def sample(
@@ -76,7 +83,9 @@ class ReplayWithReservoirBuffer(ReplayBuffer, Generic[ReservoirBuf]):
     ) -> ReplayBufferSamples:
         num_reservoir_samples = round(self.reservoir_ratio * batch_size)
 
-        if self.reservoir.size < (self.min_reservoir_size or num_reservoir_samples):
+        if self.reservoir.size < (
+                self.min_reservoir_size if self.min_reservoir_size is not None else num_reservoir_samples
+        ):
             return super().sample(batch_size)
 
         num_replay_samples = batch_size - num_reservoir_samples

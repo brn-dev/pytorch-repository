@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import optim
 
-from src.reinforcement_learning.core.logging import LoggingConfig
+from src.reinforcement_learning.core.info_stash import InfoStashConfig
 from src.reinforcement_learning.algorithms.base.on_policy_algorithm import OnPolicyAlgorithm, Policy, \
     PolicyProvider
 from src.reinforcement_learning.core.buffers.rollout.rollout_buffer import RolloutBuffer
@@ -33,7 +33,7 @@ class SupervisedPreTraining(OnPolicyAlgorithm):
             gae_lambda: float = 1.0,
             sde_noise_sample_freq: int | None = None,
             callback: Callback[Self] = None,
-            logging_config: LoggingConfig = None,
+            stash_config: InfoStashConfig = None,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
     ):
@@ -48,7 +48,7 @@ class SupervisedPreTraining(OnPolicyAlgorithm):
             gae_lambda=gae_lambda,
             sde_noise_sample_freq=sde_noise_sample_freq,
             callback=callback or Callback(),
-            logging_config=logging_config or LoggingConfig(),
+            stash_config=stash_config or InfoStashConfig(),
             torch_device=torch_device,
             torch_dtype=torch_dtype,
         )

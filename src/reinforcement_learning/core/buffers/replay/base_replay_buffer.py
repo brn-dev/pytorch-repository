@@ -46,7 +46,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
         self.actions = np.zeros((self.step_size, self.num_envs, *self.action_shape), dtype=self.np_dtype)
 
         self.rewards = np.zeros((self.step_size, self.num_envs), dtype=self.np_dtype)
-        self.dones = np.zeros((self.step_size, self.num_envs), dtype=bool)
+        self.terminated = np.zeros((self.step_size, self.num_envs), dtype=bool)
         self.truncated = np.zeros((self.step_size, self.num_envs), dtype=bool)
 
         self.consider_truncated_as_done = consider_truncated_as_done
@@ -69,7 +69,7 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
 
         self.actions[self.pos] = actions
         self.rewards[self.pos] = self.scale_rewards(rewards)
-        self.dones[self.pos] = np.logical_or(terminated, truncated)
+        self.terminated[self.pos] = terminated
         self.truncated[self.pos] = truncated
 
         self.pos += 1
@@ -97,12 +97,9 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
         tensor_obs, next_tensor_obs = self._get_batch_obs(step_indices, env_indices)
 
         if self.consider_truncated_as_done:
-            dones = self.dones[step_indices, env_indices]
+            dones = np.logical_or(self.terminated[step_indices, env_indices], self.truncated[step_indices, env_indices])
         else:
-            dones = np.logical_and(
-                self.dones[step_indices, env_indices],
-                np.logical_not(self.truncated[step_indices, env_indices])
-            )
+            dones = self.terminated[step_indices, env_indices]
 
         return ReplayBufferSamples(
             observations=tensor_obs,
@@ -133,14 +130,22 @@ class BaseReplayBuffer(BaseBuffer[ReplayBufferSamples], abc.ABC):
             self,
             n_episodes: int,
             compensate_for_reward_scaling: bool = True,
+            consider_truncated_as_done: bool | None = None
     ):
+        if consider_truncated_as_done is None:
+            consider_truncated_as_done = self.consider_truncated_as_done
+
         whole_episode = np.zeros((self.num_envs,), dtype=bool)
 
         running_sum = np.zeros((self.num_envs,), dtype=float)
         episode_scores: list[float] = []
 
         for step_index in reversed(self.tail_indices(self.size)):
-            step_dones = self.dones[step_index]
+            if consider_truncated_as_done:
+                step_dones = np.logical_or(self.terminated[step_index], self.truncated[step_index])
+            else:
+                step_dones = self.terminated[step_index]
+
             episode_scores.extend(running_sum[np.logical_and(step_dones, whole_episode)])
 
             if len(episode_scores) >= n_episodes:

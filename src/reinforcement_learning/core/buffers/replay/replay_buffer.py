@@ -75,6 +75,7 @@ class ReplayBuffer(BaseReplayBuffer):
 
         return self._get_batch(step_indices, env_indices)
 
+    @override
     def _get_batch_obs(self, step_indices: np.ndarray, env_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
         obs = self.to_torch(self.observations[step_indices, env_indices, :])
 

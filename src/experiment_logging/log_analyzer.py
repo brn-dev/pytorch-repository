@@ -162,7 +162,7 @@ class LogAnalyzer:
                     **mean_plot_kwargs
                 )[0].get_color()
             if fill_plot_kwargs is not DONT_SHOW:
-                prev_color = ax.fill_between(xs, mins, maxs, **fill_plot_kwargs).get_facecolor()
+                prev_color = ax.fill_between(xs, mins, maxs, **fill_plot_kwargs).get_facecolor()[0]
 
             if plot_individual:
                 if latest_individual_plot_kwargs is None:
@@ -171,9 +171,9 @@ class LogAnalyzer:
                         get_x=get_x,
                         get_y=get_y,
                         ax=ax,
-                        get_label=lambda _: label,
+                        get_label=lambda log_: f'{group_logs.index(log_) + 1}. {label}',
                         category=category,
-                        color=prev_color or SAME_COLOR,
+                        color=prev_color if prev_color is not None else SAME_COLOR,
                         **individual_plot_kwargs
                     )[0].get_color()
                 else:
@@ -183,9 +183,9 @@ class LogAnalyzer:
                         get_x=get_x,
                         get_y=get_y,
                         ax=ax,
-                        get_label=lambda _: label,
+                        get_label=lambda log_: f'{group_logs.index(log_) + 1}. {label}',
                         category=category,
-                        color=prev_color or SAME_COLOR,
+                        color=prev_color if prev_color is not None else SAME_COLOR,
                         **individual_plot_kwargs
                     )
                     if len(lines) > 0:
@@ -198,9 +198,9 @@ class LogAnalyzer:
                             get_x=get_x,
                             get_y=get_y,
                             ax=ax,
-                            get_label=lambda _: label,
+                        get_label=lambda log_: f'{group_logs.index(log_) + 1}. {label}',
                             category=category,
-                            color=prev_color or SAME_COLOR,
+                            color=prev_color if prev_color is not None else SAME_COLOR,
                             **latest_individual_plot_kwargs
                         )
 
@@ -248,7 +248,7 @@ class LogAnalyzer:
             y = np.array([get_y(item) for item in log_items])
 
             col = color
-            if color == SAME_COLOR:
+            if color is SAME_COLOR:
                 if len(lines) > 0:
                     col = lines[-1].get_color()
                 else:

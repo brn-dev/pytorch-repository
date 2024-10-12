@@ -3,7 +3,7 @@ import torch
 
 from src.reinforcement_learning.core.buffers.resevoir.base_reservoir_buffer import BaseReservoirBuffer, \
     ReservoirBufferSamples
-from src.reinforcement_learning.core.type_aliases import NpObs, ShapeDict
+from src.reinforcement_learning.core.type_aliases import NpObs, ShapeDict, TensorObs
 from src.torch_device import TorchDevice
 
 
@@ -16,6 +16,7 @@ class ReservoirBuffer(BaseReservoirBuffer):
             obs_shape: tuple[int, ...] | ShapeDict,
             action_shape: tuple[int, ...],
             reward_scale: float,
+            consider_truncated_as_done: bool = False,
             torch_device: TorchDevice = 'cpu',
             torch_dtype: torch.dtype = torch.float32,
             np_dtype: np.dtype = np.float32,
@@ -26,6 +27,7 @@ class ReservoirBuffer(BaseReservoirBuffer):
             obs_shape=obs_shape,
             action_shape=action_shape,
             reward_scale=reward_scale,
+            consider_truncated_as_done=consider_truncated_as_done,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -38,12 +40,7 @@ class ReservoirBuffer(BaseReservoirBuffer):
         self.observations[indices] = observations
         self.next_observations[indices] = next_observations
 
-    def _get_batch(self, batch_indices: np.ndarray) -> ReservoirBufferSamples:
-        data = (
-            self.observations[batch_indices, :],
-            self.actions[batch_indices, :],
-            self.next_observations[batch_indices, :],
-            self.dones[batch_indices].reshape(-1, 1),
-            self.rewards[batch_indices].reshape(-1, 1),
-        )
-        return ReservoirBufferSamples(*self.all_to_torch(data))
+    def _get_batch_obs(self, batch_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
+        observations = self.observations[batch_indices, :]
+        next_observations = self.next_observations[batch_indices, :]
+        return self.to_torch(observations), self.to_torch(next_observations)

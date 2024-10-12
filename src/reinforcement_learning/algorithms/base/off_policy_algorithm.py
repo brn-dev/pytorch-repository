@@ -7,10 +7,11 @@ import numpy as np
 import torch
 
 from src.hyper_parameters import HyperParameters
-from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
+from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, StashConf, PolicyProvider
 from src.reinforcement_learning.core.action_noise import ActionNoise
 from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer
 from src.reinforcement_learning.core.callback import Callback
+from src.reinforcement_learning.core.info_stash import create_stash_list
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.torch_device import TorchDevice
 from src.void_list import VoidList
@@ -18,7 +19,7 @@ from src.void_list import VoidList
 ReplayBuf = TypeVar('ReplayBuf', bound=BaseReplayBuffer)
 
 
-class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
+class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, StashConf], ABC):
 
     def __init__(
             self,
@@ -34,7 +35,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             warmup_steps: int,
             sde_noise_sample_freq: Optional[int],
             callback: Callback,
-            logging_config: LogConf,
+            stash_config: StashConf,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype
     ):
@@ -48,7 +49,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
             gamma=gamma,
             sde_noise_sample_freq=sde_noise_sample_freq,
             callback=callback,
-            logging_config=logging_config,
+            stash_config=stash_config,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
         )
@@ -87,7 +88,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
                 torch.tensor(obs, device=self.torch_device, dtype=self.torch_dtype)
             )
 
-            if self.logging_config.log_rollout_action_stds:
+            if self.stash_config.stash_rollout_action_stds:
                 info['action_stds'] = action_selector.distribution.stddev
 
             actions = action_selector.get_actions().cpu().numpy()
@@ -144,7 +145,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
     ) -> tuple[np.ndarray, np.ndarray]:
         self.policy.reset_sde_noise(self.num_envs)
 
-        rollout_infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
+        rollout_infos: list[InfoDict] = create_stash_list(self.stash_config.stash_rollout_infos)
 
         for _ in range(min(self.rollout_steps, max_steps)):
             if self.sde_noise_sample_freq is not None and self.steps_performed % self.sde_noise_sample_freq == 0:
@@ -158,10 +159,10 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, LogConf], ABC):
 
             self.steps_performed += 1
 
-        if self.logging_config.log_rollout_infos:
+        if self.stash_config.stash_rollout_infos:
             info['rollout'] = stack_infos(rollout_infos)
 
-        if self.logging_config.log_last_obs:
+        if self.stash_config.stash_last_obs:
             info['last_obs'] = obs
             info['last_episode_starts'] = episode_starts
 

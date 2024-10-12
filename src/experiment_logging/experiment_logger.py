@@ -69,15 +69,33 @@ class ExperimentLogger:
         }
         self.experiment_log = experiment_log
 
-    def add_item(self, item: ExperimentLogItem, category: str = DEFAULT_CATEGORY_KEY) -> ExperimentLogItem:
+    def add_item(
+            self,
+            item: ExperimentLogItem,
+            category: str = DEFAULT_CATEGORY_KEY,
+            clear_none_valued_entries: bool = True
+    ) -> ExperimentLogItem:
         if category not in self.experiment_log['logs_by_category']:
             self.experiment_log['logs_by_category'][category] = []
 
         item['__timestamp'] = get_current_timestamp()
 
+        if clear_none_valued_entries:
+            item = {
+                k: v
+                for k, v in item.items()
+                if v is not None
+            }
+
         self.experiment_log['logs_by_category'][category].append(item)
 
         return item
+
+    def get_log_item(self, index: int | slice, category: str = DEFAULT_CATEGORY_KEY):
+        return self.experiment_log['logs_by_category'][category][index]
+
+    def get_latest_log_item(self, category: str = DEFAULT_CATEGORY_KEY):
+        return self.get_log_item(-1, category=category)
 
     def item_start(self, category: str = DEFAULT_CATEGORY_KEY):
         self.current_items_by_category[category] = {}
@@ -160,26 +178,31 @@ class ExperimentLogger:
             min_value_format: str | None = None,
             max_value_format: str | None = None,
             n_format: str | None = None,
+            float_format: str | None = '.3f',
+            **format_by_name: str,
     ) -> str:
-        metrics: list[str] = []
+        components: list[str] = []
 
-        for name, metric in item.items():
-            if is_summary_statistics(metric):
-                formatted_metric = format_summary_statistics(
-                    metric,
+        for name, value in item.items():
+            if (fmt := format_by_name.get(name)) is not None:
+                formatted_value = format(value, fmt)
+            elif is_summary_statistics(value):
+                formatted_value = format_summary_statistics(
+                    value,
                     mean_format=mean_format,
                     std_format=std_format,
                     min_value_format=min_value_format,
                     max_value_format=max_value_format,
                     n_format=n_format
                 )
+            elif isinstance(value, float):
+                formatted_value = format(value, float_format)
             else:
-                formatted_metric = metric
+                formatted_value = str(value)
 
-            metrics.append(formatted_metric)
+            components.append(f'{name} = {formatted_value}')
 
-        return ', '.join(metrics)
-
+        return ', '.join(components)
 
 @contextmanager
 def log_experiment(
@@ -194,7 +217,6 @@ def log_experiment(
         model_db_references: list[ModelDBReference] = None,
         on_end: Callable[[ExperimentLog], dict[str, Any]] = lambda _: {},
 ):
-
     experiment_logger.start_experiment_log(
         experiment_id=experiment_id,
         experiment_tags=experiment_tags,

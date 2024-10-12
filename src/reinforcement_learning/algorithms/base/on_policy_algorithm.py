@@ -7,7 +7,7 @@ import torch
 from torch import optim
 
 from src.hyper_parameters import HyperParameters
-from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, LogConf, PolicyProvider
+from src.reinforcement_learning.algorithms.base.base_algorithm import BaseAlgorithm, Policy, StashConf, PolicyProvider
 from src.reinforcement_learning.core.buffers.rollout.base_rollout_buffer import BaseRolloutBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
@@ -18,7 +18,7 @@ from src.void_list import VoidList
 RolloutBuf = TypeVar('RolloutBuf', bound=BaseRolloutBuffer)
 
 
-class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
+class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, StashConf], abc.ABC):
 
     def __init__(
             self,
@@ -30,7 +30,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             gae_lambda: float,
             sde_noise_sample_freq: int | None,
             callback: Callback,
-            logging_config: LogConf,
+            stash_config: StashConf,
             torch_device: TorchDevice,
             torch_dtype: torch.dtype
     ):
@@ -41,7 +41,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
             gamma=gamma,
             sde_noise_sample_freq=sde_noise_sample_freq,
             callback=callback,
-            logging_config=logging_config,
+            stash_config=stash_config,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
         )
@@ -69,7 +69,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
         actions = action_selector.get_actions()
         next_obs, rewards, terminated, truncated, info = self.env.step(actions.detach().cpu().numpy())
 
-        if self.logging_config.log_rollout_action_stds:
+        if self.stash_config.stash_rollout_action_stds:
             info['action_stds'] = action_selector.distribution.stddev
 
         self.buffer.add(
@@ -93,7 +93,7 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
         self.buffer.reset()
         self.policy.reset_sde_noise(self.num_envs)
 
-        infos: list[InfoDict] = [] if self.logging_config.log_rollout_infos else VoidList()
+        infos: list[InfoDict] = [] if self.stash_config.stash_rollout_infos else VoidList()
         for _ in range(min(self.buffer.step_size, max_steps)):
             if self.sde_noise_sample_freq is not None and self.steps_performed % self.sde_noise_sample_freq == 0:
                 self.policy.reset_sde_noise(self.num_envs)
@@ -103,10 +103,10 @@ class OnPolicyAlgorithm(BaseAlgorithm[Policy, RolloutBuf, LogConf], abc.ABC):
 
             self.steps_performed += 1
 
-        if self.logging_config.log_rollout_infos:
+        if self.stash_config.stash_rollout_infos:
             info['rollout'] = stack_infos(infos)
 
-        if self.logging_config.log_last_obs:
+        if self.stash_config.stash_last_obs:
             info['last_obs'] = obs
             info['last_episode_starts'] = episode_starts
 
