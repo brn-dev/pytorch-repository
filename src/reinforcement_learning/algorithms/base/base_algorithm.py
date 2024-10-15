@@ -172,17 +172,17 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, StashCo
     def to_tensor(self, arr: np.ndarray) -> torch.Tensor:
         return torch.tensor(arr, dtype=self.torch_dtype, device=self.torch_device)
 
-    def save(self, folder_location: str, name: str, **meta_data):
-        os.makedirs(folder_location, exist_ok=True)
-
-        torch.save(self.policy.state_dict(), os.path.join(folder_location, name + POLICY_FILE_SUFFIX))
-        joblib.dump(self.buffer, os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
-
-        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'w') as f:
-            json.dump({
-                'steps_performed': self.steps_performed,
-                **meta_data
-            }, f)
+    def save(self, folder_location: str, name: str, policy_as_state_dict: bool = True, **meta_data):
+        buffer_path = os.path.join(folder_location, name + BUFFER_FILE_SUFFIX)
+        # policy.save checks if the folder exists and creates it if necessary
+        self.policy.save(
+            os.path.join(folder_location, name + POLICY_FILE_SUFFIX),
+            as_state_dict=policy_as_state_dict,
+            buffer_path=buffer_path,
+            steps_performed=self.steps_performed,
+            **meta_data
+        )
+        joblib.dump(self.buffer, buffer_path)
 
     def load(self, folder_location: str, name: str) -> dict[str, Any]:
         os.makedirs(folder_location, exist_ok=True)

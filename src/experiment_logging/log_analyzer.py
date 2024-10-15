@@ -20,6 +20,9 @@ from src.utils import dict_diff
 DONT_SHOW = {'dont': 'show'}
 SAME_COLOR = '___same_color___'
 
+STABLE_BASELINES_TAG = 'stable_baselines3'
+
+
 class LogAnalyzer:
 
     def __init__(self):
@@ -34,6 +37,61 @@ class LogAnalyzer:
             log = load_experiment_log(file)
             if log_filter(log):
                 self.logs.append(log)
+
+    def load_sb3_folder(
+            self,
+            folder_path: str,
+            filter_file: Callable[[str], bool] = lambda file_name: True,
+            rename_item_key: dict[str, str] = None,
+            parse_item_value: dict[str, Callable[[Any], Any]] = None,
+            filter_item: Callable[[dict[str, Any]], bool] = lambda item: True,
+    ):
+        files = glob.glob(os.path.join(folder_path, '*.txt'))
+        for file in files:
+            if not filter_file(file):
+                continue
+
+            log_items = []
+            log: ExperimentLog = {
+                'experiment_id': file,
+                'experiment_tags': [STABLE_BASELINES_TAG],
+                'start_time': '',
+                'end_time': '',
+                'end_exception': None,
+                'hyper_parameters': {},
+                'system_info': {},
+                'setup': {},
+                'notes': [],
+                'model_db_references': None,
+                'logs_by_category': {DEFAULT_CATEGORY_KEY: log_items},
+            }
+            with open(file, 'r') as f:
+                in_item = False
+                current_item = {}
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('---'):
+                        # Toggle the in_item flag
+                        if in_item:
+                            # We're ending an item
+                            if filter_item(current_item):
+                                log_items.append(current_item)
+                            current_item = {}
+                        in_item = not in_item
+                    elif in_item:
+                        # We're inside an item
+                        if line.startswith('|'):
+                            # Remove leading and trailing '|', then split by '|'
+                            parts = [part.strip() for part in line.strip('|').split('|')]
+                            if len(parts) >= 2:
+                                key = parts[0]
+                                value = parts[1]
+                                if rename_item_key is not None and key in rename_item_key:
+                                    key = rename_item_key[key]
+                                if parse_item_value is not None and key in parse_item_value:
+                                    value = parse_item_value[key](value)
+                                current_item[key] = value
+            self.logs.append(log)
 
     def find_hyper_parameter_diffs(
             self,
@@ -97,7 +155,7 @@ class LogAnalyzer:
             get_y: Callable[[ExperimentLogItem], float],
             get_log_group: Callable[[ExperimentLog], str],
             ax: matplotlib.axes.Axes,
-            filter_log: Callable[[ExperimentLog], bool] = lambda log: True,
+            filter_log: Callable[[ExperimentLog, str], bool] = lambda log: True,
             category: str = DEFAULT_CATEGORY_KEY,
             plot_individual: bool = False,
             mean_plot_kwargs: dict[str, Any] = None,
@@ -112,10 +170,10 @@ class LogAnalyzer:
 
         logs_by_group: dict[str, list[ExperimentLog]] = {}
         for log in self.logs:
-            if not filter_log(log):
-                continue
-
             group = get_log_group(log)
+
+            if not filter_log(log, group):
+                continue
 
             if group in logs_by_group:
                 logs_by_group[group].append(log)
@@ -138,6 +196,8 @@ class LogAnalyzer:
                         points[x].append(y)
                     else:
                         points[x] = [y]
+
+            points = dict(sorted(points.items()))
 
             mins: list[float] = []
             maxs: list[float] = []
@@ -198,7 +258,7 @@ class LogAnalyzer:
                             get_x=get_x,
                             get_y=get_y,
                             ax=ax,
-                        get_label=lambda log_: f'{group_logs.index(log_) + 1}. {label}',
+                            get_label=lambda log_: f'{group_logs.index(log_) + 1}. {label}',
                             category=category,
                             color=prev_color if prev_color is not None else SAME_COLOR,
                             **latest_individual_plot_kwargs
@@ -281,7 +341,7 @@ class LogAnalyzer:
         if moving_average_window_size is not None:
             cumsum_vec = np.cumsum(np.insert(y, 0, 0))
             ma_vec = (
-                        cumsum_vec[moving_average_window_size:] - cumsum_vec[:-moving_average_window_size]
+                             cumsum_vec[moving_average_window_size:] - cumsum_vec[:-moving_average_window_size]
                      ) / moving_average_window_size
             lines.append(ax.plot(
                 x[moving_average_window_size - 1:],
@@ -296,5 +356,3 @@ class LogAnalyzer:
     def get_log_items(log: ExperimentLog, category: str = DEFAULT_CATEGORY_KEY):
         # alias
         return get_log_items(log, category)
-
-

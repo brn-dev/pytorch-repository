@@ -116,13 +116,15 @@ class ExperimentLogger:
     def load_experiment_log(self, file_path: str):
         self.experiment_log = load_experiment_log(file_path)
 
-    def save_experiment_log(self, file_path: Optional[str] = None):
+    def save_experiment_log(self, file_path: Optional[str] = None) -> ExperimentLog:
         if file_path is None:
             file_path = self.experiment_file_path
 
         save_experiment_log(file_path, self._experiment_log, 2 if self.log_pretty else None)
 
         print(f'saved experiment log {self.experiment_log["experiment_id"]} at {file_path}')
+
+        return self._experiment_log
 
     def end_experiment_log(
             self,

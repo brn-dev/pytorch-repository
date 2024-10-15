@@ -312,20 +312,23 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
         info.update(concat_infos(gradient_step_infos))
 
     def save(self, folder_location: str, name: str, **meta_data):
-        super().save(folder_location, name, gradient_steps_performed=self.gradient_steps_performed, **meta_data)
+        actor_optimizer_path = os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
+        critic_optimizer_path = os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
+        entropy_coef_optimizer_path = os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
 
-        torch.save(
-            self.actor_optimizer.state_dict(),
-            os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
+        super().save(
+            folder_location,
+            name,
+            gradient_steps_performed=self.gradient_steps_performed,
+            actor_optimizer_path=actor_optimizer_path,
+            critic_optimizer_path=critic_optimizer_path,
+            entropy_coef_optimizer_path=entropy_coef_optimizer_path,
+            **meta_data
         )
-        torch.save(
-            self.critic_optimizer.state_dict(),
-            os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
-        )
-        torch.save(
-            self.entropy_coef_optimizer.state_dict(),
-            os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
-        )
+
+        torch.save(self.actor_optimizer.state_dict(), actor_optimizer_path)
+        torch.save(self.critic_optimizer.state_dict(), critic_optimizer_path)
+        torch.save(self.entropy_coef_optimizer.state_dict(), entropy_coef_optimizer_path)
 
     def load(self, folder_location: str, name: str) -> dict[str, Any]:
         meta_data = super().load(folder_location, name)

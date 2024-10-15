@@ -92,11 +92,11 @@ def get_system_info(print_status: str = True, include_sensitive_stuff: bool = Fa
                 gpu_info = {
                     'name': gpu.Name.strip(),
                     'driver_version': gpu.DriverVersion,
-                    'video_processor': gpu.VideoProcessor.strip(),
+                    'video_processor': vp.strip() if (vp := gpu.VideoProcessor) is not None else None,
                     'adapter_ram': f"{int(gpu.AdapterRAM) // (1024 ** 2)} MB" if gpu.AdapterRAM else 'Unknown',
-                    'adapter_dac_type': gpu.AdapterDACType.strip(),
+                    'adapter_dac_type': adact.strip() if (adact := gpu.AdapterDACType) is not None else None,
                     # 'video_mode_description': gpu.VideoModeDescription.strip(),
-                    'manufacturer': gpu.AdapterCompatibility.strip(),
+                    'manufacturer': ac.strip() if (ac := gpu.AdapterCompatibility) is not None else Noneo,
                 }
                 gpu_info_list.append(gpu_info)
             info['gpu'] = gpu_info_list
