@@ -71,6 +71,6 @@ class BasePolicy(BasePolicyComponent):
                 json.dump({
                     'hyper_parameters': self.collect_hyper_parameters(),
                     'repr': repr(self),
-                    'policy_path': file_path,
+                    'policy_path': str(file_path.absolute()),
                     **meta_data
                 }, f)

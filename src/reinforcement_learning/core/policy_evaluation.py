@@ -70,9 +70,8 @@ def record_policy(
         video_folder: str,
         deterministic_actions: bool,
         num_steps: int,
-        wrap_env: WrapEnvFunction = lambda env, hyper_parameter: env,
-        wrap_env_hyper_parameters: dict[str, Any] = None,
         torch_device: TorchDevice = 'cpu',
+        torch_dtype: torch.dtype = torch.float32,
 ):
     try:
         policy.eval()
@@ -81,15 +80,14 @@ def record_policy(
         if 'render_fps' not in env.metadata:
             env.metadata['render_fps'] = 30
         env = AutoResetWrapper(RecordVideo(env, video_folder=video_folder, episode_trigger=lambda ep_nr: True))
-        env = wrap_env(as_vec_env(env)[0], wrap_env_hyper_parameters or {})
 
         policy.reset_sde_noise(1)
 
         with torch.no_grad():
             obs, info = env.reset()
             for step in range(num_steps):
-                actions_dist, _ = policy.process_obs(torch.tensor(obs, device=torch_device))
-                actions = actions_dist.get_actions(deterministic=deterministic_actions).detach().cpu().numpy()
+                action_selector = policy.act(torch.tensor(obs, device=torch_device, dtype=torch_dtype))
+                actions = action_selector.get_actions(deterministic=deterministic_actions).detach().cpu().numpy()
                 obs, reward, terminated, truncated, info = env.step(actions)
 
     except KeyboardInterrupt:
