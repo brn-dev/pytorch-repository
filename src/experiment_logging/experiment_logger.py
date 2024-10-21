@@ -181,13 +181,17 @@ class ExperimentLogger:
             max_value_format: str | None = None,
             n_format: str | None = None,
             float_format: str | None = '.3f',
-            **format_by_name: str,
+            **format_by_name: str | dict[str, str],
     ) -> str:
         components: list[str] = []
 
         for name, value in item.items():
             if (fmt := format_by_name.get(name)) is not None:
-                formatted_value = format(value, fmt)
+                if is_summary_statistics(value):
+                    formatted_value = format_summary_statistics(value, **fmt)
+                else:
+                    formatted_value = format(value, fmt)
+
             elif is_summary_statistics(value):
                 formatted_value = format_summary_statistics(
                     value,
