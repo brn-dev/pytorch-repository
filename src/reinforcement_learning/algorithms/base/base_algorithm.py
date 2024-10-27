@@ -59,7 +59,7 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, StashCo
         self.policy: Policy = (policy if isinstance(policy, BasePolicy) else policy()).to(torch_device)
         self.buffer = buffer
 
-        self.gamma = gamma
+        self.gamma = float(gamma)
 
         if not policy.uses_sde and sde_noise_sample_freq is not None:
             print_warning(f' SDE noise sample freq is set to {sde_noise_sample_freq} despite not using SDE \n')
@@ -86,6 +86,8 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, StashCo
             'env': str(self.env),
             'num_envs': self.num_envs,
             'env_specs': get_unique_env_specs(self.env),
+            'observation_space': str(self.observation_space),
+            'action_space': str(self.action_space),
             'policy': self.policy.collect_hyper_parameters(),
             'policy_parameter_count': count_parameters(self.policy),
             'policy_repr': str(self.policy),

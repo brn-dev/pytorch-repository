@@ -54,7 +54,7 @@ class OffPolicyAlgorithm(BaseAlgorithm[Policy, ReplayBuf, StashConf], ABC):
             torch_dtype=torch_dtype,
         )
 
-        self.tau = tau
+        self.tau = float(tau)
 
         self.rollout_steps = rollout_steps
         self.gradient_steps = gradient_steps

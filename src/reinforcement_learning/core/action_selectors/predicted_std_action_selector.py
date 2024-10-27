@@ -29,7 +29,7 @@ class PredictedStdActionSelector(ContinuousActionSelector):
             epsilon: float = 1e-6,
             action_net_initialization: ActionNetInitialization | None = None,
             log_std_net_initialization: LogStdNetInitialization | None = None,
-            log_std_clamp_range: tuple[int, int] = (-20, 2)
+            log_std_clamp_range: tuple[float, float] = (-20.0, 2.0)
     ):
         super().__init__(
             latent_dim=latent_dim,

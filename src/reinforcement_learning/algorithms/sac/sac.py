@@ -26,11 +26,9 @@ from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
 
-
 ACTOR_OPTIMIZER_FILE_SUFFIX = '.actor_optimizer.state_dict.pth'
 CRITIC_OPTIMIZER_FILE_SUFFIX = '.critic_optimizer.state_dict.pth'
 ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX = '.entropy_coef_optimizer.state_dict.pth'
-
 
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.Adam(params, lr=3e-4)
 AUTO_TARGET_ENTROPY = 'auto'
@@ -38,7 +36,6 @@ AUTO_TARGET_ENTROPY = 'auto'
 
 @dataclass
 class SACInfoStashConfig(InfoStashConfig):
-
     stash_entropy_coef: bool = False
     entropy_coef_loss: LossInfoStashConfig = None
     actor_loss: LossInfoStashConfig = None
@@ -53,10 +50,10 @@ class SACInfoStashConfig(InfoStashConfig):
             self.critic_loss = LossInfoStashConfig()
 
         self.stash_during_optimization = (
-            self.stash_entropy_coef
-            or self.actor_loss.stash_anything
-            or self.critic_loss.stash_anything
-            or self.entropy_coef_loss.stash_anything
+                self.stash_entropy_coef
+                or self.actor_loss.stash_anything
+                or self.critic_loss.stash_anything
+                or self.entropy_coef_loss.stash_anything
         )
 
         super().__post_init__()
@@ -70,11 +67,12 @@ class SACInfoStashConfig(InfoStashConfig):
         https://arxiv.org/pdf/1801.01290
 
 """
-class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
 
+
+class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
     buffer: BaseReplayBuffer
     target_entropy: float
-    log_ent_coef: Optional[torch.Tensor]
+    log_entropy_coef: Optional[torch.Tensor]
     entropy_coef_optimizer: Optional[optim.Optimizer]
     entropy_coef_tensor: Optional[torch.Tensor]
 
@@ -99,6 +97,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             entropy_coef: float = 1.0,
             target_entropy: float | Literal['auto'] = AUTO_TARGET_ENTROPY,
             entropy_coef_optimizer_provider: Optional[OptimizerProvider] = None,
+            entropy_coef_clamp_range: tuple[float, float] = None,
             weigh_and_reduce_entropy_coef_loss: TorchTensorFn = torch.mean,
             action_noise: Optional[ActionNoise] = None,
             warmup_steps: int = 100,
@@ -149,11 +148,16 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
         self.target_update_interval = target_update_interval
         self.gradient_steps_performed = 0
 
-        self._setup_entropy_optimization(entropy_coef, target_entropy, entropy_coef_optimizer_provider)
+        self._setup_entropy_optimization(
+            entropy_coef,
+            target_entropy,
+            entropy_coef_optimizer_provider,
+            entropy_coef_clamp_range,
+        )
 
         # CrossQ doesn't use a target critic
         if isinstance(self.policy, SACCrossQPolicy):
-            self.tau = 0
+            self.tau = 0.0
             self.target_update_interval = 0
 
     def collect_hyper_parameters(self) -> HyperParameters:
@@ -167,6 +171,10 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             'target_update_interval': self.target_update_interval,
             'target_entropy': self.target_entropy,
             'entropy_coef': self.entropy_coef_tensor.item() if self.entropy_coef_tensor is not None else 'dynamic',
+            'entropy_coef_clamp_range': None if self.log_entropy_coef_clamp_range is None else (
+                np.exp(self.log_entropy_coef_clamp_range[0]),
+                np.exp(self.log_entropy_coef_clamp_range[1])
+            ),
         })
 
     def _setup_entropy_optimization(
@@ -174,6 +182,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             entropy_coef: float,
             target_entropy: float | Literal['auto'],
             entropy_coef_optimizer_provider: Optional[OptimizerProvider],
+            entropy_coef_clamp_range: tuple[float, float] | None,
     ):
         if target_entropy == 'auto':
             self.target_entropy = float(-np.prod(get_single_action_space(self.env).shape).astype(np.float32))
@@ -181,14 +190,24 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             self.target_entropy = float(target_entropy)
 
         if entropy_coef_optimizer_provider is not None:
-            self.log_ent_coef = torch.log(
+            self.log_entropy_coef = torch.log(
                 torch.tensor([entropy_coef], device=self.torch_device, dtype=self.torch_dtype)
             ).requires_grad_(True)
-            self.entropy_coef_optimizer = entropy_coef_optimizer_provider([self.log_ent_coef])
+            self.entropy_coef_optimizer = entropy_coef_optimizer_provider([self.log_entropy_coef])
+
+            if entropy_coef_clamp_range is not None:
+                self.log_entropy_coef_clamp_range = (
+                    np.log(entropy_coef_clamp_range[0]),
+                    np.log(entropy_coef_clamp_range[1])
+                )
+            else:
+                self.log_entropy_coef_clamp_range = None
+
             self.entropy_coef_tensor = None
         else:
-            self.log_ent_coef = None
+            self.log_entropy_coef = None
             self.entropy_coef_optimizer = None
+            self.log_entropy_coef_clamp_range = None
             self.entropy_coef_tensor = torch.tensor(entropy_coef, device=self.torch_device, dtype=self.torch_dtype)
 
     def get_and_optimize_entropy_coef(
@@ -197,10 +216,10 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             info: InfoDict
     ) -> torch.Tensor:
         if self.entropy_coef_optimizer is not None:
-            entropy_coef = torch.exp(self.log_ent_coef.detach())
+            entropy_coef = torch.exp(self.log_entropy_coef.detach())
 
             entropy_coef_loss = weigh_and_reduce_loss(
-                raw_loss=-self.log_ent_coef * (actions_pi_log_prob + self.target_entropy).detach(),
+                raw_loss=-self.log_entropy_coef * (actions_pi_log_prob + self.target_entropy).detach(),
                 weigh_and_reduce_function=self.weigh_and_reduce_entropy_coef_loss,
                 info=info,
                 loss_name='entropy_coef_loss',
@@ -209,6 +228,10 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             self.entropy_coef_optimizer.zero_grad()
             entropy_coef_loss.backward()
             self.entropy_coef_optimizer.step()
+
+            if self.log_entropy_coef_clamp_range is not None:
+                with torch.no_grad():
+                    self.log_entropy_coef.clamp_(*self.log_entropy_coef_clamp_range)
 
             return entropy_coef
         else:
@@ -270,7 +293,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
         for gradient_step in range(self.gradient_steps):
             step_info: InfoDict = {}
             replay_samples = self.buffer.sample(self.optimization_batch_size)
-            
+
             self.actor.reset_sde_noise()  # TODO: set batch size?
 
             observation_features = self.shared_feature_extractor(replay_samples.observations)
@@ -332,7 +355,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
 
     def load(self, folder_location: str, name: str) -> dict[str, Any]:
         meta_data = super().load(folder_location, name)
-        
+
         self.actor_optimizer.load_state_dict(
             torch.load(os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX))
         )
@@ -345,4 +368,3 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
 
         self.gradient_steps_performed = meta_data.get('gradient_steps_performed') or self.gradient_steps_performed
         return meta_data
-
