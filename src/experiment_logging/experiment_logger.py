@@ -13,6 +13,7 @@ from src.summary_statistics import format_summary_statistics, is_summary_statist
 from src.system_info import get_system_info
 from src.utils import default_fn, format_current_exception, remove_duplicates_keep_order
 
+
 class ExperimentLogger:
     _experiment_log: Optional[ExperimentLog]
     experiment_log: ExperimentLog
@@ -44,11 +45,19 @@ class ExperimentLogger:
 
     @property
     def experiment_log_file_path(self):
-        if self.zip_json:
+        return self.get_experiment_log_file_path(self.experiment_log["experiment_id"])
+
+    def get_experiment_log_file_path(self, name: str, folder_path: str = None, zipped: bool = None):
+        if folder_path is None:
+            folder_path = self.log_folder_path
+        if zipped is None:
+            zipped = self.zip_json
+
+        if zipped:
             ext = ZIPPED_JSON_EXTENSION
         else:
             ext = JSON_EXTENSION
-        return os.path.join(self.log_folder_path, self.experiment_log["experiment_id"] + ext)
+        return os.path.join(folder_path, name + ext)
 
     def start_experiment_log(
             self,
@@ -61,15 +70,13 @@ class ExperimentLogger:
             notes: Optional[list[str]] = None,
             model_db_references: list[ModelDBReference] = None,
     ):
-        file_path = Path(self.experiment_log_file_path)
+        json_path = self.get_experiment_log_file_path(experiment_id, zipped=False)
+        zipped_json_path = self.get_experiment_log_file_path(experiment_id, zipped=True)
 
-        json_path = file_path.with_suffix(JSON_EXTENSION)
-        zipped_json_path = file_path.with_suffix(ZIPPED_JSON_EXTENSION)
-
-        if json_path.exists():
-            self.experiment_log = load_experiment_log(str(json_path))
-        elif zipped_json_path.exists():
-            self.experiment_log = load_experiment_log(str(zipped_json_path))
+        if os.path.exists(json_path):
+            self.experiment_log = load_experiment_log(json_path)
+        elif os.path.exists(zipped_json_path):
+            self.experiment_log = load_experiment_log(zipped_json_path)
         else:
             self.experiment_log = {
                 'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
@@ -226,6 +233,7 @@ class ExperimentLogger:
 
         return ', '.join(components)
 
+
 @contextmanager
 def log_experiment(
         experiment_logger: ExperimentLogger,
@@ -252,6 +260,7 @@ def log_experiment(
     with end_experiment_on_exit(experiment_logger, on_end=on_end):
         yield experiment_logger
 
+
 @contextmanager
 def save_experiment_on_exit(experiment_logger: ExperimentLogger):
     try:
@@ -260,6 +269,7 @@ def save_experiment_on_exit(experiment_logger: ExperimentLogger):
         raise e
     finally:
         experiment_logger.save_experiment_log()
+
 
 @contextmanager
 def end_experiment_on_exit(
