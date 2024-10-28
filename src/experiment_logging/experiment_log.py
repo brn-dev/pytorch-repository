@@ -1,9 +1,15 @@
+import gzip
 import json
 import os
 from typing import TypedDict, Optional, Any
 
 from src.hyper_parameters import HyperParameters
 from src.scientific_float_json_encoder import ScientificFloatJsonEncoder
+
+
+JSON_EXTENSION = '.json'
+ZIPPED_JSON_EXTENSION = '.json.gz'
+
 
 DEFAULT_CATEGORY_KEY = '__default'
 
@@ -39,7 +45,14 @@ def get_log_items(log: ExperimentLog, category: str = DEFAULT_CATEGORY_KEY):
 
 
 def load_experiment_log(file_path: str) -> ExperimentLog:
-    with open(file_path, 'r') as file:
+    if file_path.endswith(JSON_EXTENSION):
+        file = open(file_path, 'r')
+    elif file_path.endswith(ZIPPED_JSON_EXTENSION):
+        file = gzip.open(file_path, 'rt')
+    else:
+        raise ValueError(f'File path has an invalid extension: {file_path}')
+
+    with file:
         return json.load(file)
 
 
@@ -52,8 +65,14 @@ def save_experiment_log(
     dir_name = os.path.dirname(file_path)
     os.makedirs(dir_name, exist_ok=True)
 
+    if file_path.endswith(JSON_EXTENSION):
+        file = open(file_path, 'w')
+    elif file_path.endswith(ZIPPED_JSON_EXTENSION):
+        file = gzip.open(file_path, 'wt')
+    else:
+        raise ValueError(f'File path has an invalid extension: {file_path}')
 
-    with open(file_path, 'w') as file:
+    with file:
         if float_precision is None:
             json.dump(
                 obj=log,

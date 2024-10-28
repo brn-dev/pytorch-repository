@@ -1,16 +1,17 @@
+import json
 import os.path
 from contextlib import contextmanager
 from typing import Optional, Any, Callable
+from pathlib import Path
 
 from src.datetime import get_current_timestamp
 from src.experiment_logging.experiment_log import ExperimentLog, DEFAULT_CATEGORY_KEY, ExperimentLogItem, \
-    ModelDBReference, load_experiment_log, save_experiment_log
+    ModelDBReference, load_experiment_log, save_experiment_log, JSON_EXTENSION, ZIPPED_JSON_EXTENSION
 from src.hyper_parameters import HyperParameters
 from src.id_generation import generate_timestamp_id
 from src.summary_statistics import format_summary_statistics, is_summary_statistics
 from src.system_info import get_system_info
 from src.utils import default_fn, format_current_exception, remove_duplicates_keep_order
-
 
 class ExperimentLogger:
     _experiment_log: Optional[ExperimentLog]
@@ -21,11 +22,13 @@ class ExperimentLogger:
             log_folder_path: str,
             save_on_exit: bool = True,
             log_pretty: bool = False,
+            zip_json: bool = False,
     ):
         self._experiment_log = None
         self.log_folder_path = log_folder_path
         self.save_on_exit = save_on_exit
         self.log_pretty = log_pretty
+        self.zip_json = zip_json
 
         self.current_items_by_category: dict[str, ExperimentLogItem] = {}
 
@@ -40,8 +43,12 @@ class ExperimentLogger:
         self._experiment_log = log
 
     @property
-    def experiment_file_path(self):
-        return os.path.join(self.log_folder_path, f'{self.experiment_log["experiment_id"]}.json')
+    def experiment_log_file_path(self):
+        if self.zip_json:
+            ext = ZIPPED_JSON_EXTENSION
+        else:
+            ext = JSON_EXTENSION
+        return os.path.join(self.log_folder_path, self.experiment_log["experiment_id"] + ext)
 
     def start_experiment_log(
             self,
@@ -54,20 +61,29 @@ class ExperimentLogger:
             notes: Optional[list[str]] = None,
             model_db_references: list[ModelDBReference] = None,
     ):
-        experiment_log: ExperimentLog = {
-            'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
-            'experiment_tags': default_fn(experiment_tags, lambda: []),
-            'start_time': default_fn(start_time, lambda: get_current_timestamp()),
-            'end_time': None,
-            'end_exception': None,
-            'hyper_parameters': default_fn(hyper_parameters, lambda: {}),
-            'system_info': default_fn(system_info, get_system_info),
-            'setup': default_fn(setup, lambda: {}),
-            'notes': default_fn(notes, lambda: []),
-            'model_db_references': model_db_references or [],
-            'logs_by_category': {}
-        }
-        self.experiment_log = experiment_log
+        file_path = Path(self.experiment_log_file_path)
+
+        json_path = file_path.with_suffix(JSON_EXTENSION)
+        zipped_json_path = file_path.with_suffix(ZIPPED_JSON_EXTENSION)
+
+        if json_path.exists():
+            self.experiment_log = load_experiment_log(str(json_path))
+        elif zipped_json_path.exists():
+            self.experiment_log = load_experiment_log(str(zipped_json_path))
+        else:
+            self.experiment_log = {
+                'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
+                'experiment_tags': default_fn(experiment_tags, lambda: []),
+                'start_time': default_fn(start_time, lambda: get_current_timestamp()),
+                'end_time': None,
+                'end_exception': None,
+                'hyper_parameters': default_fn(hyper_parameters, lambda: {}),
+                'system_info': default_fn(system_info, get_system_info),
+                'setup': default_fn(setup, lambda: {}),
+                'notes': default_fn(notes, lambda: []),
+                'model_db_references': model_db_references or [],
+                'logs_by_category': {}
+            }
 
     def add_item(
             self,
@@ -118,7 +134,7 @@ class ExperimentLogger:
 
     def save_experiment_log(self, file_path: Optional[str] = None) -> ExperimentLog:
         if file_path is None:
-            file_path = self.experiment_file_path
+            file_path = self.experiment_log_file_path
 
         save_experiment_log(file_path, self._experiment_log, 2 if self.log_pretty else None)
 

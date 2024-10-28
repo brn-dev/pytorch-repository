@@ -13,7 +13,7 @@ import plotly.graph_objs as go
 from matplotlib.lines import Line2D
 
 from src.experiment_logging.experiment_log import ExperimentLog, ExperimentLogItem, DEFAULT_CATEGORY_KEY, \
-    load_experiment_log, get_log_items
+    load_experiment_log, get_log_items, JSON_EXTENSION, ZIPPED_JSON_EXTENSION
 from src.hyper_parameters import TYPE_KEY, FQ_TYPE_KEY
 from src.utils import dict_diff
 
@@ -32,8 +32,9 @@ class LogAnalyzer:
         self.logs.append(load_experiment_log(file_path))
 
     def load_log_folder(self, folder_path: str, log_filter: Callable[[ExperimentLog], bool] = lambda log: True):
-        files = glob.glob(os.path.join(folder_path, '*.json'))
-        for file in files:
+        json_files = glob.glob(os.path.join(folder_path, f'*{JSON_EXTENSION}'))
+        zipped_json_files = glob.glob(os.path.join(folder_path, f'*{ZIPPED_JSON_EXTENSION}'))
+        for file in (json_files + zipped_json_files):
             log = load_experiment_log(file)
             if log_filter(log):
                 self.logs.append(log)

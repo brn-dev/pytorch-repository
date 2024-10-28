@@ -176,24 +176,28 @@ class BaseAlgorithm(HasHyperParameters, HasTags, Generic[Policy, Buffer, StashCo
 
     def save(self, folder_location: str, name: str, policy_as_state_dict: bool = True, **meta_data):
         buffer_path = os.path.join(folder_location, name + BUFFER_FILE_SUFFIX)
+        meta_data.update({
+            'buffer_path': buffer_path,
+            'steps_performed': self.steps_performed,
+        })
+
         # policy.save checks if the folder exists and creates it if necessary
         self.policy.save(
             os.path.join(folder_location, name + POLICY_FILE_SUFFIX),
             as_state_dict=policy_as_state_dict,
-            buffer_path=buffer_path,
-            steps_performed=self.steps_performed,
             **meta_data
         )
+
         joblib.dump(self.buffer, buffer_path)
+        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'w') as file:
+            json.dump(meta_data, file)
 
     def load(self, folder_location: str, name: str) -> dict[str, Any]:
-        os.makedirs(folder_location, exist_ok=True)
-
         self.policy.load_state_dict(torch.load(os.path.join(folder_location, name + POLICY_FILE_SUFFIX)))
         self.buffer = joblib.load(os.path.join(folder_location, name + BUFFER_FILE_SUFFIX))
 
-        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'r') as f:
-            meta_data = json.load(f)
+        with open(os.path.join(folder_location, name + META_DATA_FILE_SUFFIX), 'r') as file:
+            meta_data = json.load(file)
 
         self.steps_performed = meta_data.get('steps_performed') or self.steps_performed
         return meta_data

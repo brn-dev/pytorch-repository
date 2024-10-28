@@ -70,6 +70,7 @@ def record_policy(
         video_folder: str,
         deterministic_actions: bool,
         num_steps: int,
+        video_name_prefix: str = 'rl-video',
         torch_device: TorchDevice = 'cpu',
         torch_dtype: torch.dtype = torch.float32,
 ):
@@ -79,7 +80,12 @@ def record_policy(
 
         if 'render_fps' not in env.metadata:
             env.metadata['render_fps'] = 30
-        env = AutoResetWrapper(RecordVideo(env, video_folder=video_folder, episode_trigger=lambda ep_nr: True))
+        env = AutoResetWrapper(RecordVideo(
+            env,
+            video_folder=video_folder,
+            name_prefix=video_name_prefix,
+            episode_trigger=lambda ep_nr: True
+        ))
 
         policy.reset_sde_noise(1)
 

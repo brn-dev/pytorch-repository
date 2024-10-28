@@ -25,10 +25,12 @@ from src.reinforcement_learning.core.type_aliases import OptimizerProvider, Tens
 from src.reinforcement_learning.gym.env_analysis import get_single_action_space
 from src.torch_device import TorchDevice
 from src.torch_functions import identity
+from src.torch_utils import load_state_dict_if_exists, load_if_exists
 
 ACTOR_OPTIMIZER_FILE_SUFFIX = '.actor_optimizer.state_dict.pth'
 CRITIC_OPTIMIZER_FILE_SUFFIX = '.critic_optimizer.state_dict.pth'
 ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX = '.entropy_coef_optimizer.state_dict.pth'
+LOG_ENTROPY_COEF_FILE_SUFFIX = '.log_entropy_coef.tensor.pth'
 
 SAC_DEFAULT_OPTIMIZER_PROVIDER = lambda params: optim.Adam(params, lr=3e-4)
 AUTO_TARGET_ENTROPY = 'auto'
@@ -334,37 +336,59 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             gradient_step_infos.append(step_info)
         info.update(concat_infos(gradient_step_infos))
 
-    def save(self, folder_location: str, name: str, **meta_data):
-        actor_optimizer_path = os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
-        critic_optimizer_path = os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
-        entropy_coef_optimizer_path = os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
+    def save(
+            self,
+            folder_location: str,
+            name: str,
+            save_optimizers: bool = True,
+            save_log_entropy_coef: bool = True,
+            **meta_data
+    ):
+        paths = {}
+
+        if save_optimizers:
+            actor_optimizer_path = os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
+            critic_optimizer_path = os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
+            entropy_coef_optimizer_path = os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
+
+            torch.save(self.actor_optimizer.state_dict(), actor_optimizer_path)
+            torch.save(self.critic_optimizer.state_dict(), critic_optimizer_path)
+            if self.entropy_coef_optimizer is not None:
+                torch.save(self.entropy_coef_optimizer.state_dict(), entropy_coef_optimizer_path)
+
+            paths['actor_optimizer_path'] = actor_optimizer_path
+            paths['critic_optimizer_path'] = critic_optimizer_path
+            paths['entropy_coef_optimizer_path'] = entropy_coef_optimizer_path
+
+        if save_log_entropy_coef:
+            log_entropy_coef_path = os.path.join(folder_location, name + LOG_ENTROPY_COEF_FILE_SUFFIX)
+            torch.save(self.log_entropy_coef, log_entropy_coef_path)
+            paths['log_entropy_coef_path'] = log_entropy_coef_path
 
         super().save(
             folder_location,
             name,
             gradient_steps_performed=self.gradient_steps_performed,
-            actor_optimizer_path=actor_optimizer_path,
-            critic_optimizer_path=critic_optimizer_path,
-            entropy_coef_optimizer_path=entropy_coef_optimizer_path,
+            **paths,
             **meta_data
         )
-
-        torch.save(self.actor_optimizer.state_dict(), actor_optimizer_path)
-        torch.save(self.critic_optimizer.state_dict(), critic_optimizer_path)
-        torch.save(self.entropy_coef_optimizer.state_dict(), entropy_coef_optimizer_path)
 
     def load(self, folder_location: str, name: str) -> dict[str, Any]:
         meta_data = super().load(folder_location, name)
 
-        self.actor_optimizer.load_state_dict(
-            torch.load(os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX))
+        load_state_dict_if_exists(
+            self.actor_optimizer, os.path.join(folder_location, name + ACTOR_OPTIMIZER_FILE_SUFFIX)
         )
-        self.critic_optimizer.load_state_dict(
-            torch.load(os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX))
+        load_state_dict_if_exists(
+            self.critic_optimizer, os.path.join(folder_location, name + CRITIC_OPTIMIZER_FILE_SUFFIX)
         )
-        self.entropy_coef_optimizer.load_state_dict(
-            torch.load(os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX))
+        load_state_dict_if_exists(
+            self.entropy_coef_optimizer, os.path.join(folder_location, name + ENTROPY_COEF_OPTIMIZER_FILE_SUFFIX)
         )
+
+        log_entropy_coef = load_if_exists(os.path.join(folder_location, name + LOG_ENTROPY_COEF_FILE_SUFFIX))
+        if log_entropy_coef is not None:
+            self.log_entropy_coef = log_entropy_coef
 
         self.gradient_steps_performed = meta_data.get('gradient_steps_performed') or self.gradient_steps_performed
         return meta_data
