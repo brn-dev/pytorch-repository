@@ -70,27 +70,30 @@ class ExperimentLogger:
             notes: Optional[list[str]] = None,
             model_db_references: list[ModelDBReference] = None,
     ):
-        json_path = self.get_experiment_log_file_path(experiment_id, zipped=False)
-        zipped_json_path = self.get_experiment_log_file_path(experiment_id, zipped=True)
+        if experiment_id is not None:
+            json_path = self.get_experiment_log_file_path(experiment_id, zipped=False)
+            if os.path.exists(json_path):
+                self.experiment_log = load_experiment_log(json_path)
+                return
 
-        if os.path.exists(json_path):
-            self.experiment_log = load_experiment_log(json_path)
-        elif os.path.exists(zipped_json_path):
-            self.experiment_log = load_experiment_log(zipped_json_path)
-        else:
-            self.experiment_log = {
-                'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
-                'experiment_tags': default_fn(experiment_tags, lambda: []),
-                'start_time': default_fn(start_time, lambda: get_current_timestamp()),
-                'end_time': None,
-                'end_exception': None,
-                'hyper_parameters': default_fn(hyper_parameters, lambda: {}),
-                'system_info': default_fn(system_info, get_system_info),
-                'setup': default_fn(setup, lambda: {}),
-                'notes': default_fn(notes, lambda: []),
-                'model_db_references': model_db_references or [],
-                'logs_by_category': {}
-            }
+            zipped_json_path = self.get_experiment_log_file_path(experiment_id, zipped=True)
+            if os.path.exists(zipped_json_path):
+                self.experiment_log = load_experiment_log(zipped_json_path)
+                return
+
+        self.experiment_log = {
+            'experiment_id': default_fn(experiment_id, lambda: generate_timestamp_id()),
+            'experiment_tags': default_fn(experiment_tags, lambda: []),
+            'start_time': default_fn(start_time, lambda: get_current_timestamp()),
+            'end_time': None,
+            'end_exception': None,
+            'hyper_parameters': default_fn(hyper_parameters, lambda: {}),
+            'system_info': default_fn(system_info, get_system_info),
+            'setup': default_fn(setup, lambda: {}),
+            'notes': default_fn(notes, lambda: []),
+            'model_db_references': model_db_references or [],
+            'logs_by_category': {}
+        }
 
     def add_item(
             self,
