@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Type, Optional, Any, Literal
 
 import gymnasium
@@ -15,8 +16,8 @@ from src.reinforcement_learning.algorithms.base.off_policy_algorithm import OffP
 from src.reinforcement_learning.algorithms.sac.sac_crossq_policy import SACCrossQPolicy
 from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy
 from src.reinforcement_learning.core.action_noise import ActionNoise
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
-from src.reinforcement_learning.core.buffers.replay.replay_buffer import ReplayBuffer
+from src.reinforcement_learning.core.buffers.replay.base_ring_replay_buffer import BaseRingReplayBuffer, ReplayBufferSamples
+from src.reinforcement_learning.core.buffers.replay.ring_replay_buffer import RingReplayBuffer
 from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.infos import InfoDict, concat_infos
 from src.reinforcement_learning.core.info_stash import InfoStashConfig, stash_if_enabled, create_stash_list
@@ -72,7 +73,7 @@ class SACInfoStashConfig(InfoStashConfig):
 
 
 class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
-    buffer: BaseReplayBuffer
+    buffer: BaseRingReplayBuffer
     target_entropy: float
     log_entropy_coef: Optional[torch.Tensor]
     entropy_coef_optimizer: Optional[optim.Optimizer]
@@ -86,10 +87,10 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             critic_optimizer_provider: OptimizerProvider = SAC_DEFAULT_OPTIMIZER_PROVIDER,
             weigh_and_reduce_actor_loss: TorchTensorFn = torch.mean,
             weigh_critic_loss: TorchTensorFn = identity,
-            buffer_type: Type[ReplayBuf] = ReplayBuffer,
-            buffer_size: int = 100_000,
-            buffer_kwargs: dict[str, Any] = None,
+            buffer_type: Type[ReplayBuf] = RingReplayBuffer,
+            buffer_step_size: int = 100_000,
             reward_scale: float = 1.0,
+            buffer_kwargs: dict[str, Any] = None,
             gamma: float = 0.99,
             tau: float = 0.005,
             rollout_steps: int = 1,
@@ -114,7 +115,7 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             policy=policy,
             buffer=buffer_type.for_env(
                 env=env,
-                buffer_size=buffer_size,
+                buffer_size=buffer_step_size,
                 torch_device=torch_device,
                 torch_dtype=torch_dtype,
                 reward_scale=reward_scale,
@@ -344,6 +345,8 @@ class SAC(OffPolicyAlgorithm[SACPolicy, ReplayBuf, SACInfoStashConfig]):
             save_log_entropy_coef: bool = True,
             **meta_data
     ):
+        Path(folder_location).mkdir(parents=True, exist_ok=True)
+
         paths = {}
 
         if save_optimizers:

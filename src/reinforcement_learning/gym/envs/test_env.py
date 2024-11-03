@@ -7,7 +7,7 @@ from gymnasium.core import ObsType, ActType
 
 class TestEnv(gymnasium.Env):
 
-    def __init__(self, obs_size: int, dict_obs: bool, action_in_obs: bool, episode_length: int):
+    def __init__(self, obs_size: int, dict_obs: bool = False, action_in_obs: bool = False, episode_length: int = 10):
         self.counter = 0
 
         self.action_size = 2
@@ -63,4 +63,4 @@ class TestEnv(gymnasium.Env):
         else:
             reward = 1.0
 
-        return self.get_obs(action), reward, done, False, {}
+        return self.get_obs(action), reward, done, done, {}

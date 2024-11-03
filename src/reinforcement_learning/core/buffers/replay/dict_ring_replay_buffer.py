@@ -3,12 +3,12 @@ from typing import NamedTuple
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
+from src.reinforcement_learning.core.buffers.replay.base_ring_replay_buffer import BaseRingReplayBuffer, ReplayBufferSamples
 from src.reinforcement_learning.core.type_aliases import TensorDict, ShapeDict, NpArrayDict, TensorObs
 from src.torch_device import TorchDevice
 
 
-class DictReplayBuffer(BaseReplayBuffer):
+class DictRingReplayBuffer(BaseRingReplayBuffer):
 
     def __init__(
             self,

@@ -1,27 +1,20 @@
 import abc
-from typing import NamedTuple, Callable
 
 import numpy as np
 import torch
+from gymnasium import Env
 
-from src.reinforcement_learning.core.buffers.base_buffer import BaseBuffer
+from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import ReplayBufferSamples, BaseReplayBuffer
 from src.reinforcement_learning.core.type_aliases import ShapeDict, NpObs, TensorObs
+from src.reinforcement_learning.gym.env_analysis import get_num_envs, get_obs_shape, get_action_shape
 from src.torch_device import TorchDevice
-
-
-class ReservoirBufferSamples(NamedTuple):
-    observations: TensorObs
-    actions: torch.Tensor
-    next_observations: TensorObs
-    dones: torch.Tensor
-    rewards: torch.Tensor
 
 """
 
         https://en.wikipedia.org/wiki/Reservoir_sampling
 
 """
-class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
+class BaseReservoirReplayBuffer(BaseReplayBuffer, abc.ABC):
 
     def __init__(
             self,
@@ -42,6 +35,7 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
             obs_shape=obs_shape,
             action_shape=action_shape,
             reward_scale=reward_scale,
+            consider_truncated_as_done=consider_truncated_as_done,
             torch_device=torch_device,
             torch_dtype=torch_dtype,
             np_dtype=np_dtype,
@@ -54,13 +48,13 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
         self.terminated = np.zeros(self.total_size, dtype=bool)
         self.truncated = np.zeros(self.total_size, dtype=bool)
 
-        self.consider_truncated_as_done = consider_truncated_as_done
-
-        self.rng = np.random.default_rng(None)
+    @property
+    def step_count(self):
+        return self.total_size if self.full else self.pos
 
     @property
-    def size(self):
-        return self.total_size if self.full else self.pos
+    def count(self):
+        return self.step_count
 
     def add(
             self,
@@ -125,15 +119,11 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
     ) -> None:
         raise NotImplementedError
 
-    def sample(self, batch_size: int) -> ReservoirBufferSamples:
-        batch_indices = np.random.choice(self.size, batch_size)
-        return self._get_batch(batch_indices)
-
     @abc.abstractmethod
     def _get_batch_obs(self, batch_indices: np.ndarray) -> tuple[TensorObs, TensorObs]:
         raise NotImplementedError
 
-    def _get_batch(self, batch_indices: np.ndarray) -> ReservoirBufferSamples:
+    def _get_batch(self, batch_indices: np.ndarray) -> ReplayBufferSamples:
         tensor_obs, next_tensor_obs = self._get_batch_obs(batch_indices)
 
         if self.consider_truncated_as_done:
@@ -141,10 +131,63 @@ class BaseReservoirBuffer(BaseBuffer[ReservoirBufferSamples], abc.ABC):
         else:
             dones = self.terminated[batch_indices]
 
-        return ReservoirBufferSamples(
+        return ReplayBufferSamples(
             observations=tensor_obs,
             actions=self.to_torch(self.actions[batch_indices, :]),
             next_observations=next_tensor_obs,
             dones=self.to_torch(dones.reshape(-1, 1)),
             rewards=self.to_torch(self.rewards[batch_indices].reshape(-1, 1))
+        )
+
+    def sample(self, batch_size: int) -> ReplayBufferSamples:
+        batch_indices = self.rng.choice(self.step_count, batch_size)
+        return self._get_batch(batch_indices)
+
+    def tail_indices(self, tail_length: int):
+        if self.pos > self.step_size:
+            raise RuntimeError('Can not get tail indices from an over-full reservoir buffer')
+        return super().tail_indices(tail_length)
+
+    def compute_most_recent_episode_scores(
+            self,
+            n_episodes: int,
+            compensate_for_reward_scaling: bool = True,
+            consider_truncated_as_done: bool | None = None
+    ):
+        return self._compute_most_recent_episode_scores(
+            rewards=self.rewards.reshape(-1, self.num_envs),
+            terminated=self.terminated.reshape(-1, self.num_envs),
+            truncated=self.truncated.reshape(-1, self.num_envs),
+            n_episodes=n_episodes,
+            compensate_for_reward_scaling=compensate_for_reward_scaling,
+            consider_truncated_as_done=consider_truncated_as_done,
+        )
+
+    # noinspection PyMethodOverriding
+    @classmethod
+    def for_env(
+            cls,
+            env: Env,
+            buffer_size: int,
+            reward_scale: float,
+            torch_device: TorchDevice,
+            torch_dtype: torch.dtype = torch.float32,
+            np_dtype: np.dtype = np.float32,
+            **buffer_kwargs
+    ):
+        num_envs = get_num_envs(env)
+
+        obs_shape = get_obs_shape(env)
+        action_shape = get_action_shape(env)
+
+        return cls(
+            total_size=buffer_size,
+            num_envs=num_envs,
+            reward_scale=reward_scale,
+            obs_shape=obs_shape,
+            action_shape=action_shape,
+            torch_device=torch_device,
+            torch_dtype=torch_dtype,
+            np_dtype=np_dtype,
+            **buffer_kwargs
         )

@@ -1,19 +1,18 @@
 import numpy as np
 import torch
 
-from src.reinforcement_learning.core.buffers.resevoir.base_reservoir_buffer import BaseReservoirBuffer, \
-    ReservoirBufferSamples
-from src.reinforcement_learning.core.type_aliases import NpObs, ShapeDict, TensorObs
+from src.reinforcement_learning.core.buffers.replay.base_reservoir_replay_buffer import BaseReservoirReplayBuffer
+from src.reinforcement_learning.core.type_aliases import NpObs, TensorObs
 from src.torch_device import TorchDevice
 
 
-class ReservoirBuffer(BaseReservoirBuffer):
+class ReservoirReplayBuffer(BaseReservoirReplayBuffer):
 
     def __init__(
             self,
             total_size: int,
             num_envs: int,
-            obs_shape: tuple[int, ...] | ShapeDict,
+            obs_shape: tuple[int, ...],
             action_shape: tuple[int, ...],
             reward_scale: float,
             consider_truncated_as_done: bool = False,

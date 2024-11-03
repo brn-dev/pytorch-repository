@@ -14,7 +14,6 @@ from src.reinforcement_learning.core.callback import Callback
 from src.reinforcement_learning.core.info_stash import create_stash_list
 from src.reinforcement_learning.core.infos import InfoDict, stack_infos
 from src.torch_device import TorchDevice
-from src.void_list import VoidList
 
 ReplayBuf = TypeVar('ReplayBuf', bound=BaseReplayBuffer)
 

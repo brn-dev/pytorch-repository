@@ -8,7 +8,7 @@ from src.hyper_parameters import HyperParameters
 from src.reinforcement_learning.core.action_selectors.predicted_std_action_selector import PredictedStdActionSelector
 from src.reinforcement_learning.core.action_selectors.state_dependent_noise_action_selector import \
     StateDependentNoiseActionSelector
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import ReplayBufferSamples
+from src.reinforcement_learning.core.buffers.replay.base_ring_replay_buffer import ReplayBufferSamples
 from src.reinforcement_learning.core.policies.base_policy import BasePolicy
 from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor

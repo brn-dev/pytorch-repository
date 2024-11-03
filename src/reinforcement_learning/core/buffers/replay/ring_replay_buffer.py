@@ -3,12 +3,12 @@ import torch
 from overrides import override
 
 from src.hyper_parameters import HyperParameters
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import BaseReplayBuffer, ReplayBufferSamples
+from src.reinforcement_learning.core.buffers.replay.base_ring_replay_buffer import BaseRingReplayBuffer, ReplayBufferSamples
 from src.reinforcement_learning.core.type_aliases import TensorObs
 from src.torch_device import TorchDevice
 
 
-class ReplayBuffer(BaseReplayBuffer):
+class RingReplayBuffer(BaseRingReplayBuffer):
 
     def __init__(
             self,
@@ -60,18 +60,18 @@ class ReplayBuffer(BaseReplayBuffer):
 
     @override
     def sample(self, batch_size: int) -> ReplayBufferSamples:
-        env_indices = np.random.randint(0, high=self.num_envs, size=batch_size)
+        env_indices = self.rng.choice(self.num_envs, size=batch_size)
 
         if not self.optimize_memory_usage:
-            step_indices = np.random.choice(self.size, batch_size)
+            step_indices = self.rng.choice(self.step_count, batch_size)
             return self._get_batch(step_indices, env_indices)
 
         # Do not sample the element with index `self.pos` as the transitions is invalid
         # (we use only one array to store `obs` and `next_obs`)
         if self.full:
-            step_indices = (np.random.choice(self.step_size - 1, batch_size) + self.pos + 1) % self.step_size
+            step_indices = (self.rng.choice(self.step_size - 1, batch_size) + self.pos + 1) % self.step_size
         else:
-            step_indices = np.random.choice(self.pos, batch_size)
+            step_indices = self.rng.choice(self.pos, batch_size)
 
         return self._get_batch(step_indices, env_indices)
 

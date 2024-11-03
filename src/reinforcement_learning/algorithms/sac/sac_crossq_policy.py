@@ -5,7 +5,7 @@ import torch
 from src.console import print_warning
 from src.normalization import normalization_classes
 from src.reinforcement_learning.algorithms.sac.sac_policy import SACPolicy
-from src.reinforcement_learning.core.buffers.replay.base_replay_buffer import ReplayBufferSamples
+from src.reinforcement_learning.core.buffers.replay.base_ring_replay_buffer import ReplayBufferSamples
 from src.reinforcement_learning.core.policies.components.actor import Actor
 from src.reinforcement_learning.core.policies.components.feature_extractors import FeatureExtractor
 from src.reinforcement_learning.core.policies.components.q_critic import QCritic

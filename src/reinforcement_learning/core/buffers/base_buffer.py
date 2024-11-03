@@ -61,8 +61,12 @@ class BaseBuffer(HasHyperParameters, HasTags, Generic[BufferSamples], abc.ABC):
         return self._reward_scale if self._reward_scale is not None else 1.0
 
     @property
-    def size(self):
+    def step_count(self):
         return self.step_size if self.full else self.pos
+
+    @property
+    def count(self):
+        return self.step_count * self.num_envs
 
     def reset(self):
         self.pos = 0

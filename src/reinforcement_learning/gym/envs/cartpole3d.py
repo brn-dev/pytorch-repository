@@ -119,7 +119,7 @@ class CartPole3D(gym.Env):
         qpos[:self.nr_movement_dimensions] = \
             self.np_random.uniform(-self.slide_range, self.slide_range, self.nr_movement_dimensions)
         qpos[self.nr_movement_dimensions:] = \
-            self.np_random.uniform(-self.hinge_range, self.hinge_range, qpos.size - self.nr_movement_dimensions)
+            self.np_random.uniform(-self.hinge_range, self.hinge_range, qpos.step_count - self.nr_movement_dimensions)
 
         self.physics.data.qpos *= self.reset_randomization_magnitude
 

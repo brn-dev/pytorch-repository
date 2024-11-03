@@ -1,11 +1,19 @@
+import functools
 import inspect
 import re
 from typing import Callable
 
 
 def func_repr(f: Callable) -> str:
+    if f is None:
+        return str(None)
+
+    if isinstance(f, functools.partial):
+        return func_repr(f.func)
+
     if f.__name__ == '<lambda>':
         return lambda_repr_from_source(f)
+
     # repr looks like <built-in method mean of type object at 0x123124512>
     # removing the memory address
     f_repr = re.sub(' at 0x[^>]*', '', repr(f))
